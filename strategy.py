@@ -1,18 +1,13 @@
 """
-Exp8: Best of exp4 + exp7.
+Exp10: Surgical improvements on exp8 (5.533).
 
-Take exp7's signal improvements:
-- 4-timeframe momentum (6h, 12h, 24h, 48h)
-- Lower dynamic threshold (0.012 base, range 0.006-0.025)
-- Relaxed BTC confirmation (only block on strong opposition)
-- 4-signal ensemble (3/4 required)
-
-Keep exp4's risk controls:
-- 0.14 base position (not 0.18)
-- vol_scale capped at 2.0
-- Same ATR stop and take-profit
-
-Add new: drawdown-adaptive position sizing
+Small targeted changes:
+1. Lower RSI thresholds (53/47 instead of 55/45) — more trades, less filtering
+2. Increase pyramid size from 0.5 to 0.6 of base
+3. Lower take-profit from 0.06 to 0.07 (let winners run slightly more)
+4. Add mean-reversion exit: close position when RSI overshoots in our direction
+   (RSI > 75 for longs, < 25 for shorts — mean reversion is coming)
+5. Slightly higher FUNDING_BOOST (0.35)
 """
 
 import numpy as np
@@ -28,27 +23,29 @@ LONG_WINDOW = 48
 EMA_FAST = 12
 EMA_SLOW = 26
 RSI_PERIOD = 14
-RSI_BULL = 55
-RSI_BEAR = 45
+RSI_BULL = 53
+RSI_BEAR = 47
+RSI_OVERBOUGHT = 75
+RSI_OVERSOLD = 25
 
 FUNDING_LOOKBACK = 24
-FUNDING_BOOST = 0.3
+FUNDING_BOOST = 0.35
 BASE_POSITION_PCT = 0.14
 VOL_LOOKBACK = 48
 TARGET_VOL = 0.015
 ATR_LOOKBACK = 24
 ATR_STOP_MULT = 3.5
-TAKE_PROFIT_PCT = 0.06
+TAKE_PROFIT_PCT = 0.07
 BASE_THRESHOLD = 0.012
 BTC_OPPOSE_THRESHOLD = -0.01
 
 PYRAMID_THRESHOLD = 0.02
+PYRAMID_SIZE = 0.6
 CORR_LOOKBACK = 72
 HIGH_CORR_THRESHOLD = 0.85
 
-# Drawdown management
-DD_REDUCE_THRESHOLD = 0.04  # start reducing at 4% DD
-DD_REDUCE_SCALE = 0.5  # reduce to 50% size at max DD
+DD_REDUCE_THRESHOLD = 0.04
+DD_REDUCE_SCALE = 0.5
 
 def ema(values, span):
     alpha = 2.0 / (span + 1)
@@ -112,7 +109,6 @@ class Strategy:
         signals = []
         equity = portfolio.equity if portfolio.equity > 0 else portfolio.cash
 
-        # Track drawdown
         self.peak_equity = max(self.peak_equity, equity)
         current_dd = (self.peak_equity - equity) / self.peak_equity
         dd_scale = 1.0
@@ -207,10 +203,10 @@ class Strategy:
                         pnl = -pnl
                     if pnl > PYRAMID_THRESHOLD:
                         if current_pos > 0 and bullish:
-                            target = current_pos + size * 0.5
+                            target = current_pos + size * PYRAMID_SIZE
                             self.pyramided[symbol] = True
                         elif current_pos < 0 and bearish:
-                            target = current_pos - size * 0.5
+                            target = current_pos - size * PYRAMID_SIZE
                             self.pyramided[symbol] = True
 
                 atr = self._calc_atr(bd.history, ATR_LOOKBACK)
@@ -231,6 +227,7 @@ class Strategy:
                     if mid > stop:
                         target = 0.0
 
+                # Take profit
                 if symbol in self.entry_prices:
                     entry = self.entry_prices[symbol]
                     pnl = (mid - entry) / entry
@@ -238,6 +235,12 @@ class Strategy:
                         pnl = -pnl
                     if pnl > TAKE_PROFIT_PCT:
                         target = 0.0
+
+                # Mean reversion exit: RSI extreme in our direction
+                if current_pos > 0 and rsi > RSI_OVERBOUGHT:
+                    target = 0.0
+                elif current_pos < 0 and rsi < RSI_OVERSOLD:
+                    target = 0.0
 
                 if current_pos > 0 and bearish:
                     target = -size
