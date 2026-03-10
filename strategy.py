@@ -1,11 +1,12 @@
 """
-Exp13: Build on exp11 (6.783).
+Exp15: Focus on signal quality from exp13 (7.758).
 
+Key insight: turnover penalty is binding. Need fewer, higher-quality trades.
 Changes:
-1. Add MACD histogram as 5th signal (need 3/5 for entry)
-2. Higher base position 0.16 (DD headroom exists at 3.6%)
-3. Reduce funding boost to 0.25 (less noise)
-4. Tighter take-profit 0.06 (lock in more gains)
+1. Require 4/5 signals instead of 3/5 (higher conviction entries)
+2. Add re-entry cooldown (don't re-enter same symbol within 6 bars)
+3. Wider take-profit 0.08 (hold longer, fewer exits)
+4. Keep position at 0.16 (sweet spot from exp13)
 """
 
 import numpy as np
@@ -37,7 +38,7 @@ VOL_LOOKBACK = 48
 TARGET_VOL = 0.015
 ATR_LOOKBACK = 24
 ATR_STOP_MULT = 3.5
-TAKE_PROFIT_PCT = 0.06
+TAKE_PROFIT_PCT = 0.08
 BASE_THRESHOLD = 0.012
 BTC_OPPOSE_THRESHOLD = -0.01
 
@@ -48,6 +49,9 @@ HIGH_CORR_THRESHOLD = 0.85
 
 DD_REDUCE_THRESHOLD = 0.04
 DD_REDUCE_SCALE = 0.5
+
+COOLDOWN_BARS = 6
+MIN_VOTES = 4  # out of 5
 
 def ema(values, span):
     alpha = 2.0 / (span + 1)
@@ -76,6 +80,8 @@ class Strategy:
         self.btc_momentum = 0.0
         self.pyramided = {}
         self.peak_equity = 100000.0
+        self.exit_bar = {}  # track when we last exited
+        self.bar_count = 0
 
     def _calc_atr(self, history, lookback):
         if len(history) < lookback + 1:
@@ -114,12 +120,12 @@ class Strategy:
         slow_ema = ema(closes[-(MACD_SLOW + MACD_SIGNAL + 5):], MACD_SLOW)
         macd_line = fast_ema - slow_ema
         signal_line = ema(macd_line, MACD_SIGNAL)
-        histogram = macd_line[-1] - signal_line[-1]
-        return histogram
+        return macd_line[-1] - signal_line[-1]
 
     def on_bar(self, bar_data, portfolio):
         signals = []
         equity = portfolio.equity if portfolio.equity > 0 else portfolio.cash
+        self.bar_count += 1
 
         self.peak_equity = max(self.peak_equity, equity)
         current_dd = (self.peak_equity - equity) / self.peak_equity
@@ -168,24 +174,25 @@ class Strategy:
             rsi_bull = rsi > RSI_BULL
             rsi_bear = rsi < RSI_BEAR
 
-            # MACD histogram
             macd_hist = self._calc_macd(closes)
             macd_bull = macd_hist > 0
             macd_bear = macd_hist < 0
 
-            # 5 signals: need 3/5
             bull_votes = sum([mom_bull, vshort_bull, ema_bull, rsi_bull, macd_bull])
             bear_votes = sum([mom_bear, vshort_bear, ema_bear, rsi_bear, macd_bear])
 
             btc_confirm = True
             if symbol != "BTC":
-                if bull_votes >= 3 and self.btc_momentum < BTC_OPPOSE_THRESHOLD:
+                if bull_votes >= MIN_VOTES and self.btc_momentum < BTC_OPPOSE_THRESHOLD:
                     btc_confirm = False
-                if bear_votes >= 3 and self.btc_momentum > -BTC_OPPOSE_THRESHOLD:
+                if bear_votes >= MIN_VOTES and self.btc_momentum > -BTC_OPPOSE_THRESHOLD:
                     btc_confirm = False
 
-            bullish = bull_votes >= 3 and btc_confirm
-            bearish = bear_votes >= 3 and btc_confirm
+            bullish = bull_votes >= MIN_VOTES and btc_confirm
+            bearish = bear_votes >= MIN_VOTES and btc_confirm
+
+            # Cooldown check
+            in_cooldown = (self.bar_count - self.exit_bar.get(symbol, -999)) < COOLDOWN_BARS
 
             vol_scale = min(2.0, max(0.3, TARGET_VOL / realized_vol))
             weight = SYMBOL_WEIGHTS.get(symbol, 0.33)
@@ -202,17 +209,18 @@ class Strategy:
             target = current_pos
 
             if current_pos == 0:
-                funding_mult = 1.0
-                if bullish:
-                    if avg_funding < 0:
-                        funding_mult = 1.0 + FUNDING_BOOST
-                    target = size * funding_mult
-                    self.pyramided[symbol] = False
-                elif bearish:
-                    if avg_funding > 0:
-                        funding_mult = 1.0 + FUNDING_BOOST
-                    target = -size * funding_mult
-                    self.pyramided[symbol] = False
+                if not in_cooldown:
+                    funding_mult = 1.0
+                    if bullish:
+                        if avg_funding < 0:
+                            funding_mult = 1.0 + FUNDING_BOOST
+                        target = size * funding_mult
+                        self.pyramided[symbol] = False
+                    elif bearish:
+                        if avg_funding > 0:
+                            funding_mult = 1.0 + FUNDING_BOOST
+                        target = -size * funding_mult
+                        self.pyramided[symbol] = False
             else:
                 if symbol in self.entry_prices and not self.pyramided.get(symbol, True):
                     entry = self.entry_prices[symbol]
@@ -258,9 +266,10 @@ class Strategy:
                 elif current_pos < 0 and rsi < RSI_OVERSOLD:
                     target = 0.0
 
-                if current_pos > 0 and bearish:
+                # Only flip with cooldown respected
+                if current_pos > 0 and bearish and not in_cooldown:
                     target = -size
-                elif current_pos < 0 and bullish:
+                elif current_pos < 0 and bullish and not in_cooldown:
                     target = size
 
             if abs(target - current_pos) > 1.0:
@@ -274,6 +283,7 @@ class Strategy:
                     self.peak_prices.pop(symbol, None)
                     self.atr_at_entry.pop(symbol, None)
                     self.pyramided.pop(symbol, None)
+                    self.exit_bar[symbol] = self.bar_count
                 elif (target > 0 and current_pos < 0) or (target < 0 and current_pos > 0):
                     self.entry_prices[symbol] = mid
                     self.peak_prices[symbol] = mid
