@@ -180,8 +180,8 @@ class Strategy:
             ret_med = (closes[-1] - closes[-MED2_WINDOW]) / closes[-MED2_WINDOW]
             ret_long = (closes[-1] - closes[-LONG_WINDOW]) / closes[-LONG_WINDOW]
 
-            mom_bull = ret_short > dyn_threshold and ret_med > dyn_threshold * 0.8 and ret_long > 0
-            mom_bear = ret_short < -dyn_threshold and ret_med < -dyn_threshold * 0.8 and ret_long < 0
+            mom_bull = ret_short > dyn_threshold and ret_med > dyn_threshold * 0.8
+            mom_bear = ret_short < -dyn_threshold and ret_med < -dyn_threshold * 0.8
             vshort_bull = ret_vshort > dyn_threshold * 0.5
             vshort_bear = ret_vshort < -dyn_threshold * 0.5
 
