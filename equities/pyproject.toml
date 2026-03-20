@@ -1,0 +1,15 @@
+[project]
+name = "equities-autotrader"
+version = "0.1.0"
+description = "Equities trading strategy backtester"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "yfinance",
+    "pyarrow",
+]
+
+[tool.uv]
+dev-dependencies = []
