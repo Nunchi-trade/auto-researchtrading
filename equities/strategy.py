@@ -2,14 +2,14 @@
 Equities momentum ensemble strategy.
 Adapted from Nunchi's auto-researchtrading — crypto-specific logic removed.
 
-6-signal ensemble: momentum, EMA crossover, RSI, MACD, BB compression, volume.
-4/6 majority vote for entries. ATR trailing stop for exits.
+5-signal ensemble: momentum, EMA crossover, RSI, MACD, BB compression.
+3/5 majority vote for entries. ATR trailing stop for exits.
 """
 
 import numpy as np
 from prepare import Signal, PortfolioState, BarData
 
-ACTIVE_SYMBOLS = ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"]
+ACTIVE_SYMBOLS = ["SPY", "QQQ", "IWM", "XLE", "XLF", "TLT", "AAPL", "NVDA", "JPM", "UNH"]
 
 SHORT_WINDOW = 5
 MED_WINDOW = 10
@@ -28,16 +28,16 @@ MACD_SIGNAL = 9
 
 BB_PERIOD = 20
 
-BASE_POSITION_PCT = 0.10
+BASE_POSITION_PCT = 0.08
 VOL_LOOKBACK = 20
-TARGET_VOL = 0.015
+TARGET_VOL = 0.01
 ATR_LOOKBACK = 14
-ATR_STOP_MULT = 3.0
+ATR_STOP_MULT = 2.5
 TAKE_PROFIT_PCT = 99.0
-BASE_THRESHOLD = 0.02
+BASE_THRESHOLD = 0.01
 
-COOLDOWN_BARS = 3
-MIN_VOTES = 4
+COOLDOWN_BARS = 2
+MIN_VOTES = 3
 
 
 def ema(values, span):
@@ -62,7 +62,8 @@ def calc_rsi(closes, period):
 
 
 class Strategy:
-    def __init__(self):
+    def __init__(self, symbols=None):
+        self.symbols = symbols or ACTIVE_SYMBOLS
         self.entry_prices = {}
         self.peak_prices = {}
         self.atr_at_entry = {}
@@ -122,7 +123,7 @@ class Strategy:
         current_dd = (self.peak_equity - equity) / self.peak_equity
         dd_scale = 1.0
 
-        for symbol in ACTIVE_SYMBOLS:
+        for symbol in self.symbols:
             if symbol not in bar_data:
                 continue
             bd = bar_data[symbol]

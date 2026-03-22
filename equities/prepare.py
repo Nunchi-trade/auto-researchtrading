@@ -32,7 +32,7 @@ MAX_LEVERAGE = 2  # 2x margin for equities
 LOOKBACK_BARS = 250  # ~1 year of daily history
 BAR_INTERVAL = "1d"  # daily bars
 
-SYMBOLS = ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"]
+SYMBOLS = ["SPY", "QQQ", "IWM", "XLE", "XLF", "TLT", "AAPL", "NVDA", "JPM", "UNH"]
 
 # Date splits (UTC dates)
 TRAIN_START = "2020-01-01"
@@ -162,7 +162,7 @@ def download_data(symbols=None):
             continue
 
 
-def load_data(split: str = "val") -> dict:
+def load_data(split: str = "val", symbols=None) -> dict:
     """Load OHLCV data for the given split. Returns {symbol: DataFrame}."""
     splits = {
         "train": (TRAIN_START, TRAIN_END),
@@ -174,8 +174,11 @@ def load_data(split: str = "val") -> dict:
     start_ms = int(pd.Timestamp(start_str, tz="UTC").timestamp() * 1000)
     end_ms = int(pd.Timestamp(end_str, tz="UTC").timestamp() * 1000)
 
+    if symbols is None:
+        symbols = SYMBOLS
+
     result = {}
-    for symbol in SYMBOLS:
+    for symbol in symbols:
         filepath = os.path.join(DATA_DIR, f"{symbol}_1d.parquet")
         if not os.path.exists(filepath):
             continue

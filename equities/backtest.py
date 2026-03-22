@@ -1,12 +1,25 @@
 """
-Run backtest. Usage: uv run backtest.py
-Imports strategy from strategy.py, runs on validation data, prints metrics.
+Run backtest. Usage:
+    uv run backtest.py                              # default symbols, val split
+    uv run backtest.py --symbols AAPL MSFT NVDA     # custom symbols
+    uv run backtest.py --split test                  # test split
+Imports strategy from strategy.py, runs on specified data, prints metrics.
 """
 
+import os
 import time
+import argparse
 import signal as sig
 
-from prepare import load_data, run_backtest, compute_score, TIME_BUDGET
+from prepare import (
+    load_data,
+    download_data,
+    run_backtest,
+    compute_score,
+    TIME_BUDGET,
+    DATA_DIR,
+    SYMBOLS,
+)
 
 
 def timeout_handler(signum, frame):
@@ -17,12 +30,31 @@ def timeout_handler(signum, frame):
 sig.signal(sig.SIGALRM, timeout_handler)
 sig.alarm(TIME_BUDGET + 30)
 
+parser = argparse.ArgumentParser(description="Run equities backtest")
+parser.add_argument(
+    "--symbols", nargs="+", default=None, help="Symbols to trade (default: all)"
+)
+parser.add_argument(
+    "--split", default="val", choices=["train", "val", "test"], help="Data split"
+)
+args = parser.parse_args()
+
+symbols = args.symbols or SYMBOLS
+
+# Auto-download missing data
+missing = [
+    s for s in symbols if not os.path.exists(os.path.join(DATA_DIR, f"{s}_1d.parquet"))
+]
+if missing:
+    print(f"Downloading missing data for: {missing}")
+    download_data(missing)
+
 t_start = time.time()
 
 from strategy import Strategy
 
-strategy = Strategy()
-data = load_data("val")
+strategy = Strategy(symbols=symbols)
+data = load_data(args.split, symbols=symbols)
 
 print(f"Loaded {sum(len(df) for df in data.values())} bars across {len(data)} symbols")
 print(f"Symbols: {list(data.keys())}")

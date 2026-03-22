@@ -8,7 +8,7 @@ Daily equity trading strategy using the same autoresearch pattern as the crypto 
 |---|---|---|
 | Data Source | CryptoCompare + Hyperliquid | Yahoo Finance |
 | Bar Interval | 1h (hourly) | 1d (daily) |
-| Symbols | BTC, ETH, SOL | SPY, QQQ, AAPL, MSFT, NVDA |
+| Symbols | BTC, ETH, SOL | Any (runtime `--symbols` flag) |
 | Leverage | 20x | 2x |
 | Fees | 2-5 bps | Commission-free |
 | Funding Rate | Yes (crypto perps) | No |
@@ -18,30 +18,32 @@ Daily equity trading strategy using the same autoresearch pattern as the crypto 
 
 ```bash
 cd equities
-uv run prepare.py          # Download data from Yahoo Finance
-uv run backtest.py         # Run backtest on validation data
+uv run prepare.py --symbols AAPL MSFT NVDA    # Download specific symbols
+uv run backtest.py --symbols AAPL MSFT NVDA   # Backtest on those symbols
+uv run backtest.py                             # Or use defaults (10 diversified tickers)
+uv run run_benchmarks.py                       # Run benchmark leaderboard
 ```
+
+Symbols are chosen at runtime — pass `--symbols` to any script. Missing data is auto-downloaded.
 
 ## Configuration
 
-Edit constants at the top of each file:
-
 **`prepare.py`:**
-- `SYMBOLS` — tickers to trade
+- `SYMBOLS` — default tickers (overridden by `--symbols`)
 - `TRAIN_START/END`, `VAL_START/END`, `TEST_START/END` — date ranges
-- `INITIAL_CAPITAL` — starting capital
+- `INITIAL_CAPITAL` — starting capital ($100K)
 - `MAX_LEVERAGE` — margin limit (2x for equities)
 
 **`strategy.py`:**
-- `ACTIVE_SYMBOLS` — symbols to include in strategy
+- `ACTIVE_SYMBOLS` — default symbols (overridden by `Strategy(symbols=[...])`)
 - `BASE_POSITION_PCT` — position size as fraction of equity
-- `MIN_VOTES` — ensemble threshold (4 of 5 signals)
+- `MIN_VOTES` — ensemble threshold (3 of 5 signals)
 - `ATR_STOP_MULT` — trailing stop multiplier
 - Indicator periods: `RSI_PERIOD`, `EMA_FAST/SLOW`, `MACD_*`, etc.
 
 ## Strategy Logic
 
-5-signal ensemble with 4/5 majority vote:
+5-signal ensemble with 3/5 majority vote:
 
 1. **Momentum** — short-term return vs dynamic threshold
 2. **EMA Crossover** — fast EMA vs slow EMA
@@ -50,7 +52,7 @@ Edit constants at the top of each file:
 5. **BB Compression** — Bollinger Band width percentile
 
 Exit conditions:
-- ATR trailing stop (3x ATR from peak)
+- ATR trailing stop (2.5x ATR from peak)
 - RSI mean-reversion (exit longs at RSI > 70, shorts at RSI < 30)
 - Signal flip (reverse when opposing ensemble fires)
 
@@ -62,15 +64,19 @@ Same as crypto version:
 score = sharpe × √(min(trades/50, 1.0)) − drawdown_penalty − turnover_penalty
 ```
 
-## Adapting for Other Markets
+## Using Different Symbols
 
-To use different symbols:
-1. Edit `ACTIVE_SYMBOLS` in `strategy.py`
-2. Edit `SYMBOLS` in `prepare.py`
-3. Run `rm -rf ~/.cache/equities-autotrader` to clear cached data
-4. Run `uv run prepare.py` to download new data
+Just pass `--symbols` at runtime — no config changes needed:
 
-For futures (ES, NQ, CL), Yahoo Finance coverage is limited. Consider:
-- Using daily bars (hourly futures data requires paid providers)
-- Adjusting `MAX_LEVERAGE` (futures margin is different)
-- Adding futures-specific logic (roll dates, contract months)
+```bash
+# Tech stocks
+uv run backtest.py --symbols AAPL MSFT GOOGL AMZN META
+
+# Sector ETFs
+uv run backtest.py --symbols XLE XLF XLK XLV XLI
+
+# Single stock deep-dive
+uv run backtest.py --symbols TSLA
+```
+
+Missing data is automatically downloaded from Yahoo Finance on first run.
