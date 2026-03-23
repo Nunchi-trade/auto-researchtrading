@@ -9,6 +9,7 @@ dependencies = [
     "scipy",
     "yfinance",
     "pyarrow",
+    "scikit-learn>=1.3.0",
 ]
 
 [tool.uv]
