@@ -174,7 +174,8 @@ class Strategy:
                 self.bar_count - self.exit_bar.get(symbol, -999)
             ) < COOLDOWN_BARS
 
-            size = equity * BASE_POSITION_PCT * dd_scale
+            inv_vol_scale = min(TARGET_VOL / realized_vol, 3.0)
+            size = equity * BASE_POSITION_PCT * dd_scale * inv_vol_scale
 
             current_pos = portfolio.positions.get(symbol, 0.0)
             target = current_pos
