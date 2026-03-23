@@ -264,6 +264,7 @@ class Strategy:
             min_samples_leaf=ML_MIN_SAMPLES_LEAF,
             learning_rate=0.1,
             subsample=0.8,
+            random_state=42,
         )
         self.model.fit(X, y)
         self.trained = True
