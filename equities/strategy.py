@@ -276,7 +276,7 @@ class Strategy:
 
         self.peak_equity = max(self.peak_equity, equity)
         current_dd = (self.peak_equity - equity) / self.peak_equity
-        dd_scale = 1.0
+        dd_scale = max(0.5, 1.0 - current_dd * 10)
 
         for symbol in self.symbols:
             if symbol not in bar_data:
