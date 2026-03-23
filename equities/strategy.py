@@ -47,7 +47,7 @@ ML_WARMUP_BARS = 150
 ML_FORWARD_BARS = 5
 ML_FORWARD_THRESHOLD = 0.002
 CONFIDENCE_THRESHOLD = 0.35
-ML_N_ESTIMATORS = 100
+ML_N_ESTIMATORS = 200
 ML_MAX_DEPTH = 3
 ML_MIN_SAMPLES_LEAF = 10
 
@@ -262,7 +262,7 @@ class Strategy:
             n_estimators=ML_N_ESTIMATORS,
             max_depth=ML_MAX_DEPTH,
             min_samples_leaf=ML_MIN_SAMPLES_LEAF,
-            learning_rate=0.1,
+            learning_rate=0.05,
             subsample=0.8,
             random_state=42,
         )
