@@ -324,9 +324,6 @@ class Strategy:
             bull_votes = sum([mom_bull, ema_bull, rsi_bull, macd_bull, bb_compressed])
             bear_votes = sum([mom_bear, ema_bear, rsi_bear, macd_bear, bb_compressed])
 
-            bullish = bull_votes >= MIN_VOTES
-            bearish = bear_votes >= MIN_VOTES
-
             # ML: extract features and either accumulate or predict
             atr_val = self._calc_atr(bd.history, ATR_LOOKBACK) or mid * 0.02
             features = self._extract_features(
@@ -342,16 +339,9 @@ class Strategy:
 
                 # Generate label from previous features (we need forward returns)
                 if len(self._recent_closes[symbol]) > ML_FORWARD_BARS:
-                    # Label for the bar ML_FORWARD_BARS ago
                     past_close = self._recent_closes[symbol][-ML_FORWARD_BARS - 1]
                     forward_ret = (mid - past_close) / past_close
-                    # Did ensemble direction match forward return?
-                    if bullish:
-                        label = 1 if forward_ret > ML_FORWARD_THRESHOLD else 0
-                    elif bearish:
-                        label = 1 if forward_ret < -ML_FORWARD_THRESHOLD else 0
-                    else:
-                        label = 0  # no signal = not useful
+                    label = 1 if forward_ret > ML_FORWARD_THRESHOLD else 0
                     self.feature_buffer.append(features)
                     self.label_buffer.append(label)
 
@@ -359,7 +349,7 @@ class Strategy:
             if self.bar_count == ML_WARMUP_BARS + 1 and not self.trained:
                 self._train_model()
 
-            # ML as 6th vote in ensemble
+            # ML as 6th vote in ensemble (FIXED: add vote before bullish/bearish check)
             if self.trained:
                 try:
                     ml_confidence = self.model.predict_proba(features.reshape(1, -1))[0][1]
@@ -369,6 +359,9 @@ class Strategy:
                     bear_votes += int(ml_bear)
                 except Exception:
                     pass
+
+            bullish = bull_votes >= MIN_VOTES
+            bearish = bear_votes >= MIN_VOTES
 
             in_cooldown = (
                 self.bar_count - self.exit_bar.get(symbol, -999)
