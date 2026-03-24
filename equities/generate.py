@@ -49,10 +49,15 @@ def read_file(path):
     return ""
 
 
-def backup_strategy():
-    if STRATEGY_PATH.exists():
-        shutil.copy2(STRATEGY_PATH, BACKUP_PATH)
-        print(f"  Backed up strategy to {BACKUP_PATH.name}")
+def backup_strategy(force=False):
+    """Backup current strategy. Won't overwrite existing backup unless force=True."""
+    if not STRATEGY_PATH.exists():
+        return
+    if BACKUP_PATH.exists() and not force:
+        print(f"  Backup already exists ({BACKUP_PATH.name}), skipping.")
+        return
+    shutil.copy2(STRATEGY_PATH, BACKUP_PATH)
+    print(f"  Backed up strategy to {BACKUP_PATH.name}")
 
 
 def restore_strategy():
@@ -526,7 +531,7 @@ def main():
         print(prompt)
         return
 
-    backup_strategy()
+    backup_strategy(force=True)
     code, metrics = generate_strategy(args.description, args.symbols)
     if code:
         print_results(metrics, prev_score)
