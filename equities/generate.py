@@ -385,10 +385,39 @@ def is_oauth_user():
     return not os.environ.get("ANTHROPIC_API_KEY")
 
 
-def evolve_strategy(symbols=None, generations=None, budget=None, split="val"):
+def get_stress_score(symbols=None, split="val"):
+    """Run stress test via backtest.py --stress-test and parse composite score."""
+    clear_pycache()
+    cmd = ["uv", "run", "backtest.py", "--stress-test"]
+    if symbols:
+        cmd += ["--symbols"] + symbols
+    cmd += ["--split", split]
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True,
+            timeout=600, cwd=str(EQUITIES_DIR),
+        )
+    except subprocess.TimeoutExpired:
+        return -999.0
+    # Parse the last score: line (composite)
+    for line in reversed(result.stdout.split("\n")):
+        if line.strip().startswith("score:"):
+            try:
+                return float(line.split(":")[1].strip())
+            except ValueError:
+                pass
+    return -999.0
+
+
+def evolve_strategy(symbols=None, generations=None, budget=None, split="val",
+                    stress_test=False):
     """Run evolution loop using Claude to suggest improvements."""
     best_code = read_file(STRATEGY_PATH)
-    best_score = get_current_score(symbols, split)
+    if stress_test:
+        best_score = get_stress_score(symbols, split)
+        print(f"  Mode: STRESS TEST (composite scoring)")
+    else:
+        best_score = get_current_score(symbols, split)
 
     if generations is not None:
         max_generations = generations
@@ -434,15 +463,19 @@ def evolve_strategy(symbols=None, generations=None, budget=None, split="val"):
             continue
 
         STRATEGY_PATH.write_text(code)
-        metrics = run_backtest(symbols, split)
 
-        score = metrics.get("score", -999.0)
-        if "error" in metrics:
-            msg = f"Gen {generation}: crash: {metrics['error'][:100]}"
-            print(f"  {msg}")
-            history_lines.append(msg)
-            STRATEGY_PATH.write_text(best_code)
-            continue
+        # Score: either single backtest or stress test composite
+        if stress_test:
+            score = get_stress_score(symbols, split)
+        else:
+            metrics = run_backtest(symbols, split)
+            score = metrics.get("score", -999.0)
+            if "error" in metrics:
+                msg = f"Gen {generation}: crash: {metrics['error'][:100]}"
+                print(f"  {msg}")
+                history_lines.append(msg)
+                STRATEGY_PATH.write_text(best_code)
+                continue
 
         delta = score - best_score
         if score > best_score:
@@ -515,6 +548,8 @@ def main():
                         help="Number of evolution generations (default: 10)")
     parser.add_argument("--budget", type=float, default=None,
                         help="Evolution budget in USD (API key users; ignored for OAuth)")
+    parser.add_argument("--stress-test", action="store_true",
+                        help="Evaluate on real data + MiroFish scenarios during evolution")
     parser.add_argument("--restore", action="store_true", help="Restore backup strategy")
     parser.add_argument("--dry-run", action="store_true", help="Show prompt without calling Claude")
     args = parser.parse_args()
@@ -528,7 +563,8 @@ def main():
 
     # Evolve mode
     if args.evolve:
-        evolve_strategy(args.symbols, args.generations, args.budget, args.split)
+        evolve_strategy(args.symbols, args.generations, args.budget, args.split,
+                        stress_test=args.stress_test)
         return
 
     # Refine mode

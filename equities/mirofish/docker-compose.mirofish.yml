@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  mirofish:
+    image: ghcr.io/666ghj/mirofish:latest
+    container_name: mirofish
+    ports:
+      - "5001:5001"
+      - "3000:3000"
+    environment:
+      - LLM_API_KEY=${OPENAI_API_KEY}
+      - LLM_BASE_URL=https://api.openai.com/v1
+      - LLM_MODEL_NAME=gpt-4o-mini
+      - ZEP_API_KEY=${ZEP_API_KEY:-}
+      - FLASK_DEBUG=false
+      - OASIS_DEFAULT_MAX_ROUNDS=10
+    volumes:
+      - mirofish-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mirofish-data:
