@@ -30,6 +30,8 @@ GENERATED_DIR = EQUITIES_DIR / "generated"
 PROMPT_TEMPLATE_PATH = EQUITIES_DIR / "GENERATE_PROMPT.md"
 
 MAX_RETRIES = 3
+DEFAULT_GENERATIONS = 10
+COST_PER_GENERATION = 0.50  # rough estimate for API key users
 
 ALLOWED_IMPORTS = {
     "numpy", "np", "pandas", "pd", "scipy", "sklearn",
@@ -378,14 +380,29 @@ def refine_strategy(instruction, symbols=None):
     return None, {"error": "All retries failed"}
 
 
-def evolve_strategy(symbols=None, budget=5.0, split="val"):
+def is_oauth_user():
+    """Detect if using OAuth (Pro/Max subscription) vs API key."""
+    return not os.environ.get("ANTHROPIC_API_KEY")
+
+
+def evolve_strategy(symbols=None, generations=None, budget=None, split="val"):
     """Run evolution loop using Claude to suggest improvements."""
     best_code = read_file(STRATEGY_PATH)
     best_score = get_current_score(symbols, split)
-    # Rough estimate: ~$0.5 per generation (prompt + response)
-    max_generations = max(1, int(budget / 0.5))
+
+    if generations is not None:
+        max_generations = generations
+    elif budget is not None:
+        max_generations = max(1, int(budget / COST_PER_GENERATION))
+    else:
+        max_generations = DEFAULT_GENERATIONS
+
     print(f"\n  Starting evolution. Current score: {best_score:.4f}")
-    print(f"  Budget: ${budget:.2f} (~{max_generations} generations)")
+    if is_oauth_user():
+        print(f"  Generations: {max_generations} (OAuth/subscription)")
+    else:
+        effective_budget = max_generations * COST_PER_GENERATION
+        print(f"  Generations: {max_generations} (~${effective_budget:.2f} estimated, API key)")
 
     history_lines = []
     consecutive_failures = 0
@@ -396,7 +413,7 @@ def evolve_strategy(symbols=None, budget=5.0, split="val"):
         print(f"\n  --- Generation {generation}/{max_generations} ---")
         try:
             prompt = build_evolve_prompt(best_code, best_score, generation, history)
-            response = call_claude(prompt, timeout=120)
+            response = call_claude(prompt, timeout=300)
             code = extract_code(response)
             consecutive_failures = 0
         except Exception as e:
@@ -494,7 +511,10 @@ def main():
     parser.add_argument("--split", default="val", choices=["train", "val", "test"])
     parser.add_argument("--refine", type=str, help="Refine the current strategy")
     parser.add_argument("--evolve", action="store_true", help="Start evolution loop")
-    parser.add_argument("--budget", type=float, default=5.0, help="Evolution budget in USD")
+    parser.add_argument("--generations", type=int, default=None,
+                        help="Number of evolution generations (default: 10)")
+    parser.add_argument("--budget", type=float, default=None,
+                        help="Evolution budget in USD (API key users; ignored for OAuth)")
     parser.add_argument("--restore", action="store_true", help="Restore backup strategy")
     parser.add_argument("--dry-run", action="store_true", help="Show prompt without calling Claude")
     args = parser.parse_args()
@@ -508,7 +528,7 @@ def main():
 
     # Evolve mode
     if args.evolve:
-        evolve_strategy(args.symbols, args.budget, args.split)
+        evolve_strategy(args.symbols, args.generations, args.budget, args.split)
         return
 
     # Refine mode
