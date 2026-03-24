@@ -382,25 +382,31 @@ def evolve_strategy(symbols=None, budget=5.0, split="val"):
     """Run evolution loop using Claude to suggest improvements."""
     best_code = read_file(STRATEGY_PATH)
     best_score = get_current_score(symbols, split)
+    # Rough estimate: ~$0.5 per generation (prompt + response)
+    max_generations = max(1, int(budget / 0.5))
     print(f"\n  Starting evolution. Current score: {best_score:.4f}")
-    print(f"  Budget: ${budget:.2f}")
+    print(f"  Budget: ${budget:.2f} (~{max_generations} generations)")
 
     history_lines = []
-    generation = 0
+    consecutive_failures = 0
 
-    while True:
-        generation += 1
+    for generation in range(1, max_generations + 1):
         history = "\n".join(history_lines[-10:])  # last 10 attempts
 
-        print(f"\n  --- Generation {generation} ---")
+        print(f"\n  --- Generation {generation}/{max_generations} ---")
         try:
             prompt = build_evolve_prompt(best_code, best_score, generation, history)
             response = call_claude(prompt, timeout=120)
             code = extract_code(response)
+            consecutive_failures = 0
         except Exception as e:
             msg = f"Gen {generation}: generation error: {e}"
             print(f"  {msg}")
             history_lines.append(msg)
+            consecutive_failures += 1
+            if consecutive_failures >= 3:
+                print("  3 consecutive failures, stopping.")
+                break
             continue
 
         ok, err = validate_code(code)
