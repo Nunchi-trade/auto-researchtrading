@@ -38,14 +38,18 @@ class OrderManager:
     async def execute_signal(
         self, signal: Signal, current_position: float, current_price: float
     ) -> Optional[Order]:
+        # signal.target_position and current_position are both in USD notional
         async with self._lock:
             delta = signal.target_position - current_position
 
             if abs(delta) < 1.0:
                 logger.debug(
                     f"Signal delta too small",
-                    extra={"symbol": signal.symbol, "delta": delta},
+                    extra={"symbol": signal.symbol, "delta_usd": delta},
                 )
+                return None
+
+            if current_price <= 0:
                 return None
 
             if delta > 0:
@@ -53,22 +57,26 @@ class OrderManager:
             else:
                 side = OrderSide.SELL
 
-            size = abs(delta)
-
             if signal.target_position == 0:
                 reduce_only = True
-                size = abs(current_position)
+                size_coins = abs(current_position) / current_price
             else:
                 reduce_only = False
+                size_coins = abs(delta) / current_price
+
+            size_coins = round(size_coins, 8)
+            if size_coins < 0.00001:
+                return None
 
             logger.info(
                 f"Executing signal",
                 extra={
                     "symbol": signal.symbol,
                     "side": side.value,
-                    "size": size,
-                    "target_position": signal.target_position,
-                    "current_position": current_position,
+                    "size_coins": size_coins,
+                    "delta_usd": delta,
+                    "target_notional": signal.target_position,
+                    "current_notional": current_position,
                     "reduce_only": reduce_only,
                 },
             )
@@ -77,7 +85,7 @@ class OrderManager:
                 order = await self.client.place_order(
                     symbol=signal.symbol,
                     side=side,
-                    size=size,
+                    size=size_coins,
                     order_type=OrderType.MARKET,
                     reduce_only=reduce_only,
                 )
@@ -120,6 +128,7 @@ class OrderManager:
         positions: Dict[str, float],
         prices: Dict[str, float],
     ) -> List[Order]:
+        # positions: symbol -> USD notional (caller must convert from coins)
         orders = []
 
         for signal in signals:
