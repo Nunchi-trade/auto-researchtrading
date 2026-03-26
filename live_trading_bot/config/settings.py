@@ -84,6 +84,14 @@ class Settings:
         if os.getenv("DB_PATH"):
             settings.DB_PATH = os.getenv("DB_PATH")
 
+        if os.getenv("BAR_INTERVAL"):
+            settings.BAR_INTERVAL = os.getenv("BAR_INTERVAL")
+
+        if os.getenv("DRY_RUN_INITIAL_CAPITAL"):
+            settings.DRY_RUN_INITIAL_CAPITAL = float(
+                os.getenv("DRY_RUN_INITIAL_CAPITAL")
+            )
+
         return settings
 
 

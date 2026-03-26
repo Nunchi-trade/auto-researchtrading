@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def get_private_key() -> Optional[str]:
+def get_private_key() -> str:
     key = os.getenv("HYPERLIQUID_PRIVATE_KEY")
     if not key:
         raise ValueError("HYPERLIQUID_PRIVATE_KEY not set in environment")
