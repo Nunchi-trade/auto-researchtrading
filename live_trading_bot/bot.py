@@ -22,7 +22,7 @@ from config import get_settings, get_private_key
 from config.settings import Settings
 from exchange.hyperliquid import HyperliquidClient
 from exchange.order_manager import OrderManager
-from exchange.types import AccountState, Candle
+from exchange.types import AccountState, Candle, PositionSide
 from data.streamer import DataStreamer
 from strategy.ensemble import EnsembleStrategy
 from risk.risk_controller import RiskController
@@ -96,6 +96,11 @@ class TradingBot:
 
         self.metrics = MetricsTracker()
 
+        if not self.settings.DRY_RUN:
+            await self.client.set_leverage_for_symbols(
+                self.settings.TRADING_PAIRS, int(self.settings.MAX_LEVERAGE)
+            )
+
         self.data_streamer = DataStreamer(
             symbols=self.settings.TRADING_PAIRS, on_bar_callback=self._on_bar
         )
@@ -130,6 +135,17 @@ class TradingBot:
             urgent=True,
         )
 
+    def _positions_to_usd(self) -> Dict[str, float]:
+        assert self.client is not None
+        positions_usd = {}
+        for symbol, coin_qty in self._current_positions.items():
+            price = self._current_prices.get(symbol, 0)
+            if price > 0:
+                positions_usd[symbol] = coin_qty * price
+            else:
+                positions_usd[symbol] = coin_qty
+        return positions_usd
+
     async def _on_bar(self, symbol: str, candle: Candle):
         if not self._running:
             return
@@ -140,7 +156,7 @@ class TradingBot:
 
         self._last_bar_times[symbol] = candle.timestamp
 
-        logger.debug(
+        logger.info(
             f"New bar completed",
             extra={
                 "symbol": symbol,
@@ -150,16 +166,29 @@ class TradingBot:
         )
 
         try:
+            assert self.client is not None
+            assert self.alerter is not None
             await self._process_bar()
         except Exception as e:
             logger.error(
                 f"Error processing bar", extra={"symbol": symbol, "error": str(e)}
             )
-            await self.alerter.alert_error(
-                str(e), context=f"Processing bar for {symbol}"
-            )
+            if self.alerter is not None:
+                await self.alerter.alert_error(
+                    str(e), context=f"Processing bar for {symbol}"
+                )
 
     async def _process_bar(self):
+        assert self.client is not None
+        assert self.data_streamer is not None
+        assert self.strategy is not None
+        assert self.risk_controller is not None
+        assert self.position_limiter is not None
+        assert self.order_manager is not None
+        assert self.db is not None
+        assert self.alerter is not None
+        assert self.metrics is not None
+
         account_state = await self.client.get_account_state()
 
         prices = await self.client.get_all_mid_prices()
@@ -174,6 +203,8 @@ class TradingBot:
                 pos.size if pos.side.value == "long" else -pos.size
             )
 
+        positions_usd = self._positions_to_usd()
+
         signals = self.strategy.on_bar(
             histories=histories,
             account_state=account_state,
@@ -181,7 +212,7 @@ class TradingBot:
         )
 
         if not signals:
-            logger.debug("No signals generated")
+            logger.info("No signals generated")
             return
 
         logger.info(
@@ -197,7 +228,7 @@ class TradingBot:
                     symbol=signal.symbol,
                     signal_type="target_position",
                     target_position=signal.target_position,
-                    current_position=self._current_positions.get(signal.symbol, 0),
+                    current_position=positions_usd.get(signal.symbol, 0),
                     executed=False,
                 )
             )
@@ -206,7 +237,7 @@ class TradingBot:
             signals=signals,
             account_state=account_state,
             current_prices=self._current_prices,
-            current_positions=self._current_positions,
+            current_positions=positions_usd,
         )
 
         if not risk_checked_signals:
@@ -216,7 +247,7 @@ class TradingBot:
         limited_signals = self.position_limiter.apply_limits(
             signals=risk_checked_signals,
             account_state=account_state,
-            current_positions=self._current_positions,
+            current_positions=positions_usd,
         )
 
         if not limited_signals:
@@ -225,14 +256,14 @@ class TradingBot:
 
         orders = await self.order_manager.execute_signals(
             signals=limited_signals,
-            positions=self._current_positions,
+            positions=positions_usd,
             prices=self._current_prices,
         )
 
         for order in orders:
-            if order.status.value == "filled":
+            if order.status.value in ("filled", "partially_filled"):
                 pnl = None
-                current_pos = self._current_positions.get(order.symbol, 0)
+                current_pos = positions_usd.get(order.symbol, 0)
 
                 if (current_pos > 0 and order.side.value == "sell") or (
                     current_pos < 0 and order.side.value == "buy"
@@ -286,6 +317,8 @@ class TradingBot:
         await self._check_hourly_summary(account_state)
 
     async def _check_hourly_summary(self, account_state: AccountState):
+        assert self.metrics is not None
+        assert self.alerter is not None
         now = datetime.utcnow()
 
         if self._last_summary_time:
@@ -307,6 +340,8 @@ class TradingBot:
 
     async def run(self):
         self._running = True
+        assert self.data_streamer is not None
+        assert self.alerter is not None
 
         loop = asyncio.get_event_loop()
         loop.add_signal_handler(signal.SIGINT, self._signal_handler)
