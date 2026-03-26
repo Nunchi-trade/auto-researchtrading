@@ -20,13 +20,19 @@ class PositionLimiter:
     def __init__(self):
         self.settings = get_settings()
 
+    def _get_equity(self, account_state: AccountState) -> float:
+        equity = account_state.total_equity
+        if equity <= 0 and self.settings.DRY_RUN:
+            equity = self.settings.DRY_RUN_INITIAL_CAPITAL
+        return equity
+
     def check_position_limit(
         self,
         signal: Signal,
         account_state: AccountState,
         current_positions: Dict[str, float],
     ) -> PositionLimitResult:
-        equity = account_state.total_equity
+        equity = self._get_equity(account_state)
         if equity <= 0:
             return PositionLimitResult(allowed=False, reason="Invalid equity")
 
@@ -65,7 +71,7 @@ class PositionLimiter:
         account_state: AccountState,
         current_positions: Dict[str, float],
     ) -> PositionLimitResult:
-        equity = account_state.total_equity
+        equity = self._get_equity(account_state)
         if equity <= 0:
             return PositionLimitResult(allowed=False, reason="Invalid equity")
 
