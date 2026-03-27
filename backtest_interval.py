@@ -1,21 +1,19 @@
 """
-1-minute backtest: downloads last 24h of 1m candles from Hyperliquid,
-runs the current strategy through a minute-resolution backtest engine.
+Interval backtest: downloads candles from Hyperliquid at any supported interval,
+runs the current strategy through a backtest engine.
 
-Usage: uv run backtest_1m.py [--data-dir DIR] [--download]
+Usage: uv run backtest_interval.py [--interval 1m|5m|15m|1h] [--data-dir DIR] [--download]
 
-Defaults to loading from backtest_data/1m_candles/ (committed data).
+Defaults to loading from backtest_data/{interval}_candles/.
 Use --download to fetch fresh data from Hyperliquid instead.
 """
 
 import os
 import sys
 import time
-import math
 import numpy as np
 import pandas as pd
 import requests
-from dataclasses import dataclass, field
 
 from prepare import BarData, Signal, PortfolioState
 
@@ -23,53 +21,88 @@ INITIAL_CAPITAL = 10_000.0
 TAKER_FEE = 0.0005
 SLIPPAGE_BPS = 1.0
 MAX_LEVERAGE = 20
-LOOKBACK_BARS = 1500
 MINUTES_PER_YEAR = 525_600
-FUNDING_BARS = 480  # 8h in minutes — funding is applied every 8h on Hyperliquid
+
+INTERVAL_MINUTES = {"1m": 1, "5m": 5, "15m": 15, "1h": 60}
+VALID_INTERVALS = list(INTERVAL_MINUTES.keys())
+
+LOOKBACK_BARS_MAP = {"1m": 1500, "5m": 1500, "15m": 1000, "1h": 500}
+FUNDING_BARS_MAP = {
+    "1m": 480,  # 8h * 60min
+    "5m": 96,  # 8h * 60 / 5
+    "15m": 32,  # 8h * 60 / 15
+    "1h": 8,  # 8h * 60 / 60
+}
 
 SYMBOLS = ["BTC", "ETH", "SOL", "XRP"]
 HL_INFO_URL = "https://api.hyperliquid.xyz/info"
-DEFAULT_DATA_DIR = os.path.join(
-    os.path.dirname(__file__), "backtest_data", "1m_candles"
-)
-CACHE_DATA_DIR = os.path.join(
-    os.path.expanduser("~"), ".cache", "autotrader", "data_1m"
-)
 
 
-def download_1m_candles(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
-    """Download 1m OHLCV from Hyperliquid (single request, max 5000 candles)."""
-    body = {
-        "type": "candleSnapshot",
-        "req": {
-            "coin": symbol,
-            "interval": "1m",
-            "startTime": start_ms,
-            "endTime": end_ms,
-        },
-    }
-    resp = requests.post(HL_INFO_URL, json=body, timeout=30)
-    resp.raise_for_status()
-    data = resp.json()
+def default_data_dir(interval: str = "1m") -> str:
+    return os.path.join(
+        os.path.dirname(__file__), "backtest_data", f"{interval}_candles"
+    )
 
-    if not data:
+
+def cache_data_dir(interval: str = "1m") -> str:
+    return os.path.join(
+        os.path.expanduser("~"), ".cache", "autotrader", f"data_{interval}"
+    )
+
+
+def download_candles(
+    symbol: str, start_ms: int, end_ms: int, interval: str = "1m"
+) -> pd.DataFrame:
+    """Download OHLCV candles from Hyperliquid with automatic pagination (max 5000 per request)."""
+    interval_minutes = INTERVAL_MINUTES.get(interval, 1)
+    # 5000 bars in ms = 5000 * interval_minutes * 60 * 1000
+    chunk_ms = 5000 * interval_minutes * 60 * 1000
+    all_rows = []
+    current = start_ms
+
+    while current < end_ms:
+        chunk_end = min(current + chunk_ms, end_ms)
+        body = {
+            "type": "candleSnapshot",
+            "req": {
+                "coin": symbol,
+                "interval": interval,
+                "startTime": current,
+                "endTime": chunk_end,
+            },
+        }
+        try:
+            resp = requests.post(HL_INFO_URL, json=body, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+
+            if not data:
+                break
+
+            for row in data:
+                all_rows.append(
+                    {
+                        "timestamp": int(row["t"]),
+                        "open": float(row["o"]),
+                        "high": float(row["h"]),
+                        "low": float(row["l"]),
+                        "close": float(row["c"]),
+                        "volume": float(row["v"]),
+                    }
+                )
+
+            # Advance past the last received candle
+            current = int(data[-1]["t"]) + interval_minutes * 60 * 1000
+            time.sleep(0.15)
+        except Exception as e:
+            print(f"    Warning: candle fetch failed for {symbol}: {e}")
+            break
+
+    if not all_rows:
         return pd.DataFrame()
 
-    rows = []
-    for row in data:
-        rows.append(
-            {
-                "timestamp": int(row["t"]),
-                "open": float(row["o"]),
-                "high": float(row["h"]),
-                "low": float(row["l"]),
-                "close": float(row["c"]),
-                "volume": float(row["v"]),
-            }
-        )
-
     df = (
-        pd.DataFrame(rows)
+        pd.DataFrame(all_rows)
         .sort_values("timestamp")
         .drop_duplicates("timestamp")
         .reset_index(drop=True)
@@ -112,15 +145,16 @@ def download_funding_rates(symbol: str, start_ms: int, end_ms: int) -> pd.DataFr
     return pd.DataFrame(all_rows)
 
 
-def download_all_data(hours_back: int = 24):
-    """Download 1m candles + funding for all symbols, save to cache, return loaded data."""
-    os.makedirs(CACHE_DATA_DIR, exist_ok=True)
+def download_all_data(hours_back: int = 24, interval: str = "1m"):
+    """Download candles + funding for all symbols, save to cache, return loaded data."""
+    cache_dir = cache_data_dir(interval)
+    os.makedirs(cache_dir, exist_ok=True)
 
     end_ms = int(time.time() * 1000)
     start_ms = end_ms - (hours_back * 3600 * 1000)
 
     for symbol in SYMBOLS:
-        filepath = os.path.join(CACHE_DATA_DIR, f"{symbol}_1m.parquet")
+        filepath = os.path.join(cache_dir, f"{symbol}_{interval}.parquet")
         if os.path.exists(filepath):
             existing = pd.read_parquet(filepath)
             newest = existing["timestamp"].max()
@@ -128,8 +162,8 @@ def download_all_data(hours_back: int = 24):
                 print(f"  {symbol}: using cached {len(existing)} bars (fresh)")
                 continue
 
-        print(f"  {symbol}: downloading {hours_back}h of 1m candles...")
-        df = download_1m_candles(symbol, start_ms, end_ms)
+        print(f"  {symbol}: downloading {hours_back}h of {interval} candles...")
+        df = download_candles(symbol, start_ms, end_ms, interval)
 
         if df.empty:
             print(f"  {symbol}: NO DATA AVAILABLE, skipping")
@@ -150,14 +184,16 @@ def download_all_data(hours_back: int = 24):
         df.to_parquet(filepath, index=False)
         print(f"  {symbol}: saved {len(df)} bars to {filepath}")
 
-    return load_data()
+    return load_data(interval=interval, data_dir=cache_dir)
 
 
-def load_data(data_dir: str = DEFAULT_DATA_DIR) -> dict:
-    """Load 1m parquet data from data_dir. Returns {symbol: DataFrame}."""
+def load_data(interval: str = "1m", data_dir: str | None = None) -> dict:
+    """Load parquet data from data_dir for the given interval. Returns {symbol: DataFrame}."""
+    if data_dir is None:
+        data_dir = default_data_dir(interval)
     result = {}
     for symbol in SYMBOLS:
-        filepath = os.path.join(data_dir, f"{symbol}_1m.parquet")
+        filepath = os.path.join(data_dir, f"{symbol}_{interval}.parquet")
         if not os.path.exists(filepath):
             print(f"  Warning: no data for {symbol} at {filepath}")
             continue
@@ -167,9 +203,11 @@ def load_data(data_dir: str = DEFAULT_DATA_DIR) -> dict:
     return result
 
 
-def run_backtest_1m(strategy, data: dict) -> dict:
-    """Run strategy over 1m data with minute-resolution Sharpe/funding scaling."""
+def run_backtest_1m(strategy, data: dict, interval: str = "1m") -> dict:
+    """Run strategy over data with interval-aware Sharpe/funding scaling."""
     t_start = time.time()
+    lookback = LOOKBACK_BARS_MAP.get(interval, 1500)
+    funding_bars = FUNDING_BARS_MAP.get(interval, 480)
 
     all_timestamps = set()
     for symbol, df in data.items():
@@ -219,8 +257,8 @@ def run_backtest_1m(strategy, data: dict) -> dict:
                 "funding_rate": row.get("funding_rate", 0.0),
             }
             history_buffers[symbol].append(bar_dict)
-            if len(history_buffers[symbol]) > LOOKBACK_BARS:
-                history_buffers[symbol] = history_buffers[symbol][-LOOKBACK_BARS:]
+            if len(history_buffers[symbol]) > lookback:
+                history_buffers[symbol] = history_buffers[symbol][-lookback:]
 
             hist_df = pd.DataFrame(history_buffers[symbol])
 
@@ -257,7 +295,7 @@ def run_backtest_1m(strategy, data: dict) -> dict:
         for sym, pos_notional in list(portfolio.positions.items()):
             if sym in bar_data:
                 fr = bar_data[sym].funding_rate
-                funding_payment = pos_notional * fr / FUNDING_BARS
+                funding_payment = pos_notional * fr / funding_bars
                 portfolio.cash -= funding_payment
 
         try:
@@ -415,14 +453,22 @@ def run_backtest_1m(strategy, data: dict) -> dict:
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="1-minute backtest")
+    parser = argparse.ArgumentParser(description="Interval Backtest")
     parser.add_argument(
-        "--data-dir", default=DEFAULT_DATA_DIR, help="Directory with *_1m.parquet files"
+        "--interval",
+        choices=VALID_INTERVALS,
+        default="1m",
+        help="Candle interval (default: 1m)",
+    )
+    parser.add_argument(
+        "--data-dir",
+        default=None,
+        help="Directory with parquet files (default: backtest_data/{interval}_candles/)",
     )
     parser.add_argument(
         "--strategy",
-        default="strategy_1m",
-        help="Strategy module to import (default: strategy_1m)",
+        default="strategies.strategy_1m",
+        help="Strategy module to import (default: strategies.strategy_1m)",
     )
     parser.add_argument(
         "--download",
@@ -437,16 +483,19 @@ def main():
     )
     args = parser.parse_args()
 
+    interval = args.interval
+
     print("=" * 60)
-    print("1-Minute Backtest")
+    print(f"Interval Backtest ({interval})")
     print("=" * 60)
 
     if args.download:
-        print(f"\nDownloading {args.hours}h of 1m data...")
-        data = download_all_data(hours_back=args.hours)
+        print(f"\nDownloading {args.hours}h of {interval} data...")
+        data = download_all_data(hours_back=args.hours, interval=interval)
     else:
-        print(f"\nLoading data from {args.data_dir} ...")
-        data = load_data(args.data_dir)
+        data_dir = args.data_dir or default_data_dir(interval)
+        print(f"\nLoading data from {data_dir} ...")
+        data = load_data(interval=interval, data_dir=args.data_dir)
 
     if not data:
         print("ERROR: No data available")
@@ -472,16 +521,17 @@ def main():
     print(f"\nStrategy: {args.strategy}")
 
     print("\nRunning backtest...")
-    result = run_backtest_1m(strategy, data)
+    result = run_backtest_1m(strategy, data, interval=interval)
 
     print("\n" + "-" * 60)
     print("RESULTS")
     print("-" * 60)
+    print(f"  interval:          {interval}")
     print(f"  bars_processed:    {result['bars_processed']}")
     print(f"  num_trades:        {result['num_trades']}")
     print(f"  num_closes:        {result['num_closes']}")
     print(
-        f"  per_min_sharpe:    {result['sharpe']:.6f}  (not annualized — sample too small)"
+        f"  per_bar_sharpe:    {result['sharpe']:.6f}  (not annualized — sample too small)"
     )
     print(f"  total_return_pct:  {result['total_return_pct']:.4f}%")
     print(f"  max_drawdown_pct:  {result['max_drawdown_pct']:.4f}%")
