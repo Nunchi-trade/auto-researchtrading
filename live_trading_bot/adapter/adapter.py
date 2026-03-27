@@ -65,9 +65,12 @@ class LiveStrategyAdapter:
         histories: Dict[str, List[Candle]],
         account_state: AccountState,
         current_prices: Dict[str, float],
+        override_positions: Optional[Dict[str, float]] = None,
     ) -> List[LiveSignal]:
         bar_data = self._candles_to_bar_data(histories)
-        portfolio = self._account_to_portfolio(account_state, current_prices)
+        portfolio = self._account_to_portfolio(
+            account_state, current_prices, override_positions
+        )
 
         try:
             backtest_signals = self._strategy.on_bar(bar_data, portfolio)
@@ -114,19 +117,29 @@ class LiveStrategyAdapter:
         return bar_data
 
     def _account_to_portfolio(
-        self, state: AccountState, prices: Dict[str, float]
+        self,
+        state: AccountState,
+        prices: Dict[str, float],
+        override_positions: Optional[Dict[str, float]] = None,
     ) -> PortfolioState:
         positions = {}
         entry_prices = {}
-        for symbol, pos in state.positions.items():
-            price = prices.get(symbol, pos.current_price)
-            if price <= 0:
-                price = pos.current_price
-            signed_notional = pos.size * price
-            if pos.side == PositionSide.SHORT:
-                signed_notional = -signed_notional
-            positions[symbol] = signed_notional
-            entry_prices[symbol] = pos.entry_price
+
+        if override_positions is not None:
+            for symbol, coin_qty in override_positions.items():
+                price = prices.get(symbol, 0)
+                if price > 0:
+                    positions[symbol] = coin_qty * price
+        else:
+            for symbol, pos in state.positions.items():
+                price = prices.get(symbol, pos.current_price)
+                if price <= 0:
+                    price = pos.current_price
+                signed_notional = pos.size * price
+                if pos.side == PositionSide.SHORT:
+                    signed_notional = -signed_notional
+                positions[symbol] = signed_notional
+                entry_prices[symbol] = pos.entry_price
 
         equity = state.total_equity
         cash = state.available_balance

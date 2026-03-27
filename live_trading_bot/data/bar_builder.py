@@ -25,7 +25,7 @@ class BarBuilder:
         self._latest_funding_rates: Dict[str, float] = {s: 0.0 for s in symbols}
 
         self._bar_callbacks: List[Callable] = []
-        self._current_interval_start: Optional[int] = None
+        self._completed_bar_ts: Dict[str, int] = {}
 
     def add_bar_callback(self, callback: Callable):
         self._bar_callbacks.append(callback)
@@ -87,6 +87,10 @@ class BarBuilder:
             return
 
         bar = self.current_bars[symbol]
+        ts = bar["timestamp"]
+        if ts <= self._completed_bar_ts.get(symbol, 0):
+            return
+        self._completed_bar_ts[symbol] = ts
         candle = Candle(
             symbol=symbol,
             timestamp=bar["timestamp"],
@@ -122,8 +126,12 @@ class BarBuilder:
                 logger.error(f"Bar callback error", extra={"error": str(e)})
 
     def add_historical_candles(self, symbol: str, candles: List[Candle]):
+        new_count = 0
         for candle in candles:
+            if candle.timestamp <= self._completed_bar_ts.get(symbol, 0):
+                continue
             self.history_buffers[symbol].append(candle)
+            new_count += 1
 
         if candles:
             last_candle = candles[-1]
@@ -135,12 +143,15 @@ class BarBuilder:
                 "close": last_candle.close,
                 "volume": last_candle.volume,
             }
+            if last_candle.timestamp > self._completed_bar_ts.get(symbol, 0):
+                self._completed_bar_ts[symbol] = last_candle.timestamp
 
         logger.info(
             f"Added historical candles",
             extra={
                 "symbol": symbol,
-                "count": len(candles),
+                "count": new_count,
+                "skipped": len(candles) - new_count,
                 "history_size": len(self.history_buffers[symbol]),
             },
         )

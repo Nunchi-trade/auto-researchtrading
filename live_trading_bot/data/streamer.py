@@ -107,7 +107,12 @@ class DataStreamer:
     async def _connect_and_listen(self):
         logger.info(f"Connecting to WebSocket", extra={"url": self.ws_url})
 
-        async with websockets.connect(self.ws_url) as ws:
+        async with websockets.connect(
+            self.ws_url,
+            ping_interval=20,
+            ping_timeout=60,
+            close_timeout=10,
+        ) as ws:
             self._ws = ws
             self._reconnect_delay = self.settings.RECONNECT_DELAY_SECONDS
 
@@ -206,11 +211,17 @@ class DataStreamer:
                     funding_rate=self.bar_builder._latest_funding_rates.get(coin, 0.0),
                 )
 
-                self.bar_builder.add_historical_candles(coin, [candle])
+                self.bar_builder.current_bars[coin] = {
+                    "timestamp": candle.timestamp,
+                    "open": candle.open,
+                    "high": candle.high,
+                    "low": candle.low,
+                    "close": candle.close,
+                    "volume": candle.volume,
+                }
                 self.latest_volumes[coin] = candle.volume
 
-                if self.on_bar_callback:
-                    await self._safe_callback(self.on_bar_callback, coin, candle)
+                self.bar_builder._complete_bar(coin)
 
     async def _fetch_funding_rates(self):
         if not self._client:

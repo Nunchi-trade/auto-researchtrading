@@ -198,10 +198,11 @@ class TradingBot:
 
         histories = self.data_streamer.get_all_histories()
 
-        for symbol, pos in account_state.positions.items():
-            self._current_positions[symbol] = (
-                pos.size if pos.side.value == "long" else -pos.size
-            )
+        if not self.settings.DRY_RUN:
+            for symbol, pos in account_state.positions.items():
+                self._current_positions[symbol] = (
+                    pos.size if pos.side.value == "long" else -pos.size
+                )
 
         positions_usd = self._positions_to_usd()
 
@@ -209,6 +210,9 @@ class TradingBot:
             histories=histories,
             account_state=account_state,
             current_prices=self._current_prices,
+            override_positions=self._current_positions
+            if self.settings.DRY_RUN
+            else None,
         )
 
         if not signals:
@@ -260,6 +264,8 @@ class TradingBot:
             prices=self._current_prices,
         )
 
+        signal_by_symbol = {s.symbol: s for s in limited_signals}
+
         for order in orders:
             if order.status.value in ("filled", "partially_filled"):
                 pnl = None
@@ -300,12 +306,22 @@ class TradingBot:
                     pnl=pnl,
                 )
 
+                if self.settings.DRY_RUN:
+                    sig = signal_by_symbol.get(order.symbol)
+                    if sig is not None:
+                        price = self._current_prices.get(order.symbol, 0)
+                        if price > 0:
+                            self._current_positions[order.symbol] = (
+                                sig.target_position / price
+                            )
+
         account_state = await self.client.get_account_state()
 
-        for symbol, pos in account_state.positions.items():
-            self._current_positions[symbol] = (
-                pos.size if pos.side.value == "long" else -pos.size
-            )
+        if not self.settings.DRY_RUN:
+            for symbol, pos in account_state.positions.items():
+                self._current_positions[symbol] = (
+                    pos.size if pos.side.value == "long" else -pos.size
+                )
 
         self.metrics.update(
             equity=account_state.total_equity,

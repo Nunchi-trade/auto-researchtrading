@@ -396,41 +396,82 @@ class HyperliquidClient:
     ) -> List[Candle]:
         if end_time is None:
             end_time = int(time.time() * 1000)
-        if start_time is None:
+
+        raw = interval.rstrip("mhs")
+        value = int(raw)
+        unit = interval[-1]
+        if unit == "h":
+            interval_minutes = value * 60
+        elif unit == "m":
+            interval_minutes = value
+        elif unit == "s":
+            interval_minutes = max(1, value // 60)
+        else:
             interval_minutes = 60
-            unit = interval[-1]
-            if unit == "m":
-                interval_minutes = 1
-            elif unit == "s":
-                interval_minutes = 1
+
+        if start_time is None:
             start_time = end_time - (limit * interval_minutes * 60 * 1000)
 
-        data = {
-            "type": "candleSnapshot",
-            "req": {
-                "coin": symbol,
-                "interval": interval,
-                "startTime": start_time,
-                "endTime": end_time,
-            },
-        }
-        result = await self._request("info", data)
+        all_candles: List[Candle] = []
+        window_end = end_time
+        ms_per_window = limit * interval_minutes * 60 * 1000
 
-        candles: List[Candle] = []
-        for raw in result:
-            bar: Dict[str, Any] = raw  # type: ignore[assignment]
-            candles.append(
-                Candle(
-                    symbol=symbol,
-                    timestamp=int(bar.get("t", 0)),
-                    open=float(bar.get("o", 0)),
-                    high=float(bar.get("h", 0)),
-                    low=float(bar.get("l", 0)),
-                    close=float(bar.get("c", 0)),
-                    volume=float(bar.get("v", 0)),
-                    funding_rate=0.0,
+        while len(all_candles) < limit and window_end > start_time:
+            window_start = max(start_time, window_end - ms_per_window)
+
+            data = {
+                "type": "candleSnapshot",
+                "req": {
+                    "coin": symbol,
+                    "interval": interval,
+                    "startTime": window_start,
+                    "endTime": window_end,
+                },
+            }
+            result = await self._request("info", data)
+
+            new_candles: List[Candle] = []
+            for raw in result:
+                bar: Dict[str, Any] = raw  # type: ignore[assignment]
+                new_candles.append(
+                    Candle(
+                        symbol=symbol,
+                        timestamp=int(bar.get("t", 0)),
+                        open=float(bar.get("o", 0)),
+                        high=float(bar.get("h", 0)),
+                        low=float(bar.get("l", 0)),
+                        close=float(bar.get("c", 0)),
+                        volume=float(bar.get("v", 0)),
+                        funding_rate=0.0,
+                    )
                 )
+
+            if not new_candles:
+                break
+
+            window_end = new_candles[0].timestamp - 1
+            all_candles.extend(new_candles)
+
+            logger.info(
+                f"Fetched candle batch",
+                extra={
+                    "symbol": symbol,
+                    "batch_size": len(new_candles),
+                    "total": len(all_candles),
+                },
             )
+
+        seen_ts: set[int] = set()
+        unique: List[Candle] = []
+        for c in all_candles:
+            if c.timestamp not in seen_ts:
+                seen_ts.add(c.timestamp)
+                unique.append(c)
+
+        candles = sorted(unique, key=lambda x: x.timestamp)
+
+        if len(candles) > limit:
+            candles = candles[-limit:]
 
         if candles:
             try:
@@ -442,4 +483,4 @@ class HyperliquidClient:
                     extra={"symbol": symbol, "error": str(e)},
                 )
 
-        return sorted(candles, key=lambda x: x.timestamp)
+        return candles
