@@ -23,7 +23,7 @@ INITIAL_CAPITAL = 10_000.0
 TAKER_FEE = 0.0005
 SLIPPAGE_BPS = 1.0
 MAX_LEVERAGE = 20
-LOOKBACK_BARS = 500
+LOOKBACK_BARS = 1500
 MINUTES_PER_YEAR = 525_600
 FUNDING_BARS = 480  # 8h in minutes — funding is applied every 8h on Hyperliquid
 
@@ -364,7 +364,7 @@ def run_backtest_1m(strategy, data: dict) -> dict:
     eq = np.array(equity_curve)
 
     if returns_arr.std() > 0:
-        sharpe = (returns_arr.mean() / returns_arr.std()) * np.sqrt(MINUTES_PER_YEAR)
+        sharpe = returns_arr.mean() / returns_arr.std()
     else:
         sharpe = 0.0
 
@@ -420,6 +420,11 @@ def main():
         "--data-dir", default=DEFAULT_DATA_DIR, help="Directory with *_1m.parquet files"
     )
     parser.add_argument(
+        "--strategy",
+        default="strategy_1m",
+        help="Strategy module to import (default: strategy_1m)",
+    )
+    parser.add_argument(
         "--download",
         action="store_true",
         help="Download fresh data from Hyperliquid instead of loading files",
@@ -459,9 +464,12 @@ def main():
     print(f"Time range: {first_t} to {last_t}")
     print(f"Duration: {(all_ts[-1] - all_ts[0]) / 3600_000:.1f} hours")
 
-    from strategy import Strategy
+    import importlib
 
-    strategy = Strategy()
+    mod = importlib.import_module(args.strategy)
+    strategy = mod.Strategy()
+
+    print(f"\nStrategy: {args.strategy}")
 
     print("\nRunning backtest...")
     result = run_backtest_1m(strategy, data)
@@ -472,7 +480,9 @@ def main():
     print(f"  bars_processed:    {result['bars_processed']}")
     print(f"  num_trades:        {result['num_trades']}")
     print(f"  num_closes:        {result['num_closes']}")
-    print(f"  sharpe:            {result['sharpe']:.6f}")
+    print(
+        f"  per_min_sharpe:    {result['sharpe']:.6f}  (not annualized — sample too small)"
+    )
     print(f"  total_return_pct:  {result['total_return_pct']:.4f}%")
     print(f"  max_drawdown_pct:  {result['max_drawdown_pct']:.4f}%")
     print(f"  win_rate_pct:      {result['win_rate_pct']:.1f}%")
