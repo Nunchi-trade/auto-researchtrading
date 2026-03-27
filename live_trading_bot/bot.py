@@ -24,7 +24,7 @@ from exchange.hyperliquid import HyperliquidClient
 from exchange.order_manager import OrderManager
 from exchange.types import AccountState, Candle, PositionSide
 from data.streamer import DataStreamer
-from strategy.ensemble import EnsembleStrategy
+from adapter.ensemble import EnsembleStrategy
 from risk.risk_controller import RiskController
 from risk.position_limiter import PositionLimiter
 from storage.database import Database
