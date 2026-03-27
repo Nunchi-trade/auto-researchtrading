@@ -8,9 +8,10 @@
 
 ## Installation
 
+Dependencies are in the repo's `pyproject.toml`. From the repo root:
+
 ```bash
-cd live_trading_bot
-uv pip install -r requirements.txt
+uv sync
 ```
 
 ## Configuration
