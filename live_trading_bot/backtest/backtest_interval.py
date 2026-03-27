@@ -147,7 +147,7 @@ def download_funding_rates(symbol: str, start_ms: int, end_ms: int) -> pd.DataFr
         time.sleep(0.2)
 
     if not all_rows:
-        return pd.DataFrame(columns=["timestamp", "funding_rate"])
+        return pd.DataFrame(columns=pd.Index(["timestamp", "funding_rate"]))
     return pd.DataFrame(all_rows)
 
 

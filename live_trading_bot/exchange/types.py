@@ -39,7 +39,7 @@ class Order:
     status: OrderStatus
     filled_size: float = 0.0
     avg_fill_price: float = 0.0
-    timestamp: datetime = None
+    timestamp: datetime | None = None
     client_order_id: Optional[str] = None
 
     def __post_init__(self):
@@ -58,7 +58,7 @@ class Position:
     leverage: float = 1.0
     margin_used: float = 0.0
     liquidation_price: Optional[float] = None
-    timestamp: datetime = None
+    timestamp: datetime | None = None
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -77,7 +77,7 @@ class AccountState:
     margin_used: float
     unrealized_pnl: float
     positions: Dict[str, Position]
-    timestamp: datetime = None
+    timestamp: datetime | None = None
 
     def __post_init__(self):
         if self.timestamp is None:

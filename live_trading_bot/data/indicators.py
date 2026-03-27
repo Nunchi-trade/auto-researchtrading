@@ -28,7 +28,7 @@ class Indicators:
         avg_gain = np.mean(gains)
         avg_loss = np.mean(losses)
         rs = avg_gain / max(avg_loss, 1e-10)
-        return 100 - 100 / (1 + rs)
+        return float(100 - 100 / (1 + rs))
 
     @staticmethod
     def calc_atr(

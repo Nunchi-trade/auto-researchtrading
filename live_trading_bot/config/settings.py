@@ -69,29 +69,29 @@ class Settings:
     def from_env(cls) -> "Settings":
         settings = cls()
 
-        if os.getenv("TRADING_PAIRS"):
-            settings.TRADING_PAIRS = os.getenv("TRADING_PAIRS").split(",")
+        if val := os.getenv("TRADING_PAIRS"):
+            settings.TRADING_PAIRS = val.split(",")
 
-        if os.getenv("MAX_LEVERAGE"):
-            settings.MAX_LEVERAGE = float(os.getenv("MAX_LEVERAGE"))
+        if val := os.getenv("MAX_LEVERAGE"):
+            settings.MAX_LEVERAGE = float(val)
 
-        if os.getenv("MAX_POSITION_PCT"):
-            settings.MAX_POSITION_PCT = float(os.getenv("MAX_POSITION_PCT"))
+        if val := os.getenv("MAX_POSITION_PCT"):
+            settings.MAX_POSITION_PCT = float(val)
 
-        if os.getenv("DAILY_LOSS_LIMIT_PCT"):
-            settings.DAILY_LOSS_LIMIT_PCT = float(os.getenv("DAILY_LOSS_LIMIT_PCT"))
+        if val := os.getenv("DAILY_LOSS_LIMIT_PCT"):
+            settings.DAILY_LOSS_LIMIT_PCT = float(val)
 
-        if os.getenv("DRY_RUN"):
-            settings.DRY_RUN = os.getenv("DRY_RUN", "").lower() in ("true", "1", "yes")
+        if val := os.getenv("DRY_RUN"):
+            settings.DRY_RUN = val.lower() in ("true", "1", "yes")
 
-        if os.getenv("DB_PATH"):
-            settings.DB_PATH = os.getenv("DB_PATH")
+        if val := os.getenv("DB_PATH"):
+            settings.DB_PATH = val
 
-        if os.getenv("BAR_INTERVAL"):
-            settings.BAR_INTERVAL = os.getenv("BAR_INTERVAL")
+        if val := os.getenv("BAR_INTERVAL"):
+            settings.BAR_INTERVAL = val
 
-        if os.getenv("STRATEGY_MODULE"):
-            settings.STRATEGY_MODULE = os.getenv("STRATEGY_MODULE")
+        if val := os.getenv("STRATEGY_MODULE"):
+            settings.STRATEGY_MODULE = val
         else:
             _interval_strategy_map = {
                 "1m": "strategies.strategy_1m",
@@ -103,19 +103,18 @@ class Settings:
                 settings.BAR_INTERVAL, "strategies.strategy_15m"
             )
 
-        if os.getenv("DRY_RUN_INITIAL_CAPITAL"):
-            settings.DRY_RUN_INITIAL_CAPITAL = float(
-                os.getenv("DRY_RUN_INITIAL_CAPITAL")
-            )
+        if val := os.getenv("DRY_RUN_INITIAL_CAPITAL"):
+            settings.DRY_RUN_INITIAL_CAPITAL = float(val)
 
         return settings
 
 
-_settings: Settings = None
+_settings: Settings | None = None
 
 
 def get_settings() -> Settings:
     global _settings
     if _settings is None:
         _settings = Settings.from_env()
+    assert _settings is not None
     return _settings

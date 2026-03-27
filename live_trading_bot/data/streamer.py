@@ -42,7 +42,7 @@ class DataStreamer:
         interval_minutes = parse_interval_minutes(self.settings.BAR_INTERVAL)
         self.bar_builder = BarBuilder(symbols, interval_minutes=interval_minutes)
 
-        self._ws: Optional[websockets.WebSocketClientProtocol] = None
+        self._ws: Optional[websockets.ClientConnection] = None
         self._running = False
         self._reconnect_delay = self.settings.RECONNECT_DELAY_SECONDS
         self._subscription_ids: Dict[str, str] = {}
@@ -127,6 +127,7 @@ class DataStreamer:
                     logger.error(f"Message handling error", extra={"error": str(e)})
 
     async def _subscribe(self):
+        assert self._ws is not None
         for symbol in self.symbols:
             subscription = {"method": "subscribe", "subscription": {"type": "allMids"}}
             await self._ws.send(json.dumps(subscription))

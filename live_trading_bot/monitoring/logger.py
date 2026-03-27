@@ -16,8 +16,9 @@ class JSONFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
-        if hasattr(record, "extra_data"):
-            log_data["data"] = record.extra_data
+        extra_data = getattr(record, "extra_data", None)
+        if extra_data is not None:
+            log_data["data"] = extra_data
 
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)

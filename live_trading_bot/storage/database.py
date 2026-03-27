@@ -18,6 +18,11 @@ class Database:
         self._db: Optional[aiosqlite.Connection] = None
         self._lock = asyncio.Lock()
 
+    @property
+    def db(self) -> aiosqlite.Connection:
+        assert self._db is not None, "Database not connected. Call connect() first."
+        return self._db
+
     async def connect(self):
         async with self._lock:
             self._db = await aiosqlite.connect(self.db_path)
@@ -27,12 +32,12 @@ class Database:
     async def close(self):
         async with self._lock:
             if self._db:
-                await self._db.close()
+                await self.db.close()
                 self._db = None
                 logger.info("Database connection closed")
 
     async def _create_tables(self):
-        await self._db.executescript("""
+        await self.db.executescript("""
             CREATE TABLE IF NOT EXISTS trades (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TEXT NOT NULL,
@@ -80,11 +85,11 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_signals_timestamp ON signals(timestamp);
             CREATE INDEX IF NOT EXISTS idx_risk_events_timestamp ON risk_events(timestamp);
         """)
-        await self._db.commit()
+        await self.db.commit()
 
     async def insert_trade(self, trade: Trade) -> int:
         async with self._lock:
-            cursor = await self._db.execute(
+            cursor = await self.db.execute(
                 """
                 INSERT INTO trades (timestamp, symbol, side, size, price, fee, pnl, strategy_signal, order_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -101,11 +106,12 @@ class Database:
                     trade.order_id,
                 ),
             )
-            await self._db.commit()
+            await self.db.commit()
             trade_id = cursor.lastrowid
             logger.debug(
                 f"Inserted trade", extra={"trade_id": trade_id, "symbol": trade.symbol}
             )
+            assert trade_id is not None
             return trade_id
 
     async def get_trades(
@@ -132,7 +138,7 @@ class Database:
         params.append(limit)
 
         async with self._lock:
-            async with self._db.execute(query, params) as cursor:
+            async with self.db.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
                 return [
                     Trade(
@@ -152,7 +158,7 @@ class Database:
 
     async def upsert_position(self, position: Position):
         async with self._lock:
-            await self._db.execute(
+            await self.db.execute(
                 """
                 INSERT INTO positions (symbol, size, entry_price, current_price, unrealized_pnl, side, last_updated)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -174,16 +180,16 @@ class Database:
                     position.last_updated.isoformat(),
                 ),
             )
-            await self._db.commit()
+            await self.db.commit()
 
     async def delete_position(self, symbol: str):
         async with self._lock:
-            await self._db.execute("DELETE FROM positions WHERE symbol = ?", (symbol,))
-            await self._db.commit()
+            await self.db.execute("DELETE FROM positions WHERE symbol = ?", (symbol,))
+            await self.db.commit()
 
     async def get_all_positions(self) -> Dict[str, Position]:
         async with self._lock:
-            async with self._db.execute("SELECT * FROM positions") as cursor:
+            async with self.db.execute("SELECT * FROM positions") as cursor:
                 rows = await cursor.fetchall()
                 return {
                     row[1]: Position(
@@ -201,7 +207,7 @@ class Database:
 
     async def insert_signal(self, signal: SignalRecord) -> int:
         async with self._lock:
-            cursor = await self._db.execute(
+            cursor = await self.db.execute(
                 """
                 INSERT INTO signals (timestamp, symbol, signal_type, target_position, current_position, executed)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -215,12 +221,13 @@ class Database:
                     1 if signal.executed else 0,
                 ),
             )
-            await self._db.commit()
+            await self.db.commit()
+            assert cursor.lastrowid is not None
             return cursor.lastrowid
 
     async def insert_risk_event(self, event: RiskEvent) -> int:
         async with self._lock:
-            cursor = await self._db.execute(
+            cursor = await self.db.execute(
                 """
                 INSERT INTO risk_events (timestamp, event_type, details, action_taken)
                 VALUES (?, ?, ?, ?)
@@ -232,11 +239,12 @@ class Database:
                     event.action_taken,
                 ),
             )
-            await self._db.commit()
+            await self.db.commit()
             logger.warning(
                 f"Risk event recorded",
                 extra={"event_type": event.event_type, "details": event.details},
             )
+            assert cursor.lastrowid is not None
             return cursor.lastrowid
 
     async def get_daily_pnl(self, symbol: Optional[str] = None) -> float:
@@ -252,7 +260,7 @@ class Database:
             params.append(symbol)
 
         async with self._lock:
-            async with self._db.execute(query, params) as cursor:
+            async with self.db.execute(query, params) as cursor:
                 result = await cursor.fetchone()
                 return result[0] if result and result[0] else 0.0
 
@@ -262,7 +270,7 @@ class Database:
         )
 
         async with self._lock:
-            async with self._db.execute(
+            async with self.db.execute(
                 "SELECT COUNT(*) FROM trades WHERE timestamp >= ?",
                 (today_start.isoformat(),),
             ) as cursor:
