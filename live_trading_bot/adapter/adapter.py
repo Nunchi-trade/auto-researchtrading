@@ -72,6 +72,8 @@ class LiveStrategyAdapter:
             account_state, current_prices, override_positions
         )
 
+        self._reconcile_strategy_state(bar_data, portfolio, current_prices)
+
         try:
             backtest_signals = self._strategy.on_bar(bar_data, portfolio)
         except Exception as e:
@@ -115,6 +117,68 @@ class LiveStrategyAdapter:
                 history=hist_df,
             )
         return bar_data
+
+    def _reconcile_strategy_state(
+        self,
+        bar_data: dict,
+        portfolio: PortfolioState,
+        current_prices: Dict[str, float],
+    ):
+        """Restore strategy tracking state for positions the exchange says are
+        open but the strategy has forgotten (e.g. after a failed exit order).
+
+        In backtesting, signals execute atomically — state mutations are always
+        consistent. In live trading there's an async gap: the strategy pops
+        entry_prices/peak_prices/atr_at_entry immediately on generating an exit
+        signal, but the exchange may reject or partially fill the order. On the
+        next bar the strategy sees the position is still open (from exchange
+        state) yet has no tracking data to manage it properly.
+
+        This reconciliation runs before every on_bar() call and is a no-op in
+        the normal case (strategy state already in sync with exchange).
+        """
+        strategy = self._strategy
+
+        for symbol, pos_notional in portfolio.positions.items():
+            if abs(pos_notional) < 1.0:
+                continue
+            # Exchange says position exists, but strategy has no memory of it
+            if symbol not in strategy.entry_prices:
+                price = current_prices.get(symbol, 0)
+                if price <= 0:
+                    continue
+
+                entry = portfolio.entry_prices.get(symbol, price)
+                strategy.entry_prices[symbol] = entry
+                # Conservative peak: max of entry and current price
+                strategy.peak_prices[symbol] = max(entry, price)
+
+                # Calculate ATR from available history
+                if symbol in bar_data:
+                    hist = bar_data[symbol].history
+                    if len(hist) > 25:
+                        highs = hist["high"].values[-24:]
+                        lows = hist["low"].values[-24:]
+                        closes = hist["close"].values[-25:-1]
+                        tr = np.maximum(
+                            highs - lows,
+                            np.maximum(np.abs(highs - closes), np.abs(lows - closes)),
+                        )
+                        strategy.atr_at_entry[symbol] = float(np.mean(tr))
+                    else:
+                        strategy.atr_at_entry[symbol] = price * 0.02
+                else:
+                    strategy.atr_at_entry[symbol] = price * 0.02
+
+                # Mark as already-pyramided to avoid re-pyramiding a restored
+                # position, and cancel any cooldown from the failed exit
+                strategy.pyramided[symbol] = True
+                strategy.exit_bar.pop(symbol, None)
+
+                logger.info(
+                    "Reconciled strategy state for orphaned position",
+                    extra={"symbol": symbol, "entry": entry, "price": price},
+                )
 
     def _account_to_portfolio(
         self,
