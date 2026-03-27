@@ -10,12 +10,6 @@
 
 ```bash
 cd live_trading_bot
-pip install -r requirements.txt
-```
-
-Or with uv:
-```bash
-cd live_trading_bot
 uv pip install -r requirements.txt
 ```
 
