@@ -1,4 +1,5 @@
 import sys
+import importlib
 import importlib.util
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -31,7 +32,6 @@ _s_mod = importlib.util.module_from_spec(_s_spec)
 sys.modules["_bt_strategy"] = _s_mod
 _s_spec.loader.exec_module(_s_mod)
 
-BacktestStrategy = _s_mod.Strategy
 BarData = _p_mod.BarData
 PortfolioState = _p_mod.PortfolioState
 
@@ -41,6 +41,14 @@ from config import get_settings
 from monitoring.logger import get_logger
 
 logger = get_logger(__name__)
+
+_settings = get_settings()
+
+if _settings.STRATEGY_MODULE == "_bt_strategy":
+    BacktestStrategy = _s_mod.Strategy
+else:
+    _strategy_mod = importlib.import_module(_settings.STRATEGY_MODULE)
+    BacktestStrategy = _strategy_mod.Strategy
 
 
 class LiveStrategyAdapter:

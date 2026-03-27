@@ -9,8 +9,11 @@ class Settings:
     SYMBOL_WEIGHTS: Dict[str, float] = field(
         default_factory=lambda: {"BTC": 0.33, "ETH": 0.33, "SOL": 0.33}
     )
-    BAR_INTERVAL: str = "1h"
+    BAR_INTERVAL: str = "15m"
+    # LOOKBACK_BARS scales per interval: 1m→2000, 5m→1000, 15m→500, 1h→500
     LOOKBACK_BARS: int = 500
+    # Module path for the backtest strategy; auto-derived from BAR_INTERVAL in from_env()
+    STRATEGY_MODULE: str = "strategies.strategy_15m"
 
     BASE_POSITION_PCT: float = 0.08
     MAX_POSITION_PCT: float = 0.30
@@ -86,6 +89,19 @@ class Settings:
 
         if os.getenv("BAR_INTERVAL"):
             settings.BAR_INTERVAL = os.getenv("BAR_INTERVAL")
+
+        if os.getenv("STRATEGY_MODULE"):
+            settings.STRATEGY_MODULE = os.getenv("STRATEGY_MODULE")
+        else:
+            _interval_strategy_map = {
+                "1m": "strategies.strategy_1m",
+                "5m": "strategies.strategy_5m",
+                "15m": "strategies.strategy_15m",
+                "1h": "_bt_strategy",
+            }
+            settings.STRATEGY_MODULE = _interval_strategy_map.get(
+                settings.BAR_INTERVAL, "strategies.strategy_15m"
+            )
 
         if os.getenv("DRY_RUN_INITIAL_CAPITAL"):
             settings.DRY_RUN_INITIAL_CAPITAL = float(
