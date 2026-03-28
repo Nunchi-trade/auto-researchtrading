@@ -7,10 +7,12 @@ Usage:
 
 import os
 import time
+import math
 import argparse
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -192,6 +194,213 @@ def load_upbit_data(split: str = "val") -> dict[str, pd.DataFrame]:
         if len(split_df) > 0:
             result[symbol] = split_df
     return result
+
+
+# ---------------------------------------------------------------------------
+# 백테스트 엔진
+# ---------------------------------------------------------------------------
+
+def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktestResult":
+    """현물 전략을 data 위에서 시뮬레이션. UpbitBacktestResult 반환."""
+    import time as _time
+    t_start = _time.time()
+
+    all_timestamps: set[int] = set()
+    for df in data.values():
+        all_timestamps.update(df["timestamp"].tolist())
+    timestamps = sorted(all_timestamps)
+
+    if not timestamps:
+        return UpbitBacktestResult()
+
+    indexed = {symbol: df.set_index("timestamp") for symbol, df in data.items()}
+
+    portfolio = UpbitPortfolioState(
+        cash=INITIAL_CAPITAL,
+        positions={},
+        entry_prices={},
+        equity=INITIAL_CAPITAL,
+        timestamp=0,
+    )
+
+    equity_curve: list[float] = [INITIAL_CAPITAL]
+    hourly_returns: list[float] = []
+    trade_log: list[tuple] = []
+    total_volume = 0.0
+    prev_equity = INITIAL_CAPITAL
+    history_buffers: dict[str, list] = {symbol: [] for symbol in data}
+
+    for ts in timestamps:
+        if _time.time() - t_start > TIME_BUDGET:
+            break
+
+        portfolio.timestamp = ts
+
+        bar_data: dict[str, UpbitBarData] = {}
+        for symbol in data:
+            if ts not in indexed[symbol].index:
+                continue
+            row = indexed[symbol].loc[ts]
+            if isinstance(row, pd.DataFrame):
+                row = row.iloc[0]
+
+            bar_dict = {
+                "timestamp": ts,
+                "open": row["open"], "high": row["high"],
+                "low": row["low"],   "close": row["close"],
+                "volume": row["volume"],
+            }
+            history_buffers[symbol].append(bar_dict)
+            if len(history_buffers[symbol]) > LOOKBACK_BARS:
+                history_buffers[symbol] = history_buffers[symbol][-LOOKBACK_BARS:]
+
+            bar_data[symbol] = UpbitBarData(
+                symbol=symbol, timestamp=ts,
+                open=row["open"], high=row["high"],
+                low=row["low"],   close=row["close"],
+                volume=row["volume"],
+                history=pd.DataFrame(history_buffers[symbol]),
+            )
+
+        if not bar_data:
+            continue
+
+        # 미실현 손익 계산
+        unrealized = sum(
+            pos * (bar_data[sym].close - portfolio.entry_prices.get(sym, bar_data[sym].close))
+            / portfolio.entry_prices.get(sym, bar_data[sym].close)
+            for sym, pos in portfolio.positions.items()
+            if sym in bar_data and portfolio.entry_prices.get(sym, 0) > 0
+        )
+        portfolio.equity = portfolio.cash + sum(abs(v) for v in portfolio.positions.values()) + unrealized
+
+        try:
+            signals = strategy.on_bar(bar_data, portfolio) or []
+        except Exception:
+            signals = []
+
+        for sig in signals:
+            if sig.symbol not in bar_data:
+                continue
+            if sig.target_position < 0:   # 현물: 숏 불가
+                continue
+
+            current_price = bar_data[sig.symbol].close
+            current_pos = portfolio.positions.get(sig.symbol, 0.0)
+            delta = sig.target_position - current_pos
+
+            if abs(delta) < 1.0:
+                continue
+
+            slippage = current_price * SLIPPAGE_BPS / 10000
+            exec_price = current_price + slippage if delta > 0 else current_price - slippage
+            fee = abs(delta) * TAKER_FEE
+            portfolio.cash -= fee
+            total_volume += abs(delta)
+
+            if sig.target_position == 0:
+                entry = portfolio.entry_prices.get(sig.symbol, exec_price)
+                pnl = current_pos * (exec_price - entry) / entry if entry > 0 else 0.0
+                portfolio.cash += abs(current_pos) + pnl
+                portfolio.positions.pop(sig.symbol, None)
+                portfolio.entry_prices.pop(sig.symbol, None)
+                trade_log.append(("close", sig.symbol, delta, exec_price, pnl))
+
+            elif current_pos == 0:
+                portfolio.cash -= abs(sig.target_position)
+                portfolio.positions[sig.symbol] = sig.target_position
+                portfolio.entry_prices[sig.symbol] = exec_price
+                trade_log.append(("open", sig.symbol, delta, exec_price, 0.0))
+
+            else:
+                old_entry = portfolio.entry_prices.get(sig.symbol, exec_price)
+                if abs(sig.target_position) < abs(current_pos):
+                    reduced = abs(current_pos) - abs(sig.target_position)
+                    pnl = reduced * (exec_price - old_entry) / old_entry if old_entry > 0 else 0.0
+                    portfolio.cash += reduced + pnl
+                else:
+                    added = abs(sig.target_position) - abs(current_pos)
+                    portfolio.cash -= added
+                    total = abs(current_pos) + added
+                    if total > 0:
+                        portfolio.entry_prices[sig.symbol] = (
+                            old_entry * abs(current_pos) + exec_price * added
+                        ) / total
+                portfolio.positions[sig.symbol] = sig.target_position
+                trade_log.append(("modify", sig.symbol, delta, exec_price, 0.0))
+
+        # 거래 후 자산 재계산
+        unrealized = sum(
+            pos * (bar_data[sym].close - portfolio.entry_prices.get(sym, bar_data[sym].close))
+            / portfolio.entry_prices.get(sym, bar_data[sym].close)
+            for sym, pos in portfolio.positions.items()
+            if sym in bar_data and portfolio.entry_prices.get(sym, 0) > 0
+        )
+        current_equity = portfolio.cash + sum(abs(v) for v in portfolio.positions.values()) + unrealized
+        equity_curve.append(current_equity)
+
+        if prev_equity > 0:
+            hourly_returns.append((current_equity - prev_equity) / prev_equity)
+        prev_equity = current_equity
+
+        if current_equity < INITIAL_CAPITAL * 0.01:
+            break
+
+    t_end = _time.time()
+
+    returns = np.array(hourly_returns) if hourly_returns else np.array([0.0])
+    eq = np.array(equity_curve)
+
+    sharpe = (returns.mean() / returns.std()) * np.sqrt(HOURS_PER_YEAR) if returns.std() > 0 else 0.0
+    final_equity = float(eq[-1]) if len(eq) > 0 else INITIAL_CAPITAL
+    total_return_pct = (final_equity - INITIAL_CAPITAL) / INITIAL_CAPITAL * 100
+
+    peak = np.maximum.accumulate(eq)
+    drawdown = (peak - eq) / np.where(peak > 0, peak, 1.0)
+    max_drawdown_pct = float(drawdown.max()) * 100
+
+    trade_pnls = [t[4] for t in trade_log if t[0] == "close"]
+    num_trades = len(trade_log)
+    if trade_pnls:
+        wins   = [p for p in trade_pnls if p > 0]
+        losses = [p for p in trade_pnls if p < 0]
+        win_rate_pct  = len(wins) / len(trade_pnls) * 100
+        profit_factor = sum(wins) / max(abs(sum(losses)), 1e-10)
+    else:
+        win_rate_pct = profit_factor = 0.0
+
+    annual_turnover = total_volume * (HOURS_PER_YEAR / len(timestamps)) if timestamps else 0.0
+
+    return UpbitBacktestResult(
+        sharpe=sharpe,
+        total_return_pct=total_return_pct,
+        max_drawdown_pct=max_drawdown_pct,
+        num_trades=num_trades,
+        win_rate_pct=win_rate_pct,
+        profit_factor=profit_factor,
+        annual_turnover=annual_turnover,
+        backtest_seconds=t_end - t_start,
+        equity_curve=equity_curve,
+        trade_log=trade_log,
+    )
+
+
+def compute_upbit_score(result: UpbitBacktestResult) -> float:
+    """Hyperliquid와 동일한 스코어 공식."""
+    if result.num_trades < 10:
+        return -999.0
+    if result.max_drawdown_pct > 50.0:
+        return -999.0
+    final_equity = result.equity_curve[-1] if result.equity_curve else INITIAL_CAPITAL
+    if final_equity < INITIAL_CAPITAL * 0.5:
+        return -999.0
+
+    trade_count_factor = min(result.num_trades / 50.0, 1.0)
+    drawdown_penalty = max(0.0, result.max_drawdown_pct - 15.0) * 0.05
+    turnover_ratio = result.annual_turnover / INITIAL_CAPITAL
+    turnover_penalty = max(0.0, turnover_ratio - 500) * 0.001
+
+    return result.sharpe * math.sqrt(trade_count_factor) - drawdown_penalty - turnover_penalty
 
 
 if __name__ == "__main__":

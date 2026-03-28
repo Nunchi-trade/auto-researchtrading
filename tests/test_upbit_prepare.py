@@ -82,3 +82,67 @@ def test_load_upbit_data_skips_missing_files(tmp_path, monkeypatch):
     monkeypatch.setattr("upbit_prepare.DATA_DIR", str(tmp_path))
     data = load_upbit_data("val")
     assert data == {}
+
+
+from upbit_prepare import run_upbit_backtest, compute_upbit_score, UpbitBacktestResult
+import numpy as np
+
+
+class _DoNothingStrategy:
+    def on_bar(self, bar_data, portfolio):
+        return []
+
+
+class _AlwaysBuyBTC:
+    def __init__(self):
+        self._bought = False
+
+    def on_bar(self, bar_data, portfolio):
+        from upbit_prepare import UpbitSignal
+        if not self._bought and "KRW-BTC" in bar_data:
+            self._bought = True
+            return [UpbitSignal(symbol="KRW-BTC", target_position=10_000_000.0)]
+        return []
+
+
+def _make_minimal_data(n_bars: int = 60) -> dict:
+    base_ms = int(pd.Timestamp("2024-07-01", tz="UTC").timestamp() * 1000)
+    rows = [
+        {
+            "timestamp": base_ms + i * 3_600_000,
+            "open": 80_000_000.0, "high": 81_000_000.0,
+            "low": 79_000_000.0, "close": 80_000_000.0 + i * 100_000,
+            "volume": 1.0,
+        }
+        for i in range(n_bars)
+    ]
+    return {"KRW-BTC": pd.DataFrame(rows)}
+
+
+def test_backtest_do_nothing_returns_zero_trades():
+    result = run_upbit_backtest(_DoNothingStrategy(), _make_minimal_data())
+    assert result.num_trades == 0
+    assert abs(result.total_return_pct) < 0.01
+
+
+def test_backtest_buy_btc_has_positive_return():
+    result = run_upbit_backtest(_AlwaysBuyBTC(), _make_minimal_data(100))
+    assert result.num_trades >= 1
+    assert result.total_return_pct > 0
+
+
+def test_short_signal_is_ignored():
+    from upbit_prepare import UpbitSignal
+
+    class _ShortStrategy:
+        def on_bar(self, bar_data, portfolio):
+            return [UpbitSignal(symbol="KRW-BTC", target_position=-5_000_000.0)]
+
+    result = run_upbit_backtest(_ShortStrategy(), _make_minimal_data())
+    assert result.num_trades == 0
+
+
+def test_compute_score_hard_cutoff_no_trades():
+    result = UpbitBacktestResult(num_trades=0, max_drawdown_pct=5.0,
+                                  equity_curve=[100_000_000.0, 100_000_000.0])
+    assert compute_upbit_score(result) == -999.0
