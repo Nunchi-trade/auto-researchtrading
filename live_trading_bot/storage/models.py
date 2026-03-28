@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 from enum import Enum
 
 
@@ -63,3 +63,28 @@ class RiskEvent:
     event_type: str
     details: str
     action_taken: Optional[str] = None
+
+
+@dataclass
+class ParamSnapshot:
+    id: Optional[int]
+    run_date: datetime
+    sweep_name: str
+    sharpe: float
+    total_return_pct: float
+    max_drawdown_pct: float
+    profit_factor: float
+    win_rate_pct: float
+    num_trades: int
+    ret_dd_ratio: float
+    is_best: bool
+    previous_snapshot_id: Optional[int] = None
+    params: Optional[Dict[str, float]] = None
+
+
+@dataclass
+class ParamValue:
+    id: Optional[int]
+    snapshot_id: int
+    param_name: str
+    param_value: float
