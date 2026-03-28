@@ -146,3 +146,33 @@ def test_compute_score_hard_cutoff_no_trades():
     result = UpbitBacktestResult(num_trades=0, max_drawdown_pct=5.0,
                                   equity_curve=[100_000_000.0, 100_000_000.0])
     assert compute_upbit_score(result) == -999.0
+
+
+def test_full_pipeline_with_synthetic_data(tmp_path, monkeypatch):
+    """전체 파이프라인: 데이터 로드 → 전략 → 백테스트 → 스코어."""
+    monkeypatch.setattr("upbit_prepare.DATA_DIR", str(tmp_path))
+
+    base_ms = int(pd.Timestamp("2024-07-01", tz="UTC").timestamp() * 1000)
+    rows = []
+    price = 80_000_000.0
+    rng = np.random.default_rng(42)
+    for i in range(600):
+        price *= 1 + rng.uniform(-0.005, 0.006)
+        rows.append({
+            "timestamp": base_ms + i * 3_600_000,
+            "open": price, "high": price * 1.005,
+            "low": price * 0.995, "close": price,
+            "volume": rng.uniform(0.5, 2.0),
+        })
+    df = pd.DataFrame(rows)
+    for sym in ["KRW-BTC", "KRW-ETH", "KRW-SOL"]:
+        df.to_parquet(tmp_path / f"{sym}_1h.parquet", index=False)
+
+    from upbit_strategy import Strategy
+    data = load_upbit_data("val")
+    result = run_upbit_backtest(Strategy(), data)
+    score  = compute_upbit_score(result)
+
+    assert isinstance(score, float)
+    assert score == score   # NaN 체크
+    assert result.num_trades >= 0
