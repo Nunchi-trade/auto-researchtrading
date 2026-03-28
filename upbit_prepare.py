@@ -202,8 +202,7 @@ def load_upbit_data(split: str = "val") -> dict[str, pd.DataFrame]:
 
 def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktestResult":
     """현물 전략을 data 위에서 시뮬레이션. UpbitBacktestResult 반환."""
-    import time as _time
-    t_start = _time.time()
+    t_start = time.time()
 
     all_timestamps: set[int] = set()
     for df in data.values():
@@ -231,7 +230,7 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
     history_buffers: dict[str, list] = {symbol: [] for symbol in data}
 
     for ts in timestamps:
-        if _time.time() - t_start > TIME_BUDGET:
+        if time.time() - t_start > TIME_BUDGET:
             break
 
         portfolio.timestamp = ts
@@ -307,6 +306,8 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
                 trade_log.append(("close", sig.symbol, delta, exec_price, pnl))
 
             elif current_pos == 0:
+                if portfolio.cash < abs(sig.target_position):
+                    continue  # 현금 부족 — 주문 스킵
                 portfolio.cash -= abs(sig.target_position)
                 portfolio.positions[sig.symbol] = sig.target_position
                 portfolio.entry_prices[sig.symbol] = exec_price
@@ -320,6 +321,8 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
                     portfolio.cash += reduced + pnl
                 else:
                     added = abs(sig.target_position) - abs(current_pos)
+                    if portfolio.cash < added:
+                        continue  # 증액 현금 부족 — 주문 스킵
                     portfolio.cash -= added
                     total = abs(current_pos) + added
                     if total > 0:
@@ -346,7 +349,7 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
         if current_equity < INITIAL_CAPITAL * 0.01:
             break
 
-    t_end = _time.time()
+    t_end = time.time()
 
     returns = np.array(hourly_returns) if hourly_returns else np.array([0.0])
     eq = np.array(equity_curve)
