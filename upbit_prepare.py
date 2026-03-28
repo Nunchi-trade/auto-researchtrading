@@ -129,7 +129,7 @@ def _download_upbit_candles(market: str, start_ms: int, end_ms: int) -> pd.DataF
     )
 
 
-def download_upbit_data(symbols=None):
+def download_upbit_data(symbols: list[str] | None = None) -> None:
     """모든 심볼의 시간봉 데이터 다운로드 (캐시 있으면 스킵)."""
     os.makedirs(DATA_DIR, exist_ok=True)
     if symbols is None:
@@ -141,17 +141,23 @@ def download_upbit_data(symbols=None):
     for symbol in symbols:
         filepath = os.path.join(DATA_DIR, f"{symbol}_1h.parquet")
         if os.path.exists(filepath):
-            existing = pd.read_parquet(filepath)
-            cached_min = existing["timestamp"].min()
-            cached_max = existing["timestamp"].max()
-            if cached_min <= start_ms and cached_max >= end_ms - 3_600_000:
-                print(f"  {symbol}: 이미 {len(existing)} 봉 보유 (캐시 유효)")
-                continue
-            print(f"  {symbol}: 캐시 범위 불일치, 재다운로드 중...")
-            os.remove(filepath)
+            try:
+                existing = pd.read_parquet(filepath)
+                cached_start = existing["timestamp"].min()
+                cached_end   = existing["timestamp"].max()
+                if cached_start <= start_ms and cached_end >= end_ms - 3_600_000:
+                    print(f"  {symbol}: 이미 {len(existing)} 봉 보유")
+                    continue
+                print(f"  {symbol}: 캐시 범위 부족, 재다운로드합니다")
+            except Exception:
+                print(f"  {symbol}: 캐시 파일 손상, 재다운로드합니다")
 
         print(f"  {symbol}: Upbit API 다운로드 중...")
-        df = _download_upbit_candles(symbol, start_ms, end_ms)
+        try:
+            df = _download_upbit_candles(symbol, start_ms, end_ms)
+        except requests.RequestException as e:
+            print(f"  {symbol}: 네트워크 오류 ({e}), 스킵")
+            continue
 
         if df.empty:
             print(f"  {symbol}: 데이터 없음, 스킵")
@@ -161,10 +167,11 @@ def download_upbit_data(symbols=None):
         print(f"  {symbol}: {len(df)} 봉 저장 → {filepath}")
 
 
-def load_upbit_data(split: str = "val") -> dict:
+def load_upbit_data(split: str = "val") -> dict[str, pd.DataFrame]:
     """parquet 캐시에서 split 데이터 로드. {symbol: DataFrame} 반환."""
     splits = {"val": (VAL_START, VAL_END)}
-    assert split in splits, f"split은 {list(splits.keys())} 중 하나여야 합니다"
+    if split not in splits:
+        raise ValueError(f"split은 {list(splits.keys())} 중 하나여야 합니다")
 
     start_str, end_str = splits[split]
     start_ms = int(pd.Timestamp(start_str, tz="UTC").timestamp() * 1000)
@@ -175,7 +182,11 @@ def load_upbit_data(split: str = "val") -> dict:
         filepath = os.path.join(DATA_DIR, f"{symbol}_1h.parquet")
         if not os.path.exists(filepath):
             continue
-        df = pd.read_parquet(filepath)
+        try:
+            df = pd.read_parquet(filepath)
+        except Exception:
+            print(f"  {symbol}: parquet 파일 읽기 실패, 스킵")
+            continue
         mask = (df["timestamp"] >= start_ms) & (df["timestamp"] < end_ms)
         split_df = df[mask].reset_index(drop=True)
         if len(split_df) > 0:
