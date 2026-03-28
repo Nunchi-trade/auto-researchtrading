@@ -7,12 +7,10 @@ Usage:
 
 import os
 import time
-import math
 import argparse
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
-import numpy as np
 import pandas as pd
 import requests
 
@@ -89,7 +87,7 @@ def _download_upbit_candles(market: str, start_ms: int, end_ms: int) -> pd.DataF
     current_end_ms = end_ms
 
     while current_end_ms > start_ms:
-        to_str = datetime.utcfromtimestamp(current_end_ms / 1000).strftime("%Y-%m-%dT%H:%M:%SZ")
+        to_str = datetime.fromtimestamp(current_end_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         resp = requests.get(
             f"{UPBIT_URL}/candles/minutes/60",
             params={"market": market, "count": 200, "to": to_str},
