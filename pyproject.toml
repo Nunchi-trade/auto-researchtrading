@@ -10,3 +10,11 @@ dependencies = [
     "requests>=2.31.0",
     "pyarrow>=14.0.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
