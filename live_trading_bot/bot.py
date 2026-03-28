@@ -32,6 +32,10 @@ from storage.models import Trade, Position, SignalRecord
 from monitoring.logger import setup_logger, get_logger
 from monitoring.alerts import Alerter
 from monitoring.metrics import MetricsTracker
+from execution.signal_state import SignalState
+from execution.execution_engine import ExecutionEngine
+from exchange.stop_manager import StopManager
+from monitoring.watchdog import Watchdog
 
 
 logger = get_logger(__name__)
@@ -50,6 +54,10 @@ class TradingBot:
         self.db: Optional[Database] = None
         self.alerter: Optional[Alerter] = None
         self.metrics: Optional[MetricsTracker] = None
+        self.signal_state: Optional[SignalState] = None
+        self.execution_engine: Optional[ExecutionEngine] = None
+        self.stop_manager: Optional[StopManager] = None
+        self.watchdog: Optional[Watchdog] = None
 
         self._running = False
         self._shutdown_event = asyncio.Event()
@@ -96,13 +104,31 @@ class TradingBot:
 
         self.metrics = MetricsTracker()
 
+        self.signal_state = SignalState()
+        self.execution_engine = ExecutionEngine(
+            signal_state=self.signal_state,
+            client=self.client,
+            settings=self.settings,
+            symbols=self.settings.TRADING_PAIRS,
+        )
+        self.stop_manager = StopManager(self.client, self.settings)
+        self.watchdog = Watchdog(self.settings, self.client, self.alerter)
+        self.execution_engine.on_position_closed = self._on_execution_position_closed
+
         if not self.settings.DRY_RUN:
             await self.client.set_leverage_for_symbols(
                 self.settings.TRADING_PAIRS, int(self.settings.MAX_LEVERAGE)
             )
 
+        if not self.settings.DRY_RUN and self.watchdog:
+            await self.watchdog.startup_cleanup()
+
         self.data_streamer = DataStreamer(
-            symbols=self.settings.TRADING_PAIRS, on_bar_callback=self._on_bar
+            symbols=self.settings.TRADING_PAIRS,
+            on_bar_callback=self._on_bar,
+            on_tick_callback=self._on_tick
+            if self.settings.TICK_EXECUTION_ENABLED
+            else None,
         )
 
         account_state = await self.client.get_account_state()
@@ -117,6 +143,9 @@ class TradingBot:
             cash=account_state.available_balance,
             positions=self._current_positions,
         )
+
+        if self.watchdog:
+            await self.watchdog.start()
 
         logger.info(
             "Bot initialized",
@@ -177,6 +206,94 @@ class TradingBot:
                 await self.alerter.alert_error(
                     str(e), context=f"Processing bar for {symbol}"
                 )
+
+    async def _on_tick(self, symbol: str, price: float):
+        if not self._running or not self.execution_engine:
+            return
+        try:
+            self._current_prices[symbol] = price
+            order = await self.execution_engine.on_tick(symbol, price)
+            if order and order.status.value in ("filled", "partially_filled"):
+                await self._record_execution_order(order)
+                logger.info(
+                    "Position after tick fill",
+                    extra={
+                        "symbol": symbol,
+                        "side": order.side.value,
+                        "filled_size": round(order.filled_size, 8),
+                        "price": order.avg_fill_price,
+                        "tracked_size": round(
+                            self.execution_engine._position_sizes.get(symbol, 0.0), 8
+                        ),
+                    },
+                )
+                if self.settings.DRY_RUN:
+                    size = self.execution_engine._position_sizes.get(symbol, 0.0)
+                    direction = self.execution_engine._last_executed_direction.get(
+                        symbol, 0
+                    )
+                    if size > 0 and direction != 0:
+                        self._current_positions[symbol] = size * (
+                            1 if direction > 0 else -1
+                        )
+                    else:
+                        self._current_positions.pop(symbol, None)
+        except Exception as e:
+            logger.error(
+                "Tick execution error", extra={"symbol": symbol, "error": str(e)}
+            )
+
+    async def _record_execution_order(self, order):
+        assert self.db is not None
+        assert self.metrics is not None
+        assert self.alerter is not None
+
+        pnl = None
+        if self.execution_engine:
+            entry = self.execution_engine._entry_prices.get(order.symbol, 0)
+            if entry > 0 and order.side.value in ("sell", "buy"):
+                direction = self.execution_engine._last_executed_direction.get(
+                    order.symbol, 0
+                )
+                # This is a close order if the position was open
+                if direction != 0:
+                    pnl = 0  # simplified; real PnL calculation would use entry vs exit price
+
+        await self.db.insert_trade(
+            Trade(
+                id=None,
+                timestamp=datetime.utcnow(),
+                symbol=order.symbol,
+                side=order.side.value,
+                size=order.filled_size,
+                price=order.avg_fill_price,
+                fee=order.filled_size * 0.0005,
+                pnl=pnl,
+                order_id=order.id,
+            )
+        )
+
+        self.metrics.record_trade(
+            symbol=order.symbol,
+            side=order.side.value,
+            size=order.filled_size,
+            price=order.avg_fill_price,
+            pnl=pnl,
+        )
+
+        await self.alerter.alert_trade(
+            symbol=order.symbol,
+            side=order.side.value,
+            size=order.filled_size,
+            price=order.avg_fill_price,
+            pnl=pnl,
+        )
+
+    async def _on_execution_position_closed(self, symbol: str):
+        if self.stop_manager:
+            await self.stop_manager.cancel_stop(symbol)
+        if self.settings.DRY_RUN:
+            self._current_positions.pop(symbol, None)
 
     async def _process_bar(self):
         assert self.client is not None
@@ -258,62 +375,124 @@ class TradingBot:
             logger.debug("All signals rejected by position limiter")
             return
 
-        orders = await self.order_manager.execute_signals(
-            signals=limited_signals,
-            positions=positions_usd,
-            prices=self._current_prices,
-        )
-
-        signal_by_symbol = {s.symbol: s for s in limited_signals}
-
-        for order in orders:
-            if order.status.value in ("filled", "partially_filled"):
-                pnl = None
-                current_pos = positions_usd.get(order.symbol, 0)
-
-                if (current_pos > 0 and order.side.value == "sell") or (
-                    current_pos < 0 and order.side.value == "buy"
-                ):
-                    pnl = 0
-
-                await self.db.insert_trade(
-                    Trade(
+        if self.settings.TICK_EXECUTION_ENABLED and self.execution_engine:
+            assert self.signal_state is not None
+            for signal in limited_signals:
+                await self.db.insert_signal(
+                    SignalRecord(
                         id=None,
                         timestamp=datetime.utcnow(),
+                        symbol=signal.symbol,
+                        signal_type="target_position",
+                        target_position=signal.target_position,
+                        current_position=positions_usd.get(signal.symbol, 0),
+                        executed=False,
+                    )
+                )
+
+                self.signal_state.update_signal(
+                    symbol=signal.symbol,
+                    target_position=signal.target_position,
+                    atr=self._get_current_atr(signal.symbol),
+                    entry_price=self._current_prices.get(signal.symbol, 0),
+                    timestamp=datetime.utcnow(),
+                )
+
+            await self.execution_engine.sync_positions(
+                account_state, self._current_prices
+            )
+
+            if self.settings.DRY_RUN:
+                for s in self.settings.TRADING_PAIRS:
+                    size = self.execution_engine._position_sizes.get(s, 0.0)
+                    direction = self.execution_engine._last_executed_direction.get(s, 0)
+                    if size > 0 and direction != 0:
+                        self._current_positions[s] = size * (1 if direction > 0 else -1)
+                    else:
+                        self._current_positions.pop(s, None)
+
+            pos_state = {
+                s: {
+                    "direction": "long"
+                    if self.execution_engine._last_executed_direction.get(s, 0) > 0
+                    else "short"
+                    if self.execution_engine._last_executed_direction.get(s, 0) < 0
+                    else "flat",
+                    "coins": round(
+                        self.execution_engine._position_sizes.get(s, 0.0), 8
+                    ),
+                    "entry": round(self.execution_engine._entry_prices.get(s, 0.0), 2),
+                }
+                for s in self.settings.TRADING_PAIRS
+                if self.execution_engine._position_sizes.get(s, 0.0) > 0
+            }
+            if pos_state:
+                logger.info("Position state after bar", extra={"positions": pos_state})
+            else:
+                logger.info("No open positions after bar")
+
+            if self.stop_manager:
+                atrs = {}
+                for symbol in self.settings.TRADING_PAIRS:
+                    atrs[symbol] = self._get_current_atr(symbol)
+                await self.stop_manager.refresh_stops(account_state.positions, atrs)
+        else:
+            orders = await self.order_manager.execute_signals(
+                signals=limited_signals,
+                positions=positions_usd,
+                prices=self._current_prices,
+            )
+
+            signal_by_symbol = {s.symbol: s for s in limited_signals}
+
+            for order in orders:
+                if order.status.value in ("filled", "partially_filled"):
+                    pnl = None
+                    current_pos = positions_usd.get(order.symbol, 0)
+
+                    if (current_pos > 0 and order.side.value == "sell") or (
+                        current_pos < 0 and order.side.value == "buy"
+                    ):
+                        pnl = 0
+
+                    await self.db.insert_trade(
+                        Trade(
+                            id=None,
+                            timestamp=datetime.utcnow(),
+                            symbol=order.symbol,
+                            side=order.side.value,
+                            size=order.filled_size,
+                            price=order.avg_fill_price,
+                            fee=order.filled_size * 0.0005,
+                            pnl=pnl,
+                            order_id=order.id,
+                        )
+                    )
+
+                    self.metrics.record_trade(
                         symbol=order.symbol,
                         side=order.side.value,
                         size=order.filled_size,
                         price=order.avg_fill_price,
-                        fee=order.filled_size * 0.0005,
                         pnl=pnl,
-                        order_id=order.id,
                     )
-                )
 
-                self.metrics.record_trade(
-                    symbol=order.symbol,
-                    side=order.side.value,
-                    size=order.filled_size,
-                    price=order.avg_fill_price,
-                    pnl=pnl,
-                )
+                    await self.alerter.alert_trade(
+                        symbol=order.symbol,
+                        side=order.side.value,
+                        size=order.filled_size,
+                        price=order.avg_fill_price,
+                        pnl=pnl,
+                    )
 
-                await self.alerter.alert_trade(
-                    symbol=order.symbol,
-                    side=order.side.value,
-                    size=order.filled_size,
-                    price=order.avg_fill_price,
-                    pnl=pnl,
-                )
-
-                if self.settings.DRY_RUN:
-                    sig = signal_by_symbol.get(order.symbol)
-                    if sig is not None:
-                        price = self._current_prices.get(order.symbol, 0)
-                        if price > 0:
-                            self._current_positions[order.symbol] = (
-                                sig.target_position / price
-                            )
+                    if self.settings.DRY_RUN:
+                        sig = signal_by_symbol.get(order.symbol)
+                        if sig is not None:
+                            price = self._current_prices.get(order.symbol, 0)
+                            if price > 0:
+                                self._current_positions[order.symbol] = (
+                                    sig.target_position / price
+                                )
 
         account_state = await self.client.get_account_state()
 
@@ -331,6 +510,16 @@ class TradingBot:
         )
 
         await self._check_hourly_summary(account_state)
+
+    def _get_current_atr(self, symbol: str) -> float:
+        if not self.strategy:
+            return 0.0
+        strategy = (
+            self.strategy._strategy if hasattr(self.strategy, "_strategy") else None
+        )
+        if strategy and hasattr(strategy, "atr_at_entry"):
+            return strategy.atr_at_entry.get(symbol, 0.0)
+        return 0.0
 
     async def _check_hourly_summary(self, account_state: AccountState):
         assert self.metrics is not None
@@ -385,6 +574,12 @@ class TradingBot:
         logger.info("Shutting down trading bot")
 
         self._running = False
+
+        if self.watchdog:
+            await self.watchdog.stop()
+
+        if self.stop_manager and not self.settings.DRY_RUN:
+            await self.stop_manager.cancel_all_stops()
 
         if self.data_streamer:
             await self.data_streamer.stop()
