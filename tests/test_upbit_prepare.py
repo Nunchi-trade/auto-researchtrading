@@ -42,8 +42,6 @@ def test_download_returns_dataframe_with_required_columns():
 
 def test_symbols_list():
     assert "KRW-BTC" in SYMBOLS
-    assert "KRW-ETH" in SYMBOLS
-    assert "KRW-SOL" in SYMBOLS
 
 
 def test_upbit_bar_data_has_no_funding_rate():
@@ -58,24 +56,26 @@ import tempfile
 
 
 def test_load_upbit_data_returns_symbols(tmp_path, monkeypatch):
-    """로컬 parquet 파일이 있으면 val split을 올바르게 로드한다."""
+    """1분봉 parquet이 있으면 60분봉으로 리샘플링해서 반환한다."""
     monkeypatch.setattr("upbit_prepare.DATA_DIR", str(tmp_path))
 
+    # 600개 1분봉 생성 (= 10시간 → 60분봉 10개)
     base_ms = int(pd.Timestamp("2024-07-01", tz="UTC").timestamp() * 1000)
-    rows = []
-    for i in range(10):
-        rows.append({
-            "timestamp": base_ms + i * 3600_000,
+    rows = [
+        {
+            "timestamp": base_ms + i * 60_000,   # 1분 간격
             "open": 80000000.0, "high": 81000000.0,
             "low": 79000000.0, "close": 80500000.0,
             "volume": 1.0,
-        })
+        }
+        for i in range(600)
+    ]
     df = pd.DataFrame(rows)
-    df.to_parquet(tmp_path / "KRW-BTC_1h.parquet", index=False)
+    df.to_parquet(tmp_path / "KRW-BTC_1m.parquet", index=False)
 
-    data = load_upbit_data("val")
+    data = load_upbit_data("val", interval_minutes=60)
     assert "KRW-BTC" in data
-    assert len(data["KRW-BTC"]) == 10
+    assert len(data["KRW-BTC"]) == 10  # 600분 / 60분 = 10봉
 
 
 def test_load_upbit_data_skips_missing_files(tmp_path, monkeypatch):

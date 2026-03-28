@@ -27,7 +27,10 @@ SLIPPAGE_BPS = 1.0
 LOOKBACK_BARS = 500
 HOURS_PER_YEAR = 8760
 
-SYMBOLS = ["KRW-BTC", "KRW-ETH", "KRW-SOL"]
+SYMBOLS = ["KRW-BTC"]
+
+DOWNLOAD_START        = "2017-09-01"   # Upbit KRW-BTC 상장 초기
+DOWNLOAD_INTERVAL_MIN = 1              # 저장 단위: 1분봉
 
 VAL_START = "2024-07-01"
 VAL_END   = "2025-03-31"
@@ -83,15 +86,24 @@ class UpbitBacktestResult:
 # 데이터 다운로드
 # ---------------------------------------------------------------------------
 
-def _download_upbit_candles(market: str, start_ms: int, end_ms: int) -> pd.DataFrame:
-    """Upbit 공개 API로 시간봉 OHLCV 다운로드."""
+def _download_upbit_candles(
+    market: str, start_ms: int, end_ms: int, interval_minutes: int = 1
+) -> pd.DataFrame:
+    """Upbit 공개 API로 OHLCV 다운로드.
+
+    Args:
+        interval_minutes: 봉 단위 (1, 3, 5, 10, 15, 30, 60, 240)
+    """
     all_rows = []
     current_end_ms = end_ms
+    req_count = 0
 
     while current_end_ms > start_ms:
-        to_str = datetime.fromtimestamp(current_end_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        to_str = datetime.fromtimestamp(
+            current_end_ms / 1000, tz=timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
         resp = requests.get(
-            f"{UPBIT_URL}/candles/minutes/60",
+            f"{UPBIT_URL}/candles/minutes/{interval_minutes}",
             params={"market": market, "count": 200, "to": to_str},
             timeout=30,
         )
@@ -118,6 +130,12 @@ def _download_upbit_candles(market: str, start_ms: int, end_ms: int) -> pd.DataF
         if earliest_ms >= current_end_ms:
             break
         current_end_ms = earliest_ms - 1
+
+        req_count += 1
+        if req_count % 500 == 0:
+            fetched_ts = pd.Timestamp(earliest_ms, unit="ms", tz="UTC").strftime("%Y-%m-%d")
+            print(f"    {req_count:,}회 요청 완료 (현재 위치: {fetched_ts}, 누적 {len(all_rows):,} 봉)")
+
         time.sleep(0.12)
 
     if not all_rows:
@@ -131,32 +149,65 @@ def _download_upbit_candles(market: str, start_ms: int, end_ms: int) -> pd.DataF
     )
 
 
+def resample_candles(df: pd.DataFrame, minutes: int) -> pd.DataFrame:
+    """1분봉 DataFrame을 지정 분봉으로 리샘플링.
+
+    Args:
+        df: 1분봉 OHLCV DataFrame (timestamp 컬럼 ms 단위)
+        minutes: 목표 봉 단위 (1, 5, 10, 15, 30, 60, 240, ...)
+
+    Returns:
+        리샘플링된 OHLCV DataFrame
+    """
+    if minutes == 1:
+        return df.copy()
+
+    idx = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+    df2 = df.set_index(idx)
+
+    agg = df2.resample(f"{minutes}min").agg(
+        open=("open", "first"),
+        high=("high", "max"),
+        low=("low", "min"),
+        close=("close", "last"),
+        volume=("volume", "sum"),
+    ).dropna(subset=["close"])
+
+    agg["timestamp"] = (agg.index.view("int64") // 1_000_000).astype(int)
+    return agg.reset_index(drop=True)[["timestamp", "open", "high", "low", "close", "volume"]]
+
+
 def download_upbit_data(symbols: list[str] | None = None) -> None:
-    """모든 심볼의 시간봉 데이터 다운로드 (캐시 있으면 스킵)."""
+    """1분봉 데이터를 DOWNLOAD_START부터 현재까지 다운로드 (캐시 있으면 스킵).
+
+    저장 경로: DATA_DIR/{symbol}_1m.parquet
+    """
     os.makedirs(DATA_DIR, exist_ok=True)
     if symbols is None:
         symbols = SYMBOLS
 
-    start_ms = int(pd.Timestamp("2024-01-01", tz="UTC").timestamp() * 1000)
-    end_ms   = int(pd.Timestamp("2025-04-01", tz="UTC").timestamp() * 1000)
+    start_ms = int(pd.Timestamp(DOWNLOAD_START, tz="UTC").timestamp() * 1000)
+    end_ms   = int(pd.Timestamp("now", tz="UTC").timestamp() * 1000)
+    # 캐시 유효 여부 판단 기준: 마지막 봉이 1시간 이내면 최신 상태
+    fresh_threshold_ms = end_ms - 3_600_000
 
     for symbol in symbols:
-        filepath = os.path.join(DATA_DIR, f"{symbol}_1h.parquet")
+        filepath = os.path.join(DATA_DIR, f"{symbol}_1m.parquet")
         if os.path.exists(filepath):
             try:
                 existing = pd.read_parquet(filepath)
-                cached_start = existing["timestamp"].min()
-                cached_end   = existing["timestamp"].max()
-                if cached_start <= start_ms and cached_end >= end_ms - 3_600_000:
-                    print(f"  {symbol}: 이미 {len(existing)} 봉 보유")
+                cached_start = int(existing["timestamp"].min())
+                cached_end   = int(existing["timestamp"].max())
+                if cached_start <= start_ms and cached_end >= fresh_threshold_ms:
+                    print(f"  {symbol}: 이미 {len(existing):,} 봉 보유 (최신)")
                     continue
                 print(f"  {symbol}: 캐시 범위 부족, 재다운로드합니다")
             except Exception:
                 print(f"  {symbol}: 캐시 파일 손상, 재다운로드합니다")
 
-        print(f"  {symbol}: Upbit API 다운로드 중...")
+        print(f"  {symbol}: 1분봉 다운로드 중 ({DOWNLOAD_START} ~ 현재, 약 40분 소요)...")
         try:
-            df = _download_upbit_candles(symbol, start_ms, end_ms)
+            df = _download_upbit_candles(symbol, start_ms, end_ms, DOWNLOAD_INTERVAL_MIN)
         except requests.RequestException as e:
             print(f"  {symbol}: 네트워크 오류 ({e}), 스킵")
             continue
@@ -166,11 +217,18 @@ def download_upbit_data(symbols: list[str] | None = None) -> None:
             continue
 
         df.to_parquet(filepath, index=False)
-        print(f"  {symbol}: {len(df)} 봉 저장 → {filepath}")
+        print(f"  {symbol}: {len(df):,} 봉 저장 → {filepath}")
 
 
-def load_upbit_data(split: str = "val") -> dict[str, pd.DataFrame]:
-    """parquet 캐시에서 split 데이터 로드. {symbol: DataFrame} 반환."""
+def load_upbit_data(
+    split: str = "val", interval_minutes: int = 60
+) -> dict[str, pd.DataFrame]:
+    """1분봉 parquet에서 로드 후 interval_minutes 봉으로 리샘플링.
+
+    Args:
+        split: "val" 등 데이터 구간
+        interval_minutes: 반환할 봉 단위 (1, 5, 10, 15, 30, 60, 240, ...)
+    """
     splits = {"val": (VAL_START, VAL_END)}
     if split not in splits:
         raise ValueError(f"split은 {list(splits.keys())} 중 하나여야 합니다")
@@ -181,7 +239,7 @@ def load_upbit_data(split: str = "val") -> dict[str, pd.DataFrame]:
 
     result = {}
     for symbol in SYMBOLS:
-        filepath = os.path.join(DATA_DIR, f"{symbol}_1h.parquet")
+        filepath = os.path.join(DATA_DIR, f"{symbol}_1m.parquet")
         if not os.path.exists(filepath):
             continue
         try:
@@ -191,6 +249,9 @@ def load_upbit_data(split: str = "val") -> dict[str, pd.DataFrame]:
             continue
         mask = (df["timestamp"] >= start_ms) & (df["timestamp"] < end_ms)
         split_df = df[mask].reset_index(drop=True)
+
+        if interval_minutes != 1:
+            split_df = resample_candles(split_df, interval_minutes)
         if len(split_df) > 0:
             result[symbol] = split_df
     return result

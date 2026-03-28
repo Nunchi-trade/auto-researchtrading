@@ -1,22 +1,31 @@
 """
 Upbit 현물 백테스트 진입점.
-Usage: uv run upbit_backtest.py
+Usage:
+    uv run upbit_backtest.py                # 기본 60분봉
+    uv run upbit_backtest.py --interval 10  # 10분봉
 """
 import time
+import argparse
 from upbit_prepare import load_upbit_data, run_upbit_backtest, compute_upbit_score
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--interval", type=int, default=60,
+                    help="봉 단위 분 (1/5/10/15/30/60/240, 기본: 60)")
+args = parser.parse_args()
 
 t_start = time.time()
 
 from upbit_strategy import Strategy
 
 strategy = Strategy()
-data = load_upbit_data("val")
+data = load_upbit_data("val", interval_minutes=args.interval)
 
 if not data:
     print("데이터 없음. 먼저 실행하세요: uv run upbit_prepare_run.py")
     raise SystemExit(1)
 
-print(f"로드: {sum(len(df) for df in data.values())} 봉 / {len(data)} 심볼")
+print(f"봉 단위: {args.interval}분")
+print(f"로드: {sum(len(df) for df in data.values()):,} 봉 / {len(data)} 심볼")
 print(f"심볼: {list(data.keys())}")
 
 result = run_upbit_backtest(strategy, data)
