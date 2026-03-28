@@ -129,27 +129,58 @@ def _download_upbit_candles(market: str, start_ms: int, end_ms: int) -> pd.DataF
     )
 
 
-def download_upbit_data(symbols: list | None = None) -> None:
-    """지정된 심볼의 시간봉 데이터를 다운로드하여 캐시에 저장."""
+def download_upbit_data(symbols=None):
+    """모든 심볼의 시간봉 데이터 다운로드 (캐시 있으면 스킵)."""
     os.makedirs(DATA_DIR, exist_ok=True)
-    targets = symbols if symbols else SYMBOLS
-    start_ms = int(pd.Timestamp(VAL_START, tz="UTC").timestamp() * 1000)
-    end_ms   = int(pd.Timestamp(VAL_END,   tz="UTC").timestamp() * 1000)
+    if symbols is None:
+        symbols = SYMBOLS
 
-    for market in targets:
-        out_path = os.path.join(DATA_DIR, f"{market.replace('-', '_')}.parquet")
-        print(f"다운로드 중: {market} → {out_path}")
-        df = _download_upbit_candles(market, start_ms, end_ms)
+    start_ms = int(pd.Timestamp("2024-01-01", tz="UTC").timestamp() * 1000)
+    end_ms   = int(pd.Timestamp("2025-04-01", tz="UTC").timestamp() * 1000)
+
+    for symbol in symbols:
+        filepath = os.path.join(DATA_DIR, f"{symbol}_1h.parquet")
+        if os.path.exists(filepath):
+            existing = pd.read_parquet(filepath)
+            cached_min = existing["timestamp"].min()
+            cached_max = existing["timestamp"].max()
+            if cached_min <= start_ms and cached_max >= end_ms - 3_600_000:
+                print(f"  {symbol}: 이미 {len(existing)} 봉 보유 (캐시 유효)")
+                continue
+            print(f"  {symbol}: 캐시 범위 불일치, 재다운로드 중...")
+            os.remove(filepath)
+
+        print(f"  {symbol}: Upbit API 다운로드 중...")
+        df = _download_upbit_candles(symbol, start_ms, end_ms)
+
         if df.empty:
-            print(f"  경고: {market} 데이터 없음")
+            print(f"  {symbol}: 데이터 없음, 스킵")
             continue
-        df.to_parquet(out_path, index=False)
-        print(f"  저장 완료: {len(df)} 봉")
+
+        df.to_parquet(filepath, index=False)
+        print(f"  {symbol}: {len(df)} 봉 저장 → {filepath}")
 
 
-# load_upbit_data는 Task 2에서 추가됩니다. 지금은 stub만:
 def load_upbit_data(split: str = "val") -> dict:
-    raise NotImplementedError("Task 2에서 구현 예정")
+    """parquet 캐시에서 split 데이터 로드. {symbol: DataFrame} 반환."""
+    splits = {"val": (VAL_START, VAL_END)}
+    assert split in splits, f"split은 {list(splits.keys())} 중 하나여야 합니다"
+
+    start_str, end_str = splits[split]
+    start_ms = int(pd.Timestamp(start_str, tz="UTC").timestamp() * 1000)
+    end_ms   = int(pd.Timestamp(end_str,   tz="UTC").timestamp() * 1000)
+
+    result = {}
+    for symbol in SYMBOLS:
+        filepath = os.path.join(DATA_DIR, f"{symbol}_1h.parquet")
+        if not os.path.exists(filepath):
+            continue
+        df = pd.read_parquet(filepath)
+        mask = (df["timestamp"] >= start_ms) & (df["timestamp"] < end_ms)
+        split_df = df[mask].reset_index(drop=True)
+        if len(split_df) > 0:
+            result[symbol] = split_df
+    return result
 
 
 if __name__ == "__main__":

@@ -51,3 +51,34 @@ def test_upbit_bar_data_has_no_funding_rate():
     fields = {f.name for f in dataclasses.fields(UpbitBarData)}
     assert "funding_rate" not in fields
     assert "history" in fields
+
+
+import os
+import tempfile
+
+
+def test_load_upbit_data_returns_symbols(tmp_path, monkeypatch):
+    """로컬 parquet 파일이 있으면 val split을 올바르게 로드한다."""
+    monkeypatch.setattr("upbit_prepare.DATA_DIR", str(tmp_path))
+
+    base_ms = int(pd.Timestamp("2024-07-01", tz="UTC").timestamp() * 1000)
+    rows = []
+    for i in range(10):
+        rows.append({
+            "timestamp": base_ms + i * 3600_000,
+            "open": 80000000.0, "high": 81000000.0,
+            "low": 79000000.0, "close": 80500000.0,
+            "volume": 1.0,
+        })
+    df = pd.DataFrame(rows)
+    df.to_parquet(tmp_path / "KRW-BTC_1h.parquet", index=False)
+
+    data = load_upbit_data("val")
+    assert "KRW-BTC" in data
+    assert len(data["KRW-BTC"]) == 10
+
+
+def test_load_upbit_data_skips_missing_files(tmp_path, monkeypatch):
+    monkeypatch.setattr("upbit_prepare.DATA_DIR", str(tmp_path))
+    data = load_upbit_data("val")
+    assert data == {}
