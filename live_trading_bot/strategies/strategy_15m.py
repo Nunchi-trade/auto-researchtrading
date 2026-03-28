@@ -1,5 +1,8 @@
 """15-minute resolution strategy — scaled from hourly base (1 hour = 4 bars)."""
 
+import json
+from pathlib import Path
+
 import numpy as np
 from prepare import Signal, PortfolioState, BarData
 
@@ -345,3 +348,55 @@ class Strategy:
                     self.pyramided[symbol] = False
 
         return signals
+
+
+def _load_params_from_config():
+    """Load strategy parameters from JSON config file.
+
+    If config file exists and contains valid JSON, update module-level constants.
+    Parameters that should be integers are cast to int type.
+    Errors are handled silently to preserve default values.
+    """
+    config_path = (
+        Path(__file__).resolve().parent.parent / "config" / "optimized_params.json"
+    )
+
+    INT_PARAMS = {
+        "SHORT_WINDOW",
+        "MED_WINDOW",
+        "MED2_WINDOW",
+        "LONG_WINDOW",
+        "EMA_FAST",
+        "EMA_SLOW",
+        "RSI_PERIOD",
+        "RSI_BULL",
+        "RSI_BEAR",
+        "RSI_OVERBOUGHT",
+        "RSI_OVERSOLD",
+        "MACD_FAST",
+        "MACD_SLOW",
+        "MACD_SIGNAL",
+        "BB_PERIOD",
+        "FUNDING_LOOKBACK",
+        "VOL_LOOKBACK",
+        "ATR_LOOKBACK",
+        "COOLDOWN_BARS",
+        "MIN_VOTES",
+        "CORR_LOOKBACK",
+    }
+
+    try:
+        if config_path.exists():
+            with open(config_path, "r") as f:
+                params = json.load(f)
+
+            for key, value in params.items():
+                if key in globals():
+                    if key in INT_PARAMS:
+                        value = int(value)
+                    globals()[key] = value
+    except (FileNotFoundError, json.JSONDecodeError, TypeError, KeyError):
+        pass
+
+
+_load_params_from_config()
