@@ -51,6 +51,7 @@ class Settings:
     HYPERLIQUID_WS_URL: str = "wss://api.hyperliquid.xyz/ws"
 
     DB_PATH: str = "trading_bot.db"
+    SUPABASE_DB_URL: str = ""
     LOG_PATH: str = "logs/bot.log"
 
     ALERT_INTERVAL_HOURS: float = 1.0
@@ -99,6 +100,9 @@ class Settings:
 
         if val := os.getenv("DB_PATH"):
             settings.DB_PATH = val
+
+        if val := os.getenv("SUPABASE_DB_URL"):
+            settings.SUPABASE_DB_URL = val
 
         if val := os.getenv("BAR_INTERVAL"):
             settings.BAR_INTERVAL = val
