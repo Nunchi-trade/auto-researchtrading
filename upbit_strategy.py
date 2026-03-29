@@ -1,15 +1,15 @@
 """
-Upbit 현물 전용 전략. exp280: 파라미터 전면 재최적화 (score 5.016)
+Upbit 현물 전용 전략. exp290: SMA lag=8 최적화 (score 5.032)
 
 핵심 발견:
-  1. EMA(19/100) 크로스오버 - 진입/청산 (fast=19이 optimal)
-  2. SMA(200) 필터 + 0.04% 이상 상승 기울기 - 상승 추세 시장만 진입
+  1. EMA(19/100) 크로스오버
+  2. SMA(200) 필터 + 0.04% 이상 상승 기울기 (8봉 비교)
   3. ADX(25) > 15 - 추세 강도 필터
   4. COOLDOWN=24봉 - 재진입 대기
-  5. RSI(9) 45/46 비대칭 - 진입(>45), 청산(<46)
+  5. RSI(9) 45/46 비대칭
   6. MACD(8/17/9)
-  7. MAX_HOLD=96봉 - 96봉 초과 보유 강제 청산
-  8. VOL_LOOKBACK=28 (기존 36 → 28)
+  7. MAX_HOLD=96봉
+  8. VOL_LOOKBACK=28
 
 진입: EMA(19) > EMA(100) AND 현재가 > SMA(200) AND SMA200 기울기>0.04%
       AND ADX(25) > 15 AND aux_bull >= 2
@@ -144,7 +144,7 @@ class Strategy:
             ema_bear = ema_f[-1] < ema_s[-1]
 
             sma_long     = float(np.mean(closes[-TREND_FILTER_BARS:]))
-            sma_prev     = float(np.mean(closes[-(TREND_FILTER_BARS + 10):-10]))
+            sma_prev     = float(np.mean(closes[-(TREND_FILTER_BARS + 8):-8]))
             above_trend  = mid > sma_long
             sma_slope    = (sma_long - sma_prev) / max(sma_prev, 1.0)
             sma_rising   = sma_slope > 0.0004  # SMA200 0.04% 이상 상승 중
