@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp325: 모멘텀 로그 수익률 변경 (score 5.063)
+Upbit 현물 전용 전략. exp343: ADX 기간 24봉 최적화 (score 5.079)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -162,7 +162,7 @@ class Strategy:
             rsi       = _calc_rsi(closes, RSI_PERIOD)
             stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)
             macd_h   = _calc_macd(closes)
-            adx, plus_di, minus_di = _calc_adx(bd.history, period=25)
+            adx, plus_di, minus_di = _calc_adx(bd.history, period=24)
             strong_trend = adx > 15.0
 
             # 부가 신호 3개 (EMA 제외)
