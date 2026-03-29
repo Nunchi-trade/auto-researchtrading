@@ -1,19 +1,20 @@
 """
-Upbit 현물 전용 전략. exp360: 5신호 bear exit 4/5 필요 + 최근고점 0.8% 하락 (score 5.410)
+Upbit 현물 전용 전략. exp370: ATR(4.15) trailing stop + MACD_FAST=7 + stoch_bear<40 (score 5.477)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
-  2. SMA(200)*1.005 필터 + 0.04% 이상 상승 기울기 (8봉 비교)
-  3. ADX(25) > 15 - 추세 강도 필터
+  2. SMA(200)*1.005 필터 + 0.035% 이상 상승 기울기 (8봉 비교)
+  3. ADX(24) > 15 - 추세 강도 필터
   4. COOLDOWN=24봉 - 재진입 대기
   5. RSI(9) 45/46 비대칭
-  6. MACD(8/17/9)
+  6. MACD(7/17/9)
   7. MAX_HOLD=96봉
   8. VOL_LOOKBACK=28
+  9. ATR(14)*4.15 trailing stop
 
-진입: EMA(19) > EMA(100) AND 현재가 > SMA(200)*1.005 AND SMA200 기울기>0.04%
-      AND ADX(25) > 15 AND aux_bull >= 2
-청산: EMA(19) < EMA(100) OR aux_bear >= 3 OR 보유기간 >= 96봉
+진입: EMA(19) > EMA(100) AND 현재가 > SMA(200)*1.005 AND SMA200 기울기>0.035%
+      AND ADX(24) > 15 AND stoch_rsi > 30 AND aux_bull >= 2
+청산: EMA(19) < EMA(100) OR aux_bear >= 4/5 OR 보유기간 >= 96봉 OR ATR trailing stop
 포지션: 99%
 """
 
@@ -28,7 +29,7 @@ EMA_SLOW          = 100
 RSI_PERIOD        = 9
 RSI_BULL          = 45
 RSI_BEAR          = 46
-MACD_FAST         = 8
+MACD_FAST         = 7
 MACD_SLOW         = 17
 MACD_SIGNAL       = 9
 MED_WINDOW        = 12
@@ -41,6 +42,7 @@ TARGET_VOL        = 0.015
 COOLDOWN_BARS     = 24
 MIN_BULL_VOTES    = 2
 MIN_BEAR_VOTES    = 3
+ATR_STOP_MULT     = 4.15
 
 
 def _ema(values: np.ndarray, span: int) -> np.ndarray:
@@ -118,6 +120,7 @@ class Strategy:
     def __init__(self) -> None:
         self.exit_bar: dict[str, int] = {}
         self.entry_bar: dict[str, int] = {}
+        self.peak_price: dict[str, float] = {}
         self.bar_count = 0
 
     def on_bar(self, bar_data: dict, portfolio: UpbitPortfolioState) -> list:
@@ -147,7 +150,7 @@ class Strategy:
             sma_prev     = float(np.mean(closes[-(TREND_FILTER_BARS + 8):-8]))
             above_trend  = mid > sma_long * 1.005  # SMA200 0.5% 이상
             sma_slope    = (sma_long - sma_prev) / max(sma_prev, 1.0)
-            sma_rising   = sma_slope > 0.00035  # SMA200 0.04% 이상 상승 중
+            sma_rising   = sma_slope > 0.00035  # SMA200 0.035% 이상 상승 중
 
             # 동적 임계값
             if len(closes) >= VOL_LOOKBACK:
@@ -160,10 +163,20 @@ class Strategy:
 
             ret_med   = float(np.log(closes[-1] / closes[-MED_WINDOW]))
             rsi       = _calc_rsi(closes, RSI_PERIOD)
-            stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)  # 진입 조건: stoch_rsi > 30 필터
+            stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)  # 진입: stoch_rsi > 30, 청산: stoch_rsi < 40
             macd_h   = _calc_macd(closes)
             adx, plus_di, minus_di = _calc_adx(bd.history, period=24)
             strong_trend = adx > 15.0
+
+            # ATR trailing stop 계산
+            df_atr = bd.history.iloc[-30:]
+            h_atr  = df_atr["high"].values.astype(float)
+            l_atr  = df_atr["low"].values.astype(float)
+            c_atr  = df_atr["close"].values.astype(float)
+            tr_arr = np.maximum(h_atr[1:] - l_atr[1:],
+                     np.maximum(np.abs(h_atr[1:] - c_atr[:-1]),
+                                np.abs(l_atr[1:]  - c_atr[:-1])))
+            atr_val = float(np.mean(tr_arr[-14:]))
 
             # 부가 신호 3개 (EMA 제외)
             aux_bull = sum([
@@ -178,7 +191,7 @@ class Strategy:
                 ret_med < -dyn_threshold,
                 rsi < RSI_BEAR,
                 macd_h < 0,
-                stoch_rsi < 30,
+                stoch_rsi < 40,
                 below_recent_high,
             ])
 
@@ -192,9 +205,14 @@ class Strategy:
                 if ema_bull and above_trend and sma_rising and strong_trend and stoch_rsi > 30 and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
                     target = equity * BASE_POSITION_PCT
                     self.entry_bar[symbol] = self.bar_count
+                    self.peak_price[symbol] = mid
             else:
+                # 최고가 갱신 및 ATR trailing stop
+                self.peak_price[symbol] = max(self.peak_price.get(symbol, mid), mid)
+                trailing_stop = self.peak_price[symbol] - ATR_STOP_MULT * atr_val
+                atr_stop_hit  = mid < trailing_stop
                 time_exit = hold_bars >= MAX_HOLD_BARS
-                if ema_bear or aux_bear >= 4 or time_exit:
+                if ema_bear or aux_bear >= 4 or time_exit or atr_stop_hit:
                     target = 0.0
 
             if abs(target - current_pos) > 1.0:
