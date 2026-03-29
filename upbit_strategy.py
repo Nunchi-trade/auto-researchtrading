@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp350: 4신호 bear exit 4/4 필요 + stoch<30 (score 5.242)
+Upbit 현물 전용 전략. exp360: 5신호 bear exit 4/5 필요 + 최근고점 0.8% 하락 (score 5.410)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -171,12 +171,15 @@ class Strategy:
                 rsi > RSI_BULL,
                 macd_h > 0,
             ])
-            # 부가 신호 4개 - 청산에는 4/4 필요
+            # 부가 신호 5개 - 청산에는 4/5 필요
+            recent_high = float(np.max(closes[-3:]))
+            below_recent_high = mid < recent_high * 0.992
             aux_bear = sum([
                 ret_med < -dyn_threshold,
                 rsi < RSI_BEAR,
                 macd_h < 0,
                 stoch_rsi < 30,
+                below_recent_high,
             ])
 
             in_cooldown = (self.bar_count - self.exit_bar.get(symbol, -999)) < COOLDOWN_BARS
