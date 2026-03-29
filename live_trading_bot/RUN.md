@@ -199,7 +199,14 @@ python3 backtest/backtest_interval.py --interval 15m --strategy strategies.strat
 ```bash
 cd live_trading_bot
 
-# Full tuning sweep (single + secondary + multi-parameter grid)
+# Quick commands via Makefile (recommended)
+make tune           # Daily tune: 8 workers, 4x subsampled screening, full revalidation, OOS
+make tune-full      # Same but no subsampling — slower, more thorough
+make tune-fast      # Heavy subsampling (8x) for fast iteration
+make tune-no-oos    # Skip out-of-sample validation
+make download       # Download 15m candle data only (no tuning)
+
+# Or run directly:
 python3 backtest/tune_15m.py --phase all
 
 # Individual phases
@@ -211,6 +218,16 @@ python3 backtest/tune_15m.py --phase oos         # OOS validation only
 # Custom parameter OOS test
 python3 backtest/tune_15m.py --phase oos --oos-params '{"ATR_STOP_MULT": 8.0, "MIN_VOTES": 5}'
 ```
+
+**How tuning works:** The pipeline runs single-parameter sweeps → secondary sweeps → forward stepwise accumulation → adaptive multi-parameter grid → OOS validation. All results are saved to `param_snapshots` (audit trail). The single best result is saved to `active_params` — the strategy reads from this table at startup as its source of truth. No JSON config files involved.
+
+| Make target | Subsample | OOS | Speed | Use case |
+|---|---|---|---|---|
+| `make tune` | 4x | Yes | ~10 min | **Daily production run** |
+| `make tune-full` | none | Yes | ~40 min | Weekend deep tune |
+| `make tune-fast` | 8x | Yes | ~5 min | Quick sanity check |
+| `make tune-no-oos` | 4x | No | ~8 min | Skip validation when iterating |
+| `make download` | — | — | ~15s | Just refresh candle data |
 
 See `results.md` for full tuning results and strategy comparison.
 
