@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Callable
 import websockets
 
 from exchange.types import Candle
-from exchange.hyperliquid import HyperliquidClient
+from exchange.interface import Exchange
 from data.bar_builder import BarBuilder
 from config import get_settings
 from monitoring.logger import get_logger
@@ -50,7 +50,7 @@ class DataStreamer:
         self.latest_prices: Dict[str, float] = {}
         self.latest_volumes: Dict[str, float] = {}
         self._last_candle_ts: Dict[str, int] = {}
-        self._client: Optional[HyperliquidClient] = None
+        self._client: Optional[Exchange] = None
         self._bar_count_since_funding_fetch: int = 0
         self._FUNDING_FETCH_INTERVAL: int = 8
 
@@ -58,7 +58,7 @@ class DataStreamer:
         self._pending_bar_symbols: set = set()
         self._batch_interval_ts: Optional[int] = None
 
-    async def start(self, client: Optional[HyperliquidClient] = None):
+    async def start(self, client: Optional[Exchange] = None):
         self._running = True
         self._client = client
 
@@ -81,7 +81,7 @@ class DataStreamer:
                         self.settings.MAX_RECONNECT_DELAY_SECONDS,
                     )
 
-    async def _load_historical_data(self, client: HyperliquidClient):
+    async def _load_historical_data(self, client: Exchange):
         logger.info("Loading historical data...")
 
         for symbol in self.symbols:

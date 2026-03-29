@@ -18,9 +18,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
 
-from config import get_settings, get_private_key
+from config import get_settings
 from config.settings import Settings
-from exchange.hyperliquid import HyperliquidClient
+from exchange import create_exchange, Exchange
 from exchange.order_manager import OrderManager
 from exchange.types import AccountState, Candle, PositionSide
 from data.streamer import DataStreamer
@@ -45,7 +45,7 @@ class TradingBot:
     def __init__(self, settings: Optional[Settings] = None):
         self.settings = settings or get_settings()
 
-        self.client: Optional[HyperliquidClient] = None
+        self.client: Optional[Exchange] = None
         self.order_manager: Optional[OrderManager] = None
         self.data_streamer: Optional[DataStreamer] = None
         self.strategy: Optional[EnsembleStrategy] = None
@@ -87,11 +87,7 @@ class TradingBot:
         self.db = create_repository()
         await self.db.connect()
 
-        private_key = get_private_key()
-
-        self.client = HyperliquidClient(
-            private_key=private_key, dry_run=self.settings.DRY_RUN
-        )
+        self.client = create_exchange()
 
         self.order_manager = OrderManager(self.client)
 
@@ -116,12 +112,11 @@ class TradingBot:
         self.watchdog = Watchdog(self.settings, self.client, self.alerter)
         self.execution_engine.on_position_closed = self._on_execution_position_closed
 
-        if not self.settings.DRY_RUN:
-            await self.client.set_leverage_for_symbols(
-                self.settings.TRADING_PAIRS, int(self.settings.MAX_LEVERAGE)
-            )
+        await self.client.set_leverage_for_symbols(
+            self.settings.TRADING_PAIRS, int(self.settings.MAX_LEVERAGE)
+        )
 
-        if not self.settings.DRY_RUN and self.watchdog:
+        if self.watchdog:
             await self.watchdog.startup_cleanup()
 
         self.data_streamer = DataStreamer(
@@ -229,17 +224,6 @@ class TradingBot:
                         ),
                     },
                 )
-                if self.settings.DRY_RUN:
-                    size = self.execution_engine._position_sizes.get(symbol, 0.0)
-                    direction = self.execution_engine._last_executed_direction.get(
-                        symbol, 0
-                    )
-                    if size > 0 and direction != 0:
-                        self._current_positions[symbol] = size * (
-                            1 if direction > 0 else -1
-                        )
-                    else:
-                        self._current_positions.pop(symbol, None)
         except Exception as e:
             logger.error(
                 "Tick execution error", extra={"symbol": symbol, "error": str(e)}
@@ -294,8 +278,6 @@ class TradingBot:
     async def _on_execution_position_closed(self, symbol: str):
         if self.stop_manager:
             await self.stop_manager.cancel_stop(symbol)
-        if self.settings.DRY_RUN:
-            self._current_positions.pop(symbol, None)
 
     async def _process_bar(self, triggered_by: str = ""):
         assert self.client is not None
@@ -317,13 +299,13 @@ class TradingBot:
 
         histories = self.data_streamer.get_all_histories()
 
-        if not self.settings.DRY_RUN:
-            for symbol in self.settings.TRADING_PAIRS:
-                self._current_positions.pop(symbol, None)
-            for symbol, pos in account_state.positions.items():
-                self._current_positions[symbol] = (
-                    pos.size if pos.side.value == "long" else -pos.size
-                )
+        # Sync positions from exchange (DryExchange returns simulated state)
+        for symbol in self.settings.TRADING_PAIRS:
+            self._current_positions.pop(symbol, None)
+        for symbol, pos in account_state.positions.items():
+            self._current_positions[symbol] = (
+                pos.size if pos.side.value == "long" else -pos.size
+            )
 
         positions_usd = self._positions_to_usd()
 
@@ -331,9 +313,6 @@ class TradingBot:
             histories=histories,
             account_state=account_state,
             current_prices=self._current_prices,
-            override_positions=self._current_positions
-            if self.settings.DRY_RUN
-            else None,
         )
 
         if not signals:
@@ -422,15 +401,6 @@ class TradingBot:
                 account_state, self._current_prices
             )
 
-            if self.settings.DRY_RUN:
-                for s in self.settings.TRADING_PAIRS:
-                    size = self.execution_engine._position_sizes.get(s, 0.0)
-                    direction = self.execution_engine._last_executed_direction.get(s, 0)
-                    if size > 0 and direction != 0:
-                        self._current_positions[s] = size * (1 if direction > 0 else -1)
-                    else:
-                        self._current_positions.pop(s, None)
-
             pos_state = {
                 s: {
                     "direction": "long"
@@ -505,24 +475,15 @@ class TradingBot:
                         pnl=pnl,
                     )
 
-                    if self.settings.DRY_RUN:
-                        sig = signal_by_symbol.get(order.symbol)
-                        if sig is not None:
-                            price = self._current_prices.get(order.symbol, 0)
-                            if price > 0:
-                                self._current_positions[order.symbol] = (
-                                    sig.target_position / price
-                                )
-
         account_state = await self.client.get_account_state()
 
-        if not self.settings.DRY_RUN:
-            for symbol in self.settings.TRADING_PAIRS:
-                self._current_positions.pop(symbol, None)
-            for symbol, pos in account_state.positions.items():
-                self._current_positions[symbol] = (
-                    pos.size if pos.side.value == "long" else -pos.size
-                )
+        # Re-sync positions after execution
+        for symbol in self.settings.TRADING_PAIRS:
+            self._current_positions.pop(symbol, None)
+        for symbol, pos in account_state.positions.items():
+            self._current_positions[symbol] = (
+                pos.size if pos.side.value == "long" else -pos.size
+            )
 
         self.metrics.update(
             equity=account_state.total_equity,
@@ -600,7 +561,7 @@ class TradingBot:
         if self.watchdog:
             await self.watchdog.stop()
 
-        if self.stop_manager and not self.settings.DRY_RUN:
+        if self.stop_manager:
             await self.stop_manager.cancel_all_stops()
 
         if self.data_streamer:

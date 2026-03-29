@@ -90,7 +90,7 @@ def cleanup_live_positions(db_path: str = ""):
 
     async def _close():
         pk = get_private_key()
-        client = HyperliquidClient(private_key=pk, dry_run=False)
+        client = HyperliquidClient(private_key=pk)
         state = await client.get_account_state()
 
         if not state.positions:

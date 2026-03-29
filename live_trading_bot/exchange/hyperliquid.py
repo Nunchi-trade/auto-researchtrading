@@ -3,6 +3,9 @@
 Provides an async interface that returns the bot's internal types (Order,
 AccountState, etc.) while delegating signing, wire formats, and API calls
 to the SDK.
+
+This is the **live** implementation — it places real orders on Hyperliquid.
+For simulated trading, see dry_exchange.py.
 """
 
 import asyncio
@@ -32,10 +35,102 @@ logger = get_logger(__name__)
 MAINNET_URL = "https://api.hyperliquid.xyz"
 
 
+# ── Shared helpers ──────────────────────────────────────────────────
+
+
+async def fetch_candles_paginated(
+    info: Info,
+    symbol: str,
+    interval: str,
+    start_time: Optional[int],
+    end_time: Optional[int],
+    limit: int,
+) -> List[Candle]:
+    """Fetch candles with pagination and deduplication.
+
+    Shared by HyperliquidClient and DryExchange (both delegate to Info API).
+    Does NOT attach a funding rate to the last candle — callers handle that.
+    """
+    if end_time is None:
+        end_time = int(time.time() * 1000)
+
+    raw = interval.rstrip("mhs")
+    value = int(raw)
+    unit = interval[-1]
+    if unit == "h":
+        interval_minutes = value * 60
+    elif unit == "m":
+        interval_minutes = value
+    elif unit == "s":
+        interval_minutes = max(1, value // 60)
+    else:
+        interval_minutes = 60
+
+    if start_time is None:
+        start_time = end_time - (limit * interval_minutes * 60 * 1000)
+
+    all_candles: List[Candle] = []
+    window_end = end_time
+    ms_per_window = limit * interval_minutes * 60 * 1000
+
+    while len(all_candles) < limit and window_end > start_time:
+        window_start = max(start_time, window_end - ms_per_window)
+
+        result = await asyncio.to_thread(
+            info.candles_snapshot, symbol, interval, window_start, window_end
+        )
+
+        new_candles: List[Candle] = []
+        for bar in result:
+            new_candles.append(
+                Candle(
+                    symbol=symbol,
+                    timestamp=int(bar.get("t", 0)),
+                    open=float(bar.get("o", 0)),
+                    high=float(bar.get("h", 0)),
+                    low=float(bar.get("l", 0)),
+                    close=float(bar.get("c", 0)),
+                    volume=float(bar.get("v", 0)),
+                    funding_rate=0.0,
+                )
+            )
+
+        if not new_candles:
+            break
+
+        window_end = new_candles[0].timestamp - 1
+        all_candles.extend(new_candles)
+
+        logger.info(
+            "Fetched candle batch",
+            extra={
+                "symbol": symbol,
+                "batch_size": len(new_candles),
+                "total": len(all_candles),
+            },
+        )
+
+    seen_ts: set[int] = set()
+    unique: List[Candle] = []
+    for c in all_candles:
+        if c.timestamp not in seen_ts:
+            seen_ts.add(c.timestamp)
+            unique.append(c)
+
+    candles = sorted(unique, key=lambda x: x.timestamp)
+
+    if len(candles) > limit:
+        candles = candles[-limit:]
+
+    return candles
+
+
+# ── Live client ─────────────────────────────────────────────────────
+
+
 class HyperliquidClient:
-    def __init__(self, private_key: str, dry_run: bool = False):
+    def __init__(self, private_key: str):
         self.settings = get_settings()
-        self.dry_run = dry_run
 
         self.account = Account.from_key(private_key)
         self.wallet_address = self.account.address
@@ -45,17 +140,12 @@ class HyperliquidClient:
 
         base_url = self.settings.HYPERLIQUID_API_URL
 
-        # Info is needed in both modes (price data, candles, account state)
         self._info = Info(base_url=base_url, skip_ws=True)
-
-        if not dry_run:
-            self._exchange = Exchange(
-                wallet=self.account,
-                base_url=base_url,
-                account_address=self.query_address,
-            )
-        else:
-            self._exchange = None
+        self._exchange = Exchange(
+            wallet=self.account,
+            base_url=base_url,
+            account_address=self.query_address,
+        )
 
         self._nonce_counter = int(time.time() * 1000)
 
@@ -142,8 +232,6 @@ class HyperliquidClient:
     # ── Leverage ───────────────────────────────────────────────────
 
     async def set_leverage(self, symbol: str, leverage: int):
-        if self._exchange is None:
-            return
         result = await asyncio.to_thread(
             self._exchange.update_leverage, leverage, symbol, True
         )
@@ -174,21 +262,6 @@ class HyperliquidClient:
         price: Optional[float] = None,
         reduce_only: bool = False,
     ) -> Order:
-        if self.dry_run:
-            return Order(
-                id=f"dry-run-{self._get_nonce()}",
-                symbol=symbol,
-                side=side,
-                order_type=order_type,
-                size=size,
-                price=price,
-                status=OrderStatus.FILLED,
-                filled_size=size,
-                avg_fill_price=price or await self.get_mid_price(symbol),
-            )
-
-        assert self._exchange is not None
-
         size = self._round_size(symbol, size)
         is_buy = side == OrderSide.BUY
         slippage = 0.05  # 5% slippage for market orders
@@ -221,21 +294,6 @@ class HyperliquidClient:
         is_market: bool = True,
         tpsl: str = "sl",
     ) -> Order:
-        if self.dry_run:
-            return Order(
-                id=f"dry-run-trigger-{self._get_nonce()}",
-                symbol=symbol,
-                side=side,
-                order_type=OrderType.TRIGGER,
-                size=size,
-                price=trigger_price,
-                status=OrderStatus.PENDING,
-                filled_size=0.0,
-                avg_fill_price=trigger_price,
-            )
-
-        assert self._exchange is not None
-
         size = self._round_size(symbol, size)
 
         sdk_order_type = {
@@ -353,9 +411,6 @@ class HyperliquidClient:
     # ── Cancel ─────────────────────────────────────────────────────
 
     async def cancel_order(self, symbol: str, order_id: str) -> bool:
-        if self.dry_run:
-            return True
-        assert self._exchange is not None
         try:
             result = await asyncio.to_thread(
                 self._exchange.cancel, symbol, int(order_id)
@@ -369,9 +424,6 @@ class HyperliquidClient:
             return False
 
     async def cancel_all_orders(self, symbol: Optional[str] = None) -> bool:
-        if self.dry_run:
-            return True
-
         open_orders = await self.get_open_orders(symbol)
         for order in open_orders:
             await self.cancel_order(order.symbol, order.id)
@@ -440,82 +492,23 @@ class HyperliquidClient:
         end_time: Optional[int] = None,
         limit: int = 500,
     ) -> List[Candle]:
-        if end_time is None:
-            end_time = int(time.time() * 1000)
-
-        raw = interval.rstrip("mhs")
-        value = int(raw)
-        unit = interval[-1]
-        if unit == "h":
-            interval_minutes = value * 60
-        elif unit == "m":
-            interval_minutes = value
-        elif unit == "s":
-            interval_minutes = max(1, value // 60)
-        else:
-            interval_minutes = 60
-
-        if start_time is None:
-            start_time = end_time - (limit * interval_minutes * 60 * 1000)
-
-        all_candles: List[Candle] = []
-        window_end = end_time
-        ms_per_window = limit * interval_minutes * 60 * 1000
-
-        while len(all_candles) < limit and window_end > start_time:
-            window_start = max(start_time, window_end - ms_per_window)
-
-            result = await asyncio.to_thread(
-                self._info.candles_snapshot,
-                symbol, interval, window_start, window_end,
-            )
-
-            new_candles: List[Candle] = []
-            for bar in result:
-                new_candles.append(
-                    Candle(
-                        symbol=symbol,
-                        timestamp=int(bar.get("t", 0)),
-                        open=float(bar.get("o", 0)),
-                        high=float(bar.get("h", 0)),
-                        low=float(bar.get("l", 0)),
-                        close=float(bar.get("c", 0)),
-                        volume=float(bar.get("v", 0)),
-                        funding_rate=0.0,
-                    )
-                )
-
-            if not new_candles:
-                break
-
-            window_end = new_candles[0].timestamp - 1
-            all_candles.extend(new_candles)
-
-            logger.info(
-                "Fetched candle batch",
-                extra={
-                    "symbol": symbol,
-                    "batch_size": len(new_candles),
-                    "total": len(all_candles),
-                },
-            )
-
-        seen_ts: set[int] = set()
-        unique: List[Candle] = []
-        for c in all_candles:
-            if c.timestamp not in seen_ts:
-                seen_ts.add(c.timestamp)
-                unique.append(c)
-
-        candles = sorted(unique, key=lambda x: x.timestamp)
-
-        if len(candles) > limit:
-            candles = candles[-limit:]
+        candles = await fetch_candles_paginated(
+            self._info, symbol, interval, start_time, end_time, limit
+        )
 
         if candles:
             try:
                 current_funding = await self.get_funding_rate(symbol)
-                candles[-1].funding_rate = current_funding
+                candles[-1] = Candle(
+                    symbol=candles[-1].symbol,
+                    timestamp=candles[-1].timestamp,
+                    open=candles[-1].open,
+                    high=candles[-1].high,
+                    low=candles[-1].low,
+                    close=candles[-1].close,
+                    volume=candles[-1].volume,
+                    funding_rate=current_funding,
+                )
             except Exception as e:
                 logger.warning(
                     "Failed to fetch funding rate for candle",

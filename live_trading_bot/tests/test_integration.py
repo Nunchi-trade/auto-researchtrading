@@ -88,7 +88,7 @@ def mock_client():
     client.place_trigger_order = AsyncMock(side_effect=_mock_trigger_order)
     client.cancel_order = AsyncMock(return_value=True)
     client.cancel_all_orders = AsyncMock(return_value=True)
-    client.dry_run = False
+    # HyperliquidClient no longer has dry_run — mode is determined by Exchange type
     return client
 
 

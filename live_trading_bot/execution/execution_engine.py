@@ -2,7 +2,7 @@ import time
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from execution.signal_state import SignalState
-from exchange.hyperliquid import HyperliquidClient
+from exchange.interface import Exchange
 from exchange.types import Order, OrderSide, OrderStatus, OrderType, AccountState
 from config.settings import Settings
 from monitoring.logger import get_logger
@@ -25,7 +25,7 @@ class ExecutionEngine:
     def __init__(
         self,
         signal_state: SignalState,
-        client: HyperliquidClient,
+        client: Exchange,
         settings: Settings,
         symbols: List[str],
     ):
@@ -295,15 +295,14 @@ class ExecutionEngine:
                     target = self.signal_state.get_target(symbol)
                     self._last_executed_direction[symbol] = 1 if target > 0 else -1
             else:
-                if not self.settings.DRY_RUN:
-                    if self._position_sizes.get(symbol, 0.0) > 0:
-                        logger.info(
-                            "Position cleared on sync",
-                            extra={"symbol": symbol},
-                        )
-                        self._position_sizes[symbol] = 0.0
-                        self._entry_prices[symbol] = 0.0
-                        self._last_executed_direction[symbol] = 0
+                if self._position_sizes.get(symbol, 0.0) > 0:
+                    logger.info(
+                        "Position cleared on sync",
+                        extra={"symbol": symbol},
+                    )
+                    self._position_sizes[symbol] = 0.0
+                    self._entry_prices[symbol] = 0.0
+                    self._last_executed_direction[symbol] = 0
 
     def reset(self) -> None:
         """Clear all internal state."""

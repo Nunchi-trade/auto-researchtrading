@@ -13,7 +13,6 @@ def settings():
 @pytest.fixture
 def mock_client():
     client = AsyncMock()
-    client.dry_run = False
     client.place_trigger_order = AsyncMock(
         return_value=Order(
             id="stop-1",

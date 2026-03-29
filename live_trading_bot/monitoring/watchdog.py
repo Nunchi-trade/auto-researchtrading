@@ -4,7 +4,7 @@ import time
 from typing import Optional
 
 from config.settings import Settings
-from exchange.hyperliquid import HyperliquidClient
+from exchange.interface import Exchange
 from monitoring.logger import get_logger
 
 logger = get_logger(__name__)
@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 class Watchdog:
     """Heartbeat file writer and startup cleanup for crash recovery."""
 
-    def __init__(self, settings: Settings, client: HyperliquidClient, alerter=None):
+    def __init__(self, settings: Settings, client: Exchange, alerter=None):
         self.settings = settings
         self.client = client
         self.alerter = alerter
@@ -79,10 +79,6 @@ class Watchdog:
 
     async def startup_cleanup(self) -> None:
         """Cancel stale orders from previous crash, but preserve exchange-side stops."""
-        if self.client.dry_run:
-            logger.info("Skipping startup cleanup in dry run mode")
-            return
-
         logger.info(
             "Running startup cleanup — cancelling stale orders (preserving stops)"
         )

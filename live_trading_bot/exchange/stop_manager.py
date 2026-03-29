@@ -1,6 +1,6 @@
 from typing import Dict, Optional
 from exchange.types import Order, OrderSide, OrderStatus, Position
-from exchange.hyperliquid import HyperliquidClient
+from exchange.interface import Exchange
 from config.settings import Settings
 from monitoring.logger import get_logger
 
@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 class StopManager:
     """Manages exchange-side stop-market orders as a safety net."""
 
-    def __init__(self, client: HyperliquidClient, settings: Settings):
+    def __init__(self, client: Exchange, settings: Settings):
         self.client = client
         self.settings = settings
         self._stops: Dict[str, Order] = {}  # symbol -> placed stop order

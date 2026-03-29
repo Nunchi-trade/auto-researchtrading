@@ -46,13 +46,14 @@ class TestWatchdog:
         assert wd.is_alive() is False
 
     @pytest.mark.asyncio
-    async def test_startup_cleanup_skips_dry_run(self, settings):
+    async def test_startup_cleanup_no_orders(self, settings):
         client = AsyncMock()
-        client.dry_run = True
-        client.get_open_orders = AsyncMock()
+        client.get_open_orders = AsyncMock(return_value=[])
+        client.cancel_order = AsyncMock()
         wd = Watchdog(settings, client)
         await wd.startup_cleanup()
-        assert not client.get_open_orders.called
+        assert client.get_open_orders.called
+        assert not client.cancel_order.called
 
     @pytest.mark.asyncio
     async def test_startup_cleanup_preserves_trigger_orders(self, settings):
@@ -79,7 +80,6 @@ class TestWatchdog:
             avg_fill_price=0.0,
         )
         client = AsyncMock()
-        client.dry_run = False
         client.get_open_orders = AsyncMock(return_value=[market_order, trigger_order])
         client.cancel_order = AsyncMock(return_value=True)
         wd = Watchdog(settings, client)

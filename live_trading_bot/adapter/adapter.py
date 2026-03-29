@@ -208,10 +208,6 @@ class LiveStrategyAdapter:
         equity = state.total_equity
         cash = state.available_balance
 
-        if equity <= 0 and cash <= 0 and self._settings.DRY_RUN:
-            equity = self._settings.DRY_RUN_INITIAL_CAPITAL
-            cash = equity
-
         return PortfolioState(
             cash=cash,
             positions=positions,

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 
-from exchange.hyperliquid import HyperliquidClient
+from exchange.interface import Exchange
 from exchange.types import (
     Order,
     OrderSide,
@@ -27,7 +27,7 @@ class Signal:
 
 
 class OrderManager:
-    def __init__(self, client: HyperliquidClient):
+    def __init__(self, client: Exchange):
         self.client = client
         self.settings = get_settings()
 
