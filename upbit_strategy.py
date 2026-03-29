@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp380: ATR trailing(4.15x) + entry_stop(1.9x) + MACD_FAST=7 (score 5.744)
+Upbit 현물 전용 전략. exp390: vol_ratio inverse sizing (lb=0.7) + ATR stops (score 5.763)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -206,7 +206,9 @@ class Strategy:
             hold_bars = self.bar_count - self.entry_bar.get(symbol, self.bar_count)
             if current_pos == 0:
                 if ema_bull and above_trend and sma_rising and strong_trend and stoch_rsi > 30 and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
-                    target = equity * BASE_POSITION_PCT
+                    # 변동성 역비례 포지션 사이징 (고변동성일수록 작은 포지션)
+                    pos_scale = float(np.clip(1.0 / max(vol_ratio, 1e-10), 0.7, 1.0))
+                    target = equity * BASE_POSITION_PCT * pos_scale
                     self.entry_bar[symbol] = self.bar_count
                     self.peak_price[symbol] = mid
                     self.entry_price[symbol] = mid
