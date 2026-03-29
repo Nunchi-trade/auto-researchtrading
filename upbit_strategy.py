@@ -1,16 +1,18 @@
 """
-Upbit 현물 전용 전략. exp80: 하이브리드 추세 추종 (score 3.884)
+Upbit 현물 전용 전략. exp129: ADX 추세 강도 + 최적화된 MACD (score 4.405)
 
 핵심 발견:
   1. EMA(24/100) 크로스오버 - 진입/청산 주요 신호
   2. SMA(200) 필터 + 0.05% 이상 상승 기울기 - 상승 추세 시장만 진입
-  3. COOLDOWN=24봉 - 재진입 대기로 노이즈 차단
-  4. RSI 45/55 비대칭 - 진입 완화(45), 청산 엄격(55)
-  5. MACD(6/13/5) - 빠른 MACD로 선행 신호
+  3. ADX(25) > 15 - 추세 강도 필터 (범위 장세 진입 차단)
+  4. COOLDOWN=24봉 - 재진입 대기로 노이즈 차단
+  5. RSI(8) 45/55 비대칭 - 진입 완화(45), 청산 엄격(55)
+  6. MACD(8/17/9) - 더 느린 MACD로 신호 품질 개선
 
-진입: EMA(24) > EMA(100) AND 현재가 > SMA(200) AND SMA200 기울기>0.05% AND aux_bull >= 2
+진입: EMA(24) > EMA(100) AND 현재가 > SMA(200) AND SMA200 기울기>0.05%
+      AND ADX(25) > 15 AND aux_bull >= 2
 청산: EMA(24) < EMA(100) OR aux_bear >= 3 (momentum, RSI, MACD 모두 약세)
-포지션: 90%
+포지션: 99%
 """
 
 import numpy as np
@@ -24,13 +26,13 @@ EMA_SLOW          = 100
 RSI_PERIOD        = 8
 RSI_BULL          = 45
 RSI_BEAR          = 55
-MACD_FAST         = 6
-MACD_SLOW         = 13
-MACD_SIGNAL       = 5
+MACD_FAST         = 8
+MACD_SLOW         = 17
+MACD_SIGNAL       = 9
 MED_WINDOW        = 12
 
 TREND_FILTER_BARS = 200
-BASE_POSITION_PCT = 0.90
+BASE_POSITION_PCT = 0.99
 BASE_THRESHOLD    = 0.015
 VOL_LOOKBACK      = 36
 TARGET_VOL        = 0.015
@@ -56,6 +58,33 @@ def _calc_rsi(closes: np.ndarray, period: int) -> float:
     losses = np.where(deltas < 0, -deltas, 0.0)
     rs = np.mean(gains) / max(np.mean(losses), 1e-10)
     return 100 - 100 / (1 + rs)
+
+
+def _calc_adx(history_df, period: int = 14) -> tuple[float, float, float]:
+    """Average Directional Index — (adx, +DI, -DI)."""
+    need = period * 3
+    if len(history_df) < need:
+        return 0.0, 0.0, 0.0
+    df = history_df.iloc[-need:]
+    high  = df["high"].values.astype(float)
+    low   = df["low"].values.astype(float)
+    close = df["close"].values.astype(float)
+
+    prev_close = close[:-1]
+    tr = np.maximum(high[1:] - low[1:],
+         np.maximum(np.abs(high[1:] - prev_close),
+                    np.abs(low[1:]  - prev_close)))
+    plus_dm  = np.where((high[1:] - high[:-1]) > (low[:-1] - low[1:]),
+                        np.maximum(high[1:] - high[:-1], 0.0), 0.0)
+    minus_dm = np.where((low[:-1] - low[1:]) > (high[1:] - high[:-1]),
+                        np.maximum(low[:-1] - low[1:], 0.0), 0.0)
+
+    atr      = _ema(tr,       period)
+    plus_di  = 100.0 * _ema(plus_dm,  period) / np.maximum(atr, 1e-10)
+    minus_di = 100.0 * _ema(minus_dm, period) / np.maximum(atr, 1e-10)
+    dx = 100.0 * np.abs(plus_di - minus_di) / np.maximum(plus_di + minus_di, 1e-10)
+    adx = _ema(dx, period)
+    return float(adx[-1]), float(plus_di[-1]), float(minus_di[-1])
 
 
 def _calc_macd(closes: np.ndarray) -> float:
@@ -113,6 +142,8 @@ class Strategy:
             ret_med  = (closes[-1] - closes[-MED_WINDOW]) / closes[-MED_WINDOW]
             rsi      = _calc_rsi(closes, RSI_PERIOD)
             macd_h   = _calc_macd(closes)
+            adx, plus_di, minus_di = _calc_adx(bd.history, period=25)
+            strong_trend = adx > 15.0
 
             # 부가 신호 3개 (EMA 제외)
             aux_bull = sum([
@@ -133,7 +164,7 @@ class Strategy:
             target = current_pos
 
             if current_pos == 0:
-                if ema_bull and above_trend and sma_rising and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
+                if ema_bull and above_trend and sma_rising and strong_trend and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
                     target = size
             else:
                 if ema_bear or aux_bear >= MIN_BEAR_VOTES:
