@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp295: above_trend 0.5% 버퍼 추가 (score 5.044)
+Upbit 현물 전용 전략. exp325: 모멘텀 로그 수익률 변경 (score 5.063)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -28,7 +28,7 @@ EMA_SLOW          = 100
 RSI_PERIOD        = 9
 RSI_BULL          = 45
 RSI_BEAR          = 46
-MACD_FAST         = 8
+MACD_FAST         = 9
 MACD_SLOW         = 17
 MACD_SIGNAL       = 9
 MED_WINDOW        = 12
@@ -112,7 +112,7 @@ def _calc_macd(closes: np.ndarray) -> float:
     return float(macd_line[-1] - signal_line[-1])
 
 
-MAX_HOLD_BARS     = 96  # 최대 보유 96봉(4일)
+MAX_HOLD_BARS     = 96
 
 class Strategy:
     def __init__(self) -> None:
@@ -158,7 +158,7 @@ class Strategy:
             vol_ratio     = realized_vol / TARGET_VOL
             dyn_threshold = float(np.clip(BASE_THRESHOLD * (0.3 + vol_ratio * 0.7), 0.005, 0.020))
 
-            ret_med   = (closes[-1] - closes[-MED_WINDOW]) / closes[-MED_WINDOW]
+            ret_med   = float(np.log(closes[-1] / closes[-MED_WINDOW]))
             rsi       = _calc_rsi(closes, RSI_PERIOD)
             stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)
             macd_h   = _calc_macd(closes)
