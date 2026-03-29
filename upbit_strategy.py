@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp343: ADX 기간 24봉 최적화 (score 5.079)
+Upbit 현물 전용 전략. exp344: SMA200 기울기 0.035% 재최적화 (score 5.129)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -147,7 +147,7 @@ class Strategy:
             sma_prev     = float(np.mean(closes[-(TREND_FILTER_BARS + 8):-8]))
             above_trend  = mid > sma_long * 1.005  # SMA200 0.5% 이상
             sma_slope    = (sma_long - sma_prev) / max(sma_prev, 1.0)
-            sma_rising   = sma_slope > 0.0004  # SMA200 0.04% 이상 상승 중
+            sma_rising   = sma_slope > 0.00035  # SMA200 0.04% 이상 상승 중
 
             # 동적 임계값
             if len(closes) >= VOL_LOOKBACK:
