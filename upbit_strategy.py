@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp348: Stoch RSI>30 진입 필터 추가 (score 5.219)
+Upbit 현물 전용 전략. exp349: MACD fast 8→원복 + 전체 최적화 (score 5.234)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -28,7 +28,7 @@ EMA_SLOW          = 100
 RSI_PERIOD        = 9
 RSI_BULL          = 45
 RSI_BEAR          = 46
-MACD_FAST         = 9
+MACD_FAST         = 8
 MACD_SLOW         = 17
 MACD_SIGNAL       = 9
 MED_WINDOW        = 12
