@@ -70,6 +70,7 @@ class ParamSnapshot:
     id: Optional[int]
     run_date: datetime
     sweep_name: str
+    period: str
     sharpe: float
     total_return_pct: float
     max_drawdown_pct: float
@@ -80,11 +81,3 @@ class ParamSnapshot:
     is_best: bool
     previous_snapshot_id: Optional[int] = None
     params: Optional[Dict[str, float]] = None
-
-
-@dataclass
-class ParamValue:
-    id: Optional[int]
-    snapshot_id: int
-    param_name: str
-    param_value: float

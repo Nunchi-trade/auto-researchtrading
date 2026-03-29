@@ -2,7 +2,7 @@ import asyncpg
 from datetime import datetime
 from typing import List, Optional, Dict
 
-from .models import Trade, Position, SignalRecord, RiskEvent, ParamSnapshot, ParamValue
+from .models import Trade, Position, SignalRecord, RiskEvent, ParamSnapshot
 from config import get_settings
 from monitoring.logger import get_logger
 
@@ -215,24 +215,67 @@ class Database:
         )
         return row["cnt"]
 
-    # --- Parameter Snapshots (normalized: param_snapshots + param_values) ---
+    # --- Parameter Snapshots (flat: one row per run with all params) ---
+
+    PARAM_COLUMNS = [
+        "SHORT_WINDOW",
+        "MED_WINDOW",
+        "MED2_WINDOW",
+        "LONG_WINDOW",
+        "EMA_FAST",
+        "EMA_SLOW",
+        "RSI_PERIOD",
+        "RSI_BULL",
+        "RSI_BEAR",
+        "RSI_OVERBOUGHT",
+        "RSI_OVERSOLD",
+        "MACD_FAST",
+        "MACD_SLOW",
+        "MACD_SIGNAL",
+        "BB_PERIOD",
+        "FUNDING_LOOKBACK",
+        "FUNDING_BOOST",
+        "BASE_POSITION_PCT",
+        "VOL_LOOKBACK",
+        "TARGET_VOL",
+        "ATR_LOOKBACK",
+        "ATR_STOP_MULT",
+        "TAKE_PROFIT_PCT",
+        "BASE_THRESHOLD",
+        "BTC_OPPOSE_THRESHOLD",
+        "PYRAMID_THRESHOLD",
+        "PYRAMID_SIZE",
+        "CORR_LOOKBACK",
+        "HIGH_CORR_THRESHOLD",
+        "DD_REDUCE_THRESHOLD",
+        "DD_REDUCE_SCALE",
+        "COOLDOWN_BARS",
+        "MIN_VOTES",
+        "THRESHOLD_MIN",
+        "THRESHOLD_MAX",
+        "BB_COMPRESS_PCTILE",
+    ]
 
     async def insert_param_snapshot(
         self,
         snapshot: ParamSnapshot,
         params: Dict[str, float],
     ) -> int:
-        row = await self.pool.fetchrow(
-            """
-            INSERT INTO param_snapshots
-                (run_date, sweep_name, sharpe, total_return_pct,
-                 max_drawdown_pct, profit_factor, win_rate_pct,
-                 num_trades, ret_dd_ratio, is_best, previous_snapshot_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            RETURNING id
-            """,
+        metric_cols = (
+            "run_date, sweep_name, period, sharpe, total_return_pct, "
+            "max_drawdown_pct, profit_factor, win_rate_pct, "
+            "num_trades, ret_dd_ratio, is_best, previous_snapshot_id"
+        )
+        param_cols = ", ".join(self.PARAM_COLUMNS)
+        all_cols = f"{metric_cols}, {param_cols}"
+        placeholders = ", ".join(
+            ["$" + str(i) for i in range(1, 13 + len(self.PARAM_COLUMNS))]
+        )
+
+        values = [
             snapshot.run_date,
             snapshot.sweep_name,
+            snapshot.period,
             snapshot.sharpe,
             snapshot.total_return_pct,
             snapshot.max_drawdown_pct,
@@ -242,61 +285,47 @@ class Database:
             snapshot.ret_dd_ratio,
             snapshot.is_best,
             snapshot.previous_snapshot_id,
+        ]
+        for col in self.PARAM_COLUMNS:
+            values.append(float(params.get(col, 0)))
+
+        row = await self.pool.fetchrow(
+            f"INSERT INTO param_snapshots ({all_cols}) VALUES ({placeholders}) RETURNING id",
+            *values,
         )
         snapshot_id = row["id"]
 
-        await self.pool.executemany(
-            """
-            INSERT INTO param_values (snapshot_id, param_name, param_value)
-            VALUES ($1, $2, $3)
-            """,
-            [(snapshot_id, name, value) for name, value in params.items()],
-        )
-
         logger.debug(
             "Inserted param snapshot",
-            extra={"snapshot_id": snapshot_id, "param_count": len(params)},
+            extra={"snapshot_id": snapshot_id},
         )
         return snapshot_id
+
+    def _row_to_snapshot(self, row) -> ParamSnapshot:
+        params = {col: float(row[col]) for col in self.PARAM_COLUMNS}
+        return ParamSnapshot(
+            id=row["id"],
+            run_date=row["run_date"],
+            sweep_name=row["sweep_name"],
+            period=row["period"],
+            sharpe=float(row["sharpe"]),
+            total_return_pct=float(row["total_return_pct"]),
+            max_drawdown_pct=float(row["max_drawdown_pct"]),
+            profit_factor=float(row["profit_factor"]),
+            win_rate_pct=float(row["win_rate_pct"]),
+            num_trades=int(row["num_trades"]),
+            ret_dd_ratio=float(row["ret_dd_ratio"]),
+            is_best=row["is_best"],
+            previous_snapshot_id=row["previous_snapshot_id"],
+            params=params,
+        )
 
     async def get_param_history(self, limit: int = 30) -> List[ParamSnapshot]:
         rows = await self.pool.fetch(
             "SELECT * FROM param_snapshots ORDER BY run_date DESC LIMIT $1",
             limit,
         )
-        snapshots = []
-        for row in rows:
-            snap = ParamSnapshot(
-                id=row["id"],
-                run_date=row["run_date"],
-                sweep_name=row["sweep_name"],
-                sharpe=row["sharpe"],
-                total_return_pct=row["total_return_pct"],
-                max_drawdown_pct=row["max_drawdown_pct"],
-                profit_factor=row["profit_factor"],
-                win_rate_pct=row["win_rate_pct"],
-                num_trades=row["num_trades"],
-                ret_dd_ratio=row["ret_dd_ratio"],
-                is_best=row["is_best"],
-                previous_snapshot_id=row["previous_snapshot_id"],
-            )
-            snapshots.append(snap)
-
-        if snapshots:
-            snap_ids = [s.id for s in snapshots]
-            val_rows = await self.pool.fetch(
-                "SELECT snapshot_id, param_name, param_value FROM param_values WHERE snapshot_id = ANY($1)",
-                snap_ids,
-            )
-            by_snap: Dict[int, Dict[str, float]] = {}
-            for vr in val_rows:
-                by_snap.setdefault(vr["snapshot_id"], {})[vr["param_name"]] = vr[
-                    "param_value"
-                ]
-            for snap in snapshots:
-                snap.params = by_snap.get(snap.id, {})
-
-        return snapshots
+        return [self._row_to_snapshot(row) for row in rows]
 
     async def get_latest_params(self) -> Optional[ParamSnapshot]:
         row = await self.pool.fetchrow(
@@ -304,23 +333,4 @@ class Database:
         )
         if row is None:
             return None
-        snap = ParamSnapshot(
-            id=row["id"],
-            run_date=row["run_date"],
-            sweep_name=row["sweep_name"],
-            sharpe=row["sharpe"],
-            total_return_pct=row["total_return_pct"],
-            max_drawdown_pct=row["max_drawdown_pct"],
-            profit_factor=row["profit_factor"],
-            win_rate_pct=row["win_rate_pct"],
-            num_trades=row["num_trades"],
-            ret_dd_ratio=row["ret_dd_ratio"],
-            is_best=row["is_best"],
-            previous_snapshot_id=row["previous_snapshot_id"],
-        )
-        val_rows = await self.pool.fetch(
-            "SELECT param_name, param_value FROM param_values WHERE snapshot_id = $1",
-            snap.id,
-        )
-        snap.params = {vr["param_name"]: vr["param_value"] for vr in val_rows}
-        return snap
+        return self._row_to_snapshot(row)
