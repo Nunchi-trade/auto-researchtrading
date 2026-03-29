@@ -1,14 +1,14 @@
 """
-Upbit 현물 전용 전략. exp431: val 구간 파라미터 추가 최적화 (val score 4.089)
+Upbit 현물 전용 전략. exp432: MACD_FAST=9 미세 조정 (val score 4.093)
 
-핵심 변경 (exp430 대비):
-  - EMA_FAST 48→44
-  - MAX_HOLD 60→72
-  - RSI_BULL 40→42, RSI_BEAR 53→52
-  - stoch_rsi entry 30→25
-  - recent_high 0.992→0.995 (4봉 비교)
+val 기준 현재 최고 파라미터 (2023-01~2024-06):
+  EMA(44/100), RSI(11) 42/52, MACD(9/16/9)
+  MAX_HOLD=72, COOLDOWN=24, TFB=339
+  ATR*3.0 trailing, entry_stop 1.2xATR
+  SMA slope>0.012%, recent_high 4봉/0.995
+  ADX(24)>18 entry, ADX<8 weak exit
 
-val score: 1.330 → 4.089 (+207%)
+val score: 1.330 → 4.093 (+208%)
 """
 
 import numpy as np
@@ -22,7 +22,7 @@ EMA_SLOW          = 100
 RSI_PERIOD        = 11
 RSI_BULL          = 42
 RSI_BEAR          = 52
-MACD_FAST         = 10
+MACD_FAST         = 9
 MACD_SLOW         = 16
 MACD_SIGNAL       = 9
 MED_WINDOW        = 12
