@@ -1,17 +1,17 @@
 """
-Upbit 현물 전용 전략. exp129: ADX 추세 강도 + 최적화된 MACD (score 4.405)
+Upbit 현물 전용 전략. exp169: EMA(20/100) 재최적화 (score 4.475)
 
 핵심 발견:
-  1. EMA(24/100) 크로스오버 - 진입/청산 주요 신호
+  1. EMA(20/100) 크로스오버 - 진입/청산 주요 신호 (ADX 추가 이후 20이 최적)
   2. SMA(200) 필터 + 0.05% 이상 상승 기울기 - 상승 추세 시장만 진입
   3. ADX(25) > 15 - 추세 강도 필터 (범위 장세 진입 차단)
   4. COOLDOWN=24봉 - 재진입 대기로 노이즈 차단
   5. RSI(8) 45/55 비대칭 - 진입 완화(45), 청산 엄격(55)
   6. MACD(8/17/9) - 더 느린 MACD로 신호 품질 개선
 
-진입: EMA(24) > EMA(100) AND 현재가 > SMA(200) AND SMA200 기울기>0.05%
+진입: EMA(20) > EMA(100) AND 현재가 > SMA(200) AND SMA200 기울기>0.05%
       AND ADX(25) > 15 AND aux_bull >= 2
-청산: EMA(24) < EMA(100) OR aux_bear >= 3 (momentum, RSI, MACD 모두 약세)
+청산: EMA(20) < EMA(100) OR aux_bear >= 3 (momentum, RSI, MACD 모두 약세)
 포지션: 99%
 """
 
@@ -21,7 +21,7 @@ from upbit_prepare import UpbitSignal, UpbitPortfolioState, UpbitBarData
 ACTIVE_SYMBOLS    = ["KRW-BTC"]
 SYMBOL_WEIGHTS    = {"KRW-BTC": 1.0}
 
-EMA_FAST          = 24
+EMA_FAST          = 20
 EMA_SLOW          = 100
 RSI_PERIOD        = 8
 RSI_BULL          = 45
@@ -158,14 +158,13 @@ class Strategy:
             ])
 
             in_cooldown = (self.bar_count - self.exit_bar.get(symbol, -999)) < COOLDOWN_BARS
-            size = equity * BASE_POSITION_PCT
 
             current_pos = portfolio.positions.get(symbol, 0.0)
             target = current_pos
 
             if current_pos == 0:
                 if ema_bull and above_trend and sma_rising and strong_trend and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
-                    target = size
+                    target = equity * BASE_POSITION_PCT
             else:
                 if ema_bear or aux_bear >= MIN_BEAR_VOTES:
                     target = 0.0
