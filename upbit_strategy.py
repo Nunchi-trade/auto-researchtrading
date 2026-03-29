@@ -1,17 +1,18 @@
 """
-Upbit 현물 전용 전략. exp169: EMA(20/100) 재최적화 (score 4.475)
+Upbit 현물 전용 전략. exp260: MAX_HOLD_BARS=96 추가 (score 4.770)
 
 핵심 발견:
-  1. EMA(20/100) 크로스오버 - 진입/청산 주요 신호 (ADX 추가 이후 20이 최적)
+  1. EMA(20/100) 크로스오버 - 진입/청산 주요 신호
   2. SMA(200) 필터 + 0.05% 이상 상승 기울기 - 상승 추세 시장만 진입
   3. ADX(25) > 15 - 추세 강도 필터 (범위 장세 진입 차단)
   4. COOLDOWN=24봉 - 재진입 대기로 노이즈 차단
   5. RSI(8) 45/55 비대칭 - 진입 완화(45), 청산 엄격(55)
   6. MACD(8/17/9) - 더 느린 MACD로 신호 품질 개선
+  7. MAX_HOLD=96봉 - 96봉 초과 보유 강제 청산 (+0.29 sharpe)
 
 진입: EMA(20) > EMA(100) AND 현재가 > SMA(200) AND SMA200 기울기>0.05%
       AND ADX(25) > 15 AND aux_bull >= 2
-청산: EMA(20) < EMA(100) OR aux_bear >= 3 (momentum, RSI, MACD 모두 약세)
+청산: EMA(20) < EMA(100) OR aux_bear >= 3 OR 보유기간 >= 96봉
 포지션: 99%
 """
 
@@ -48,6 +49,20 @@ def _ema(values: np.ndarray, span: int) -> np.ndarray:
     for i in range(1, len(values)):
         result[i] = alpha * values[i] + (1 - alpha) * result[i - 1]
     return result
+
+
+def _calc_stoch_rsi(closes: np.ndarray, rsi_period: int = 8, stoch_period: int = 14) -> float:
+    """Stochastic RSI — RSI의 상대적 위치 (0~100)."""
+    need = rsi_period + stoch_period + 1
+    if len(closes) < need:
+        return 50.0
+    rsi_series = np.array([_calc_rsi(closes[:-(need - 1 - i)] if need - 1 - i > 0 else closes, rsi_period)
+                            for i in range(stoch_period)])
+    lo, hi = float(np.min(rsi_series)), float(np.max(rsi_series))
+    if hi - lo < 1e-8:
+        return 50.0
+    current_rsi = _calc_rsi(closes, rsi_period)
+    return 100.0 * (current_rsi - lo) / (hi - lo)
 
 
 def _calc_rsi(closes: np.ndarray, period: int) -> float:
@@ -96,9 +111,12 @@ def _calc_macd(closes: np.ndarray) -> float:
     return float(macd_line[-1] - signal_line[-1])
 
 
+MAX_HOLD_BARS     = 96  # 최대 보유 96봉(4일)
+
 class Strategy:
     def __init__(self) -> None:
         self.exit_bar: dict[str, int] = {}
+        self.entry_bar: dict[str, int] = {}
         self.bar_count = 0
 
     def on_bar(self, bar_data: dict, portfolio: UpbitPortfolioState) -> list:
@@ -139,8 +157,9 @@ class Strategy:
             vol_ratio     = realized_vol / TARGET_VOL
             dyn_threshold = float(np.clip(BASE_THRESHOLD * (0.3 + vol_ratio * 0.7), 0.005, 0.020))
 
-            ret_med  = (closes[-1] - closes[-MED_WINDOW]) / closes[-MED_WINDOW]
-            rsi      = _calc_rsi(closes, RSI_PERIOD)
+            ret_med   = (closes[-1] - closes[-MED_WINDOW]) / closes[-MED_WINDOW]
+            rsi       = _calc_rsi(closes, RSI_PERIOD)
+            stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)
             macd_h   = _calc_macd(closes)
             adx, plus_di, minus_di = _calc_adx(bd.history, period=25)
             strong_trend = adx > 15.0
@@ -162,11 +181,14 @@ class Strategy:
             current_pos = portfolio.positions.get(symbol, 0.0)
             target = current_pos
 
+            hold_bars = self.bar_count - self.entry_bar.get(symbol, self.bar_count)
             if current_pos == 0:
                 if ema_bull and above_trend and sma_rising and strong_trend and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
                     target = equity * BASE_POSITION_PCT
+                    self.entry_bar[symbol] = self.bar_count
             else:
-                if ema_bear or aux_bear >= MIN_BEAR_VOTES:
+                time_exit = hold_bars >= MAX_HOLD_BARS
+                if ema_bear or aux_bear >= MIN_BEAR_VOTES or time_exit:
                     target = 0.0
 
             if abs(target - current_pos) > 1.0:
