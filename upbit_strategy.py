@@ -1,23 +1,24 @@
 """
-Upbit 현물 전용 전략. exp420: MACD_FAST=8 최적화 (score 5.935)
+Upbit 현물 전용 전략. exp430: val 구간(2023-01~2024-06) 재최적화 (val score 3.849)
 
-핵심 발견:
-  1. EMA(19/100) 크로스오버
-  2. SMA(200)*1.005 필터 + 0.035% 이상 상승 기울기 (8봉 비교)
-  3. ADX(24) > 15 - 추세 강도 필터
-  4. COOLDOWN=24봉 - 재진입 대기
-  5. RSI(9) 45/46 비대칭
-  6. MACD(8/17/9) (FAST 7→8 개선)
-  7. MAX_HOLD=98봉
-  8. VOL_LOOKBACK=28
-  9. ATR(14)*4.15 trailing stop
- 10. entry_stop 1.9xATR
- 11. ADX<10 추세 약화 청산
+핵심 변경 (exp420 대비):
+  - EMA(48/100) — FAST 19→48
+  - TREND_FILTER_BARS 200→339
+  - SMA(339) 필터 (1.005 배수 제거)
+  - SMA 기울기 임계값 0.035%→0.012%
+  - ADX(24) > 18 (15→18)
+  - ADX<8 추세 약화 청산 (10→8)
+  - RSI(11) 40/53 비대칭 (9/45/46)
+  - MACD(10/16/9) (8/17/9)
+  - MAX_HOLD=60봉 (98)
+  - ATR*3.0 trailing stop (4.15)
+  - entry_stop 1.2xATR (1.9)
+  - VOL_LOOKBACK=26 (28)
 
-진입: EMA(19) > EMA(100) AND 현재가 > SMA(200)*1.005 AND SMA200 기울기>0.035%
-      AND ADX(24) > 15 AND stoch_rsi > 30 AND aux_bull >= 2
-청산: EMA(19) < EMA(100) OR aux_bear >= 4/5 OR 보유기간 >= 98봉 OR ATR trailing stop
-포지션: 99%
+진입: EMA(48) > EMA(100) AND 현재가 > SMA(339) AND SMA339 기울기>0.012%
+      AND ADX(24) > 18 AND stoch_rsi > 30 AND aux_bull >= 2
+청산: EMA(48) < EMA(100) OR aux_bear >= 4/5 OR 보유기간 >= 60봉 OR ATR trailing stop
+포지션: 99% (변동성 역비례 스케일링)
 """
 
 import numpy as np
@@ -26,25 +27,25 @@ from upbit_prepare import UpbitSignal, UpbitPortfolioState, UpbitBarData
 ACTIVE_SYMBOLS    = ["KRW-BTC"]
 SYMBOL_WEIGHTS    = {"KRW-BTC": 1.0}
 
-EMA_FAST          = 19
+EMA_FAST          = 48
 EMA_SLOW          = 100
-RSI_PERIOD        = 9
-RSI_BULL          = 45
-RSI_BEAR          = 46
-MACD_FAST         = 8
-MACD_SLOW         = 17
+RSI_PERIOD        = 11
+RSI_BULL          = 40
+RSI_BEAR          = 53
+MACD_FAST         = 10
+MACD_SLOW         = 16
 MACD_SIGNAL       = 9
 MED_WINDOW        = 12
 
-TREND_FILTER_BARS = 200
+TREND_FILTER_BARS = 339
 BASE_POSITION_PCT = 0.99
 BASE_THRESHOLD    = 0.015
-VOL_LOOKBACK      = 28
+VOL_LOOKBACK      = 26
 TARGET_VOL        = 0.015
 COOLDOWN_BARS     = 24
 MIN_BULL_VOTES    = 2
 MIN_BEAR_VOTES    = 3
-ATR_STOP_MULT     = 4.15
+ATR_STOP_MULT     = 3.0
 
 
 def _ema(values: np.ndarray, span: int) -> np.ndarray:
@@ -116,9 +117,9 @@ def _calc_macd(closes: np.ndarray) -> float:
     return float(macd_line[-1] - signal_line[-1])
 
 
-MAX_HOLD_BARS     = 98
+MAX_HOLD_BARS     = 60
 
-ENTRY_STOP_MULT   = 1.9
+ENTRY_STOP_MULT   = 1.2
 
 class Strategy:
     def __init__(self) -> None:
@@ -153,9 +154,9 @@ class Strategy:
 
             sma_long     = float(np.mean(closes[-TREND_FILTER_BARS:]))
             sma_prev     = float(np.mean(closes[-(TREND_FILTER_BARS + 8):-8]))
-            above_trend  = mid > sma_long * 1.005  # SMA200 0.5% 이상
+            above_trend  = mid > sma_long * 1.000  # SMA200 0.5% 이상
             sma_slope    = (sma_long - sma_prev) / max(sma_prev, 1.0)
-            sma_rising   = sma_slope > 0.00035  # SMA200 0.035% 이상 상승 중
+            sma_rising   = sma_slope > 0.00012  # SMA200 0.035% 이상 상승 중
 
             # 동적 임계값
             if len(closes) >= VOL_LOOKBACK:
@@ -171,7 +172,7 @@ class Strategy:
             stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)  # 진입: stoch_rsi > 30, 청산: stoch_rsi < 40
             macd_h   = _calc_macd(closes)
             adx, plus_di, minus_di = _calc_adx(bd.history, period=24)
-            strong_trend = adx > 15.0
+            strong_trend = adx > 18.0
 
             # ATR trailing stop 계산
             df_atr = bd.history.iloc[-30:]
@@ -220,7 +221,7 @@ class Strategy:
                 trailing_stop   = self.peak_price[symbol] - ATR_STOP_MULT * atr_val
                 entry_stop      = self.entry_price.get(symbol, 0.0) - ENTRY_STOP_MULT * atr_val
                 atr_stop_hit    = mid < trailing_stop or mid < entry_stop
-                adx_weak        = adx < 10.0  # 추세 약화 청산
+                adx_weak        = adx < 8.0  # 추세 약화 청산
                 time_exit = hold_bars >= MAX_HOLD_BARS
                 if ema_bear or aux_bear >= 4 or time_exit or atr_stop_hit or adx_weak:
                     target = 0.0

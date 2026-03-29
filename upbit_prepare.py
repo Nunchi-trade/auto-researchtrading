@@ -32,8 +32,14 @@ SYMBOLS = ["KRW-BTC"]
 DOWNLOAD_START        = "2017-09-01"   # Upbit KRW-BTC 상장 초기
 DOWNLOAD_INTERVAL_MIN = 1              # 저장 단위: 1분봉
 
-VAL_START = "2024-07-01"
-VAL_END   = "2025-03-31"
+TRAIN_START = "2017-09-01"
+TRAIN_END   = "2022-12-31"
+
+VAL_START   = "2023-01-01"
+VAL_END     = "2024-06-30"
+
+TEST_START  = "2024-07-01"
+TEST_END    = "2026-03-29"
 
 CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "autotrader_upbit")
 DATA_DIR  = os.path.join(CACHE_DIR, "data")
@@ -229,7 +235,11 @@ def load_upbit_data(
         split: "val" 등 데이터 구간
         interval_minutes: 반환할 봉 단위 (1, 5, 10, 15, 30, 60, 240, ...)
     """
-    splits = {"val": (VAL_START, VAL_END)}
+    splits = {
+        "train": (TRAIN_START, TRAIN_END),
+        "val":   (VAL_START,   VAL_END),
+        "test":  (TEST_START,  TEST_END),
+    }
     if split not in splits:
         raise ValueError(f"split은 {list(splits.keys())} 중 하나여야 합니다")
 
