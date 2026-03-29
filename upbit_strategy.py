@@ -1,18 +1,19 @@
 """
-Upbit 현물 전용 전략. exp260: MAX_HOLD_BARS=96 추가 (score 4.770)
+Upbit 현물 전용 전략. exp280: 파라미터 전면 재최적화 (score 5.016)
 
 핵심 발견:
-  1. EMA(20/100) 크로스오버 - 진입/청산 주요 신호
-  2. SMA(200) 필터 + 0.05% 이상 상승 기울기 - 상승 추세 시장만 진입
-  3. ADX(25) > 15 - 추세 강도 필터 (범위 장세 진입 차단)
-  4. COOLDOWN=24봉 - 재진입 대기로 노이즈 차단
-  5. RSI(8) 45/55 비대칭 - 진입 완화(45), 청산 엄격(55)
-  6. MACD(8/17/9) - 더 느린 MACD로 신호 품질 개선
-  7. MAX_HOLD=96봉 - 96봉 초과 보유 강제 청산 (+0.29 sharpe)
+  1. EMA(19/100) 크로스오버 - 진입/청산 (fast=19이 optimal)
+  2. SMA(200) 필터 + 0.04% 이상 상승 기울기 - 상승 추세 시장만 진입
+  3. ADX(25) > 15 - 추세 강도 필터
+  4. COOLDOWN=24봉 - 재진입 대기
+  5. RSI(9) 45/46 비대칭 - 진입(>45), 청산(<46)
+  6. MACD(8/17/9)
+  7. MAX_HOLD=96봉 - 96봉 초과 보유 강제 청산
+  8. VOL_LOOKBACK=28 (기존 36 → 28)
 
-진입: EMA(20) > EMA(100) AND 현재가 > SMA(200) AND SMA200 기울기>0.05%
+진입: EMA(19) > EMA(100) AND 현재가 > SMA(200) AND SMA200 기울기>0.04%
       AND ADX(25) > 15 AND aux_bull >= 2
-청산: EMA(20) < EMA(100) OR aux_bear >= 3 OR 보유기간 >= 96봉
+청산: EMA(19) < EMA(100) OR aux_bear >= 3 OR 보유기간 >= 96봉
 포지션: 99%
 """
 
@@ -22,11 +23,11 @@ from upbit_prepare import UpbitSignal, UpbitPortfolioState, UpbitBarData
 ACTIVE_SYMBOLS    = ["KRW-BTC"]
 SYMBOL_WEIGHTS    = {"KRW-BTC": 1.0}
 
-EMA_FAST          = 20
+EMA_FAST          = 19
 EMA_SLOW          = 100
-RSI_PERIOD        = 8
+RSI_PERIOD        = 9
 RSI_BULL          = 45
-RSI_BEAR          = 55
+RSI_BEAR          = 46
 MACD_FAST         = 8
 MACD_SLOW         = 17
 MACD_SIGNAL       = 9
@@ -35,7 +36,7 @@ MED_WINDOW        = 12
 TREND_FILTER_BARS = 200
 BASE_POSITION_PCT = 0.99
 BASE_THRESHOLD    = 0.015
-VOL_LOOKBACK      = 36
+VOL_LOOKBACK      = 28
 TARGET_VOL        = 0.015
 COOLDOWN_BARS     = 24
 MIN_BULL_VOTES    = 2   # 보조 신호 3개 중 N개 이상 강세
@@ -146,7 +147,7 @@ class Strategy:
             sma_prev     = float(np.mean(closes[-(TREND_FILTER_BARS + 10):-10]))
             above_trend  = mid > sma_long
             sma_slope    = (sma_long - sma_prev) / max(sma_prev, 1.0)
-            sma_rising   = sma_slope > 0.0005  # SMA200 0.05% 이상 상승 중
+            sma_rising   = sma_slope > 0.0004  # SMA200 0.04% 이상 상승 중
 
             # 동적 임계값
             if len(closes) >= VOL_LOOKBACK:
