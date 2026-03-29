@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp349: MACD fast 8→원복 + 전체 최적화 (score 5.234)
+Upbit 현물 전용 전략. exp350: 4신호 bear exit 4/4 필요 + stoch<30 (score 5.242)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -171,10 +171,12 @@ class Strategy:
                 rsi > RSI_BULL,
                 macd_h > 0,
             ])
+            # 부가 신호 4개 - 청산에는 4/4 필요
             aux_bear = sum([
                 ret_med < -dyn_threshold,
                 rsi < RSI_BEAR,
                 macd_h < 0,
+                stoch_rsi < 30,
             ])
 
             in_cooldown = (self.bar_count - self.exit_bar.get(symbol, -999)) < COOLDOWN_BARS
@@ -189,7 +191,7 @@ class Strategy:
                     self.entry_bar[symbol] = self.bar_count
             else:
                 time_exit = hold_bars >= MAX_HOLD_BARS
-                if ema_bear or aux_bear >= MIN_BEAR_VOTES or time_exit:
+                if ema_bear or aux_bear >= 4 or time_exit:
                     target = 0.0
 
             if abs(target - current_pos) > 1.0:
