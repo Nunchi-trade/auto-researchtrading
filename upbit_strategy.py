@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp344: SMA200 기울기 0.035% 재최적화 (score 5.129)
+Upbit 현물 전용 전략. exp348: Stoch RSI>30 진입 필터 추가 (score 5.219)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -160,7 +160,7 @@ class Strategy:
 
             ret_med   = float(np.log(closes[-1] / closes[-MED_WINDOW]))
             rsi       = _calc_rsi(closes, RSI_PERIOD)
-            stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)
+            stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)  # 진입 조건: stoch_rsi > 30 필터
             macd_h   = _calc_macd(closes)
             adx, plus_di, minus_di = _calc_adx(bd.history, period=24)
             strong_trend = adx > 15.0
@@ -184,7 +184,7 @@ class Strategy:
 
             hold_bars = self.bar_count - self.entry_bar.get(symbol, self.bar_count)
             if current_pos == 0:
-                if ema_bull and above_trend and sma_rising and strong_trend and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
+                if ema_bull and above_trend and sma_rising and strong_trend and stoch_rsi > 30 and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
                     target = equity * BASE_POSITION_PCT
                     self.entry_bar[symbol] = self.bar_count
             else:
