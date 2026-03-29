@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp400: ADX<10 추세약화 청산 추가 (score 5.773)
+Upbit 현물 전용 전략. exp410: MAX_HOLD=98봉으로 최적화 (score 5.905)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -8,13 +8,15 @@ Upbit 현물 전용 전략. exp400: ADX<10 추세약화 청산 추가 (score 5.7
   4. COOLDOWN=24봉 - 재진입 대기
   5. RSI(9) 45/46 비대칭
   6. MACD(7/17/9)
-  7. MAX_HOLD=96봉
+  7. MAX_HOLD=98봉 (96→98 개선)
   8. VOL_LOOKBACK=28
   9. ATR(14)*4.15 trailing stop
+ 10. entry_stop 1.9xATR
+ 11. ADX<10 추세 약화 청산
 
 진입: EMA(19) > EMA(100) AND 현재가 > SMA(200)*1.005 AND SMA200 기울기>0.035%
       AND ADX(24) > 15 AND stoch_rsi > 30 AND aux_bull >= 2
-청산: EMA(19) < EMA(100) OR aux_bear >= 4/5 OR 보유기간 >= 96봉 OR ATR trailing stop
+청산: EMA(19) < EMA(100) OR aux_bear >= 4/5 OR 보유기간 >= 98봉 OR ATR trailing stop
 포지션: 99%
 """
 
@@ -114,7 +116,7 @@ def _calc_macd(closes: np.ndarray) -> float:
     return float(macd_line[-1] - signal_line[-1])
 
 
-MAX_HOLD_BARS     = 96
+MAX_HOLD_BARS     = 98
 
 ENTRY_STOP_MULT   = 1.9
 
