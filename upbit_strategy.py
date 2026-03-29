@@ -1,9 +1,9 @@
 """
-Upbit 현물 전용 전략. exp290: SMA lag=8 최적화 (score 5.032)
+Upbit 현물 전용 전략. exp295: above_trend 0.5% 버퍼 추가 (score 5.044)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
-  2. SMA(200) 필터 + 0.04% 이상 상승 기울기 (8봉 비교)
+  2. SMA(200)*1.005 필터 + 0.04% 이상 상승 기울기 (8봉 비교)
   3. ADX(25) > 15 - 추세 강도 필터
   4. COOLDOWN=24봉 - 재진입 대기
   5. RSI(9) 45/46 비대칭
@@ -11,7 +11,7 @@ Upbit 현물 전용 전략. exp290: SMA lag=8 최적화 (score 5.032)
   7. MAX_HOLD=96봉
   8. VOL_LOOKBACK=28
 
-진입: EMA(19) > EMA(100) AND 현재가 > SMA(200) AND SMA200 기울기>0.04%
+진입: EMA(19) > EMA(100) AND 현재가 > SMA(200)*1.005 AND SMA200 기울기>0.04%
       AND ADX(25) > 15 AND aux_bull >= 2
 청산: EMA(19) < EMA(100) OR aux_bear >= 3 OR 보유기간 >= 96봉
 포지션: 99%
@@ -39,8 +39,8 @@ BASE_THRESHOLD    = 0.015
 VOL_LOOKBACK      = 28
 TARGET_VOL        = 0.015
 COOLDOWN_BARS     = 24
-MIN_BULL_VOTES    = 2   # 보조 신호 3개 중 N개 이상 강세
-MIN_BEAR_VOTES    = 3   # 보조 신호 3개 전부 약세 시 청산
+MIN_BULL_VOTES    = 2
+MIN_BEAR_VOTES    = 3
 
 
 def _ema(values: np.ndarray, span: int) -> np.ndarray:
@@ -145,7 +145,7 @@ class Strategy:
 
             sma_long     = float(np.mean(closes[-TREND_FILTER_BARS:]))
             sma_prev     = float(np.mean(closes[-(TREND_FILTER_BARS + 8):-8]))
-            above_trend  = mid > sma_long
+            above_trend  = mid > sma_long * 1.005  # SMA200 0.5% 이상
             sma_slope    = (sma_long - sma_prev) / max(sma_prev, 1.0)
             sma_rising   = sma_slope > 0.0004  # SMA200 0.04% 이상 상승 중
 
