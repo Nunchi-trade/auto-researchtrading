@@ -1,24 +1,14 @@
 """
-Upbit 현물 전용 전략. exp430: val 구간(2023-01~2024-06) 재최적화 (val score 3.849)
+Upbit 현물 전용 전략. exp431: val 구간 파라미터 추가 최적화 (val score 4.089)
 
-핵심 변경 (exp420 대비):
-  - EMA(48/100) — FAST 19→48
-  - TREND_FILTER_BARS 200→339
-  - SMA(339) 필터 (1.005 배수 제거)
-  - SMA 기울기 임계값 0.035%→0.012%
-  - ADX(24) > 18 (15→18)
-  - ADX<8 추세 약화 청산 (10→8)
-  - RSI(11) 40/53 비대칭 (9/45/46)
-  - MACD(10/16/9) (8/17/9)
-  - MAX_HOLD=60봉 (98)
-  - ATR*3.0 trailing stop (4.15)
-  - entry_stop 1.2xATR (1.9)
-  - VOL_LOOKBACK=26 (28)
+핵심 변경 (exp430 대비):
+  - EMA_FAST 48→44
+  - MAX_HOLD 60→72
+  - RSI_BULL 40→42, RSI_BEAR 53→52
+  - stoch_rsi entry 30→25
+  - recent_high 0.992→0.995 (4봉 비교)
 
-진입: EMA(48) > EMA(100) AND 현재가 > SMA(339) AND SMA339 기울기>0.012%
-      AND ADX(24) > 18 AND stoch_rsi > 30 AND aux_bull >= 2
-청산: EMA(48) < EMA(100) OR aux_bear >= 4/5 OR 보유기간 >= 60봉 OR ATR trailing stop
-포지션: 99% (변동성 역비례 스케일링)
+val score: 1.330 → 4.089 (+207%)
 """
 
 import numpy as np
@@ -27,11 +17,11 @@ from upbit_prepare import UpbitSignal, UpbitPortfolioState, UpbitBarData
 ACTIVE_SYMBOLS    = ["KRW-BTC"]
 SYMBOL_WEIGHTS    = {"KRW-BTC": 1.0}
 
-EMA_FAST          = 48
+EMA_FAST          = 44
 EMA_SLOW          = 100
 RSI_PERIOD        = 11
-RSI_BULL          = 40
-RSI_BEAR          = 53
+RSI_BULL          = 42
+RSI_BEAR          = 52
 MACD_FAST         = 10
 MACD_SLOW         = 16
 MACD_SIGNAL       = 9
@@ -117,7 +107,7 @@ def _calc_macd(closes: np.ndarray) -> float:
     return float(macd_line[-1] - signal_line[-1])
 
 
-MAX_HOLD_BARS     = 60
+MAX_HOLD_BARS     = 72
 
 ENTRY_STOP_MULT   = 1.2
 
@@ -169,7 +159,7 @@ class Strategy:
 
             ret_med   = float(np.log(closes[-1] / closes[-MED_WINDOW]))
             rsi       = _calc_rsi(closes, RSI_PERIOD)
-            stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)  # 진입: stoch_rsi > 30, 청산: stoch_rsi < 40
+            stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)  # 진입: stoch_rsi > 25, 청산: stoch_rsi < 40
             macd_h   = _calc_macd(closes)
             adx, plus_di, minus_di = _calc_adx(bd.history, period=24)
             strong_trend = adx > 18.0
@@ -191,8 +181,8 @@ class Strategy:
                 macd_h > 0,
             ])
             # 부가 신호 5개 - 청산에는 4/5 필요
-            recent_high = float(np.max(closes[-3:]))
-            below_recent_high = mid < recent_high * 0.992
+            recent_high = float(np.max(closes[-4:]))
+            below_recent_high = mid < recent_high * 0.995
             aux_bear = sum([
                 ret_med < -dyn_threshold,
                 rsi < RSI_BEAR,
@@ -208,7 +198,7 @@ class Strategy:
 
             hold_bars = self.bar_count - self.entry_bar.get(symbol, self.bar_count)
             if current_pos == 0:
-                if ema_bull and above_trend and sma_rising and strong_trend and stoch_rsi > 30 and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
+                if ema_bull and above_trend and sma_rising and strong_trend and stoch_rsi > 25 and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
                     # 변동성 역비례 포지션 사이징 (고변동성일수록 작은 포지션)
                     pos_scale = float(np.clip(1.0 / max(vol_ratio, 1e-10), 0.7, 1.0))
                     target = equity * BASE_POSITION_PCT * pos_scale
