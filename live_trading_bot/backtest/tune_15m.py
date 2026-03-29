@@ -26,9 +26,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-_repo_root = Path(__file__).resolve().parent.parent.parent
-_bot_root = Path(__file__).resolve().parent.parent
-for _p in (_bot_root, _repo_root):
+_this_dir = Path(__file__).resolve().parent  # backtest/
+_bot_root = _this_dir.parent  # live_trading_bot/
+for _p in (_this_dir, _bot_root):
     sp = str(_p)
     if sp not in sys.path:
         sys.path.insert(0, sp)
@@ -645,23 +645,6 @@ def print_oos(result: dict):
 
 
 # ---------------------------------------------------------------------------
-# SAVE
-# ---------------------------------------------------------------------------
-def save_best_params(best_overrides: dict):
-    config_path = _bot_root / "config" / "optimized_params.json"
-    if config_path.exists():
-        with open(config_path, "r") as f:
-            current = json.load(f)
-    else:
-        current = DEFAULTS.copy()
-    current.update(best_overrides)
-    with open(config_path, "w") as f:
-        json.dump(current, f, indent=2)
-        f.write("\n")
-    print(f"  Saved best params to {config_path}")
-
-
-# ---------------------------------------------------------------------------
 # MAIN
 # ---------------------------------------------------------------------------
 def main():
@@ -673,7 +656,6 @@ def main():
     )
     parser.add_argument("--multi-grid", type=str, default=None)
     parser.add_argument("--oos-params", type=str, default=None)
-    parser.add_argument("--save", action="store_true")
     parser.add_argument(
         "--subsample",
         type=int,
@@ -872,13 +854,6 @@ def main():
                 print(f"    {k}: {DEFAULTS.get(k)} -> {v}")
         oos_result = run_oos(full_data, best_params_accumulator)
         print_oos(oos_result)
-
-        if args.save:
-            if oos_result["degradation"] < 0.6:
-                save_best_params(best_params_accumulator)
-                print("  Params saved (OOS degradation acceptable).")
-            else:
-                print("  Params NOT saved — OOS degradation > 60%.")
 
     # ---- FINAL SUMMARY ----
     if all_phase_results:
