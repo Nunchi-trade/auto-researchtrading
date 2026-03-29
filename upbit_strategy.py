@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp370: ATR(4.15) trailing stop + MACD_FAST=7 + stoch_bear<40 (score 5.477)
+Upbit 현물 전용 전략. exp380: ATR trailing(4.15x) + entry_stop(1.9x) + MACD_FAST=7 (score 5.744)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -116,11 +116,14 @@ def _calc_macd(closes: np.ndarray) -> float:
 
 MAX_HOLD_BARS     = 96
 
+ENTRY_STOP_MULT   = 1.9
+
 class Strategy:
     def __init__(self) -> None:
         self.exit_bar: dict[str, int] = {}
         self.entry_bar: dict[str, int] = {}
         self.peak_price: dict[str, float] = {}
+        self.entry_price: dict[str, float] = {}
         self.bar_count = 0
 
     def on_bar(self, bar_data: dict, portfolio: UpbitPortfolioState) -> list:
@@ -206,11 +209,13 @@ class Strategy:
                     target = equity * BASE_POSITION_PCT
                     self.entry_bar[symbol] = self.bar_count
                     self.peak_price[symbol] = mid
+                    self.entry_price[symbol] = mid
             else:
-                # 최고가 갱신 및 ATR trailing stop
+                # 최고가 갱신 및 ATR trailing/entry stop
                 self.peak_price[symbol] = max(self.peak_price.get(symbol, mid), mid)
-                trailing_stop = self.peak_price[symbol] - ATR_STOP_MULT * atr_val
-                atr_stop_hit  = mid < trailing_stop
+                trailing_stop   = self.peak_price[symbol] - ATR_STOP_MULT * atr_val
+                entry_stop      = self.entry_price.get(symbol, 0.0) - ENTRY_STOP_MULT * atr_val
+                atr_stop_hit    = mid < trailing_stop or mid < entry_stop
                 time_exit = hold_bars >= MAX_HOLD_BARS
                 if ema_bear or aux_bear >= 4 or time_exit or atr_stop_hit:
                     target = 0.0
