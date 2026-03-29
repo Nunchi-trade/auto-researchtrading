@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp390: vol_ratio inverse sizing (lb=0.7) + ATR stops (score 5.763)
+Upbit 현물 전용 전략. exp400: ADX<10 추세약화 청산 추가 (score 5.773)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -218,8 +218,9 @@ class Strategy:
                 trailing_stop   = self.peak_price[symbol] - ATR_STOP_MULT * atr_val
                 entry_stop      = self.entry_price.get(symbol, 0.0) - ENTRY_STOP_MULT * atr_val
                 atr_stop_hit    = mid < trailing_stop or mid < entry_stop
+                adx_weak        = adx < 10.0  # 추세 약화 청산
                 time_exit = hold_bars >= MAX_HOLD_BARS
-                if ema_bear or aux_bear >= 4 or time_exit or atr_stop_hit:
+                if ema_bear or aux_bear >= 4 or time_exit or atr_stop_hit or adx_weak:
                     target = 0.0
 
             if abs(target - current_pos) > 1.0:
