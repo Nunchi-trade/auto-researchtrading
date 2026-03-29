@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp410: MAX_HOLD=98봉으로 최적화 (score 5.905)
+Upbit 현물 전용 전략. exp420: MACD_FAST=8 최적화 (score 5.935)
 
 핵심 발견:
   1. EMA(19/100) 크로스오버
@@ -7,8 +7,8 @@ Upbit 현물 전용 전략. exp410: MAX_HOLD=98봉으로 최적화 (score 5.905)
   3. ADX(24) > 15 - 추세 강도 필터
   4. COOLDOWN=24봉 - 재진입 대기
   5. RSI(9) 45/46 비대칭
-  6. MACD(7/17/9)
-  7. MAX_HOLD=98봉 (96→98 개선)
+  6. MACD(8/17/9) (FAST 7→8 개선)
+  7. MAX_HOLD=98봉
   8. VOL_LOOKBACK=28
   9. ATR(14)*4.15 trailing stop
  10. entry_stop 1.9xATR
@@ -31,7 +31,7 @@ EMA_SLOW          = 100
 RSI_PERIOD        = 9
 RSI_BULL          = 45
 RSI_BEAR          = 46
-MACD_FAST         = 7
+MACD_FAST         = 8
 MACD_SLOW         = 17
 MACD_SIGNAL       = 9
 MED_WINDOW        = 12
