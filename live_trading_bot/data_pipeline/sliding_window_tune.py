@@ -5,12 +5,14 @@ Sliding Window Parameter Optimization
 Runs daily_tune-style optimization for each day over the past 2 weeks.
 Downloads 15m candle data once (enough for all windows), slices into 14
 daily windows with the same 1300-hour lookback, and runs full optimization
-(single + secondary + multi-grid sweeps) in parallel across 8 cores.
+(single sweeps → secondary sweeps → stepwise accumulation → adaptive
+multi-grid) in parallel across 8 cores.
 
 Usage:
     python sliding_window_tune.py
     python sliding_window_tune.py --workers 4
     python sliding_window_tune.py --days 7
+    python sliding_window_tune.py --subsample 4
 """
 
 import sys
@@ -26,10 +28,8 @@ from dotenv import load_dotenv
 # ---------------------------------------------------------------------------
 # Path setup — same as daily_tune.py
 # ---------------------------------------------------------------------------
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 BOT_ROOT = Path(__file__).resolve().parent.parent
-BACKTEST_DIR = Path(__file__).resolve().parent.parent / "backtest"
-for _p in (BACKTEST_DIR, BOT_ROOT, REPO_ROOT):
+for _p in (BOT_ROOT,):
     _sp = str(_p)
     if _sp not in sys.path:
         sys.path.insert(0, _sp)
@@ -160,70 +160,153 @@ def slice_data_for_window(
 # ---------------------------------------------------------------------------
 def _run_window_worker(args: tuple) -> dict:
     """
-    Subprocess worker. Receives (window_date_str, sliced_data, window_idx).
-    Suppresses stdout to avoid interleaved progress bars from run_sweep.
-    Returns dict with window metadata + results.
+    Subprocess worker. Receives (window_date_str, sliced_data, window_idx, subsample_factor).
+    Runs: single sweeps -> secondary sweeps -> stepwise accumulation -> adaptive multi-grid.
     """
-    window_date_str, sliced_data, window_idx = args
+    window_date_str, sliced_data, window_idx, subsample_factor = args
 
-    # Suppress stdout in worker — run_sweep prints progress bars
     old_stdout = sys.stdout
     sys.stdout = open(os.devnull, "w")
 
     try:
         from backtest.tune_15m import (
+            DEFAULTS,
             SINGLE_SWEEPS,
             SECONDARY_SWEEPS,
-            MULTI_GRID,
+            build_adaptive_grid,
             run_sweep,
+            run_once,
+            score_result,
+            forward_stepwise_accumulate,
+            reset_params,
+            subsample_data,
         )
 
-        all_results: list[dict] = []
+        screen_data = subsample_data(sliced_data, subsample_factor)
 
-        # Phase 1: Single-parameter sweeps
+        all_results: list[dict] = []
+        all_validated: list[dict] = []
+
+        # Phase 1: Single-parameter sweeps (screened on subsampled data)
         for name, grid in SINGLE_SWEEPS:
             try:
-                results = run_sweep(sliced_data, name, grid)
+                results = run_sweep(screen_data, name, grid)
                 for r in results:
-                    dd = r.get("max_drawdown_pct", 0)
-                    r["_ret_dd"] = r.get("total_return_pct", 0) / max(dd, 0.01)
                     r["sweep_name"] = name
                 all_results.extend(results)
+                # Re-validate top results on full data
+                if results and subsample_factor > 1:
+                    top_n = min(2, len(results))
+                    candidates = sorted(
+                        results, key=lambda x: x["_score"], reverse=True
+                    )[:top_n]
+                    for r in candidates:
+                        rv = run_once(sliced_data, r["params"])
+                        if "error" not in rv:
+                            rv["sweep_name"] = name
+                            all_validated.append(rv)
+                elif results:
+                    all_validated.extend(
+                        sorted(results, key=lambda x: x["_score"], reverse=True)[:1]
+                    )
             except Exception:
                 pass
 
-        # Phase 2: Secondary sweeps
+        # Phase 2: Secondary sweeps (screened on subsampled data)
         for name, grid in SECONDARY_SWEEPS:
             try:
-                results = run_sweep(sliced_data, name, grid)
+                results = run_sweep(screen_data, name, grid)
                 for r in results:
-                    dd = r.get("max_drawdown_pct", 0)
-                    r["_ret_dd"] = r.get("total_return_pct", 0) / max(dd, 0.01)
                     r["sweep_name"] = name
                 all_results.extend(results)
+                if results and subsample_factor > 1:
+                    top_n = min(2, len(results))
+                    candidates = sorted(
+                        results, key=lambda x: x["_score"], reverse=True
+                    )[:top_n]
+                    for r in candidates:
+                        rv = run_once(sliced_data, r["params"])
+                        if "error" not in rv:
+                            rv["sweep_name"] = name
+                            all_validated.append(rv)
+                elif results:
+                    all_validated.extend(
+                        sorted(results, key=lambda x: x["_score"], reverse=True)[:1]
+                    )
             except Exception:
                 pass
 
-        # Phase 3: Multi-parameter grid
+        # Phase 3: Forward stepwise accumulation (full data)
+        best_params_accumulator = DEFAULTS.copy()
+        if all_validated:
+            try:
+                stepwise_params, stepwise_score = forward_stepwise_accumulate(
+                    sliced_data, all_validated
+                )
+                best_single = max(all_validated, key=lambda x: x["_score"])
+                if stepwise_score >= best_single["_score"]:
+                    best_params_accumulator = stepwise_params
+                else:
+                    best_params_accumulator = best_single["params"].copy()
+                    for k, v in DEFAULTS.items():
+                        if k not in best_params_accumulator:
+                            best_params_accumulator[k] = v
+            except Exception:
+                if all_validated:
+                    best_single = max(all_validated, key=lambda x: x["_score"])
+                    best_params_accumulator.update(best_single["params"])
+
+        # Phase 4: Adaptive multi-grid (screen, then revalidate top-10)
         try:
-            results = run_sweep(sliced_data, "MULTI", MULTI_GRID)
+            grid = build_adaptive_grid(best_params_accumulator)
+            results = run_sweep(screen_data, "ADAPTIVE_MULTI", grid)
             for r in results:
-                dd = r.get("max_drawdown_pct", 0)
-                r["_ret_dd"] = r.get("total_return_pct", 0) / max(dd, 0.01)
-                r["sweep_name"] = "MULTI"
+                r["sweep_name"] = "ADAPTIVE_MULTI"
             all_results.extend(results)
+            if results and subsample_factor > 1:
+                top_n = min(10, len(results))
+                candidates = sorted(results, key=lambda x: x["_score"], reverse=True)[
+                    :top_n
+                ]
+                for r in candidates:
+                    rv = run_once(sliced_data, r["params"])
+                    if "error" not in rv:
+                        rv["sweep_name"] = "ADAPTIVE_MULTI"
+                        all_validated.append(rv)
+            elif results:
+                all_validated.extend(
+                    sorted(results, key=lambda x: x["_score"], reverse=True)[:1]
+                )
         except Exception:
             pass
 
-        # Strip heavy fields from results (equity_curve, trade_log are large)
+        # Merge validated results into all_results for storage
+        all_results.extend(all_validated)
+
+        # Strip heavy fields from results
         for r in all_results:
             r.pop("equity_curve", None)
             r.pop("trade_log", None)
             r["window_date"] = window_date_str
             r["window_idx"] = window_idx
 
-        # Find best result for this window
         best = _find_best_in_window(all_results)
+
+        # Compute period from sliced data timestamps
+        starts = []
+        ends = []
+        for df in sliced_data.values():
+            ts = df["timestamp"]
+            starts.append(int(ts.iloc[0]))
+            ends.append(int(ts.iloc[-1]))
+        window_period = ""
+        if starts:
+            from datetime import datetime as _dt, timezone as _tz
+
+            fmt = "%Y-%m-%d"
+            s = _dt.fromtimestamp(min(starts) / 1000, tz=_tz.utc).strftime(fmt)
+            e = _dt.fromtimestamp(max(ends) / 1000, tz=_tz.utc).strftime(fmt)
+            window_period = f"{s}_{e}"
 
         return {
             "window_date": window_date_str,
@@ -232,6 +315,7 @@ def _run_window_worker(args: tuple) -> dict:
             "total_bars": sum(len(df) for df in sliced_data.values()),
             "results": all_results,
             "best": best,
+            "period": window_period,
         }
     except Exception as exc:
         return {
@@ -249,7 +333,6 @@ def _run_window_worker(args: tuple) -> dict:
 
 
 def _find_best_in_window(results: list[dict]) -> dict | None:
-    """Same selection logic as daily_tune.py find_best_result."""
     valid = [
         r
         for r in results
@@ -259,7 +342,7 @@ def _find_best_in_window(results: list[dict]) -> dict | None:
     ]
     if not valid:
         return None
-    valid.sort(key=lambda x: x.get("_ret_dd", 0), reverse=True)
+    valid.sort(key=lambda x: x.get("_score", 0), reverse=True)
     return valid[0]
 
 
@@ -267,7 +350,6 @@ def _find_best_in_window(results: list[dict]) -> dict | None:
 # Step 4: Save results to database (main process only)
 # ---------------------------------------------------------------------------
 def save_to_database(all_window_results: list[dict]) -> None:
-    """Save all window results to param_snapshots with window_date tagging."""
     import psycopg2
     from backtest.tune_15m import DEFAULTS
 
@@ -276,18 +358,28 @@ def save_to_database(all_window_results: list[dict]) -> None:
         logger.error("SUPABASE_DB_URL not set — cannot save to database")
         return
 
+    PARAM_COLUMNS = list(DEFAULTS.keys())
+
     conn = None
     try:
         conn = psycopg2.connect(db_url)
         cur = conn.cursor()
         inserted = 0
 
+        cols = (
+            "run_date, sweep_name, sharpe, total_return_pct, "
+            "max_drawdown_pct, profit_factor, win_rate_pct, "
+            "num_trades, ret_dd_ratio, is_best, period, previous_snapshot_id, "
+            + ", ".join(PARAM_COLUMNS)
+        )
+        placeholders = ", ".join(["%s"] * (12 + len(PARAM_COLUMNS)))
+
         for wr in all_window_results:
             window_date = wr["window_date"]
+            period = wr.get("period", "")
             results = wr["results"]
             best = wr.get("best")
 
-            # Find previous best snapshot (most recent overall)
             cur.execute(
                 "SELECT id FROM param_snapshots WHERE is_best = TRUE "
                 "ORDER BY run_date DESC LIMIT 1"
@@ -300,46 +392,67 @@ def save_to_database(all_window_results: list[dict]) -> None:
                 full_params = dict(DEFAULTS)
                 full_params.update(r.get("params", {}))
                 sweep_name = r.get("sweep_name", "")
-                # Tag sweep_name with window for disambiguation
                 tagged_sweep = f"SW_{window_date}_{sweep_name}"
+                ret_dd = r.get("total_return_pct", 0) / max(
+                    r.get("max_drawdown_pct", 0.01), 0.01
+                )
+
+                values = [
+                    window_date,
+                    tagged_sweep,
+                    float(r.get("sharpe", 0)),
+                    float(r.get("total_return_pct", 0)),
+                    float(r.get("max_drawdown_pct", 0)),
+                    float(r.get("profit_factor", 0)),
+                    float(r.get("win_rate_pct", 0)),
+                    int(r.get("num_trades", 0)),
+                    float(ret_dd),
+                    is_best,
+                    period,
+                    prev_snapshot_id if is_best else None,
+                ]
+                for p in PARAM_COLUMNS:
+                    values.append(float(full_params[p]))
 
                 cur.execute(
-                    """
-                    INSERT INTO param_snapshots
-                        (run_date, sweep_name, sharpe, total_return_pct,
-                         max_drawdown_pct, profit_factor, win_rate_pct,
-                         num_trades, ret_dd_ratio, is_best, previous_snapshot_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                    """,
-                    (
-                        window_date,
-                        tagged_sweep,
-                        r.get("sharpe", 0),
-                        r.get("total_return_pct", 0),
-                        r.get("max_drawdown_pct", 0),
-                        r.get("profit_factor", 0),
-                        r.get("win_rate_pct", 0),
-                        r.get("num_trades", 0),
-                        r.get("_ret_dd", 0),
-                        is_best,
-                        prev_snapshot_id if is_best else None,
-                    ),
+                    f"INSERT INTO param_snapshots ({cols}) VALUES ({placeholders})",
+                    values,
                 )
-                fetched = cur.fetchone()
-                if fetched is None:
-                    continue
-                snapshot_id = fetched[0]
-
-                for param_name, param_value in full_params.items():
-                    cur.execute(
-                        """
-                        INSERT INTO param_values (snapshot_id, param_name, param_value)
-                        VALUES (%s, %s, %s)
-                        """,
-                        (snapshot_id, param_name, float(param_value)),
-                    )
                 inserted += 1
+
+        # Save each window's best to active_params table
+        from storage.active_params import save_active_params as _save_active
+
+        for wr in all_window_results:
+            best_wr = wr.get("best")
+            if best_wr is None:
+                continue
+            wr_period = wr.get("period", "")
+            wr_window_date = wr["window_date"]
+            sweep_name = best_wr.get("sweep_name", "")
+            tagged_sweep = f"SW_{wr_window_date}_{sweep_name}"
+            full_params = dict(DEFAULTS)
+            full_params.update(best_wr.get("params", {}))
+            ret_dd = float(best_wr.get("total_return_pct", 0)) / max(
+                float(best_wr.get("max_drawdown_pct", 0.01)), 0.01
+            )
+            metrics = {
+                "sharpe": float(best_wr.get("sharpe", 0)),
+                "total_return_pct": float(best_wr.get("total_return_pct", 0)),
+                "max_drawdown_pct": float(best_wr.get("max_drawdown_pct", 0)),
+                "profit_factor": float(best_wr.get("profit_factor", 0)),
+                "win_rate_pct": float(best_wr.get("win_rate_pct", 0)),
+                "num_trades": int(best_wr.get("num_trades", 0)),
+                "ret_dd_ratio": ret_dd,
+            }
+            try:
+                _save_active(db_url, wr_period, tagged_sweep, metrics, full_params)
+            except Exception as exc:
+                logger.error(
+                    "Failed to save active params for window %s: %s",
+                    wr_window_date,
+                    exc,
+                )
 
         conn.commit()
         logger.info("Saved %d snapshots to database", inserted)
@@ -384,15 +497,15 @@ def save_results_json(all_window_results: list[dict]) -> None:
                 "sharpe": b.get("sharpe", 0),
                 "total_return_pct": b.get("total_return_pct", 0),
                 "max_drawdown_pct": b.get("max_drawdown_pct", 0),
-                "_ret_dd": b.get("_ret_dd", 0),
+                "_score": b.get("_score", 0),
                 "profit_factor": b.get("profit_factor", 0),
                 "win_rate_pct": b.get("win_rate_pct", 0),
                 "num_trades": b.get("num_trades", 0),
             }
 
-        # Sort by _ret_dd and take top 5
+        # Sort by _score and take top 5
         sorted_results = sorted(
-            wr["results"], key=lambda x: x.get("_ret_dd", 0), reverse=True
+            wr["results"], key=lambda x: x.get("_score", 0), reverse=True
         )
         for r in sorted_results[:5]:
             entry["top5"].append(
@@ -402,7 +515,7 @@ def save_results_json(all_window_results: list[dict]) -> None:
                     "sharpe": r.get("sharpe", 0),
                     "total_return_pct": r.get("total_return_pct", 0),
                     "max_drawdown_pct": r.get("max_drawdown_pct", 0),
-                    "_ret_dd": r.get("_ret_dd", 0),
+                    "_score": r.get("_score", 0),
                     "profit_factor": r.get("profit_factor", 0),
                     "win_rate_pct": r.get("win_rate_pct", 0),
                     "num_trades": r.get("num_trades", 0),
@@ -444,10 +557,10 @@ def print_summary(all_window_results: list[dict], elapsed: float) -> None:
         if best:
             bp = best.get("params", {})
             logger.info(
-                "  Window %s: %d results, best Ret/DD=%.2f Sharpe=%.4f Return=%.2f%% DD=%.2f%% Trades=%d",
+                "  Window %s: %d results, best Score=%.2f Sharpe=%.4f Return=%.2f%% DD=%.2f%% Trades=%d",
                 wr["window_date"],
                 wr["num_results"],
-                best.get("_ret_dd", 0),
+                best.get("_score", 0),
                 best.get("sharpe", 0),
                 best.get("total_return_pct", 0),
                 best.get("max_drawdown_pct", 0),
@@ -503,6 +616,12 @@ def main() -> None:
         "--no-db",
         action="store_true",
         help="Skip database save (JSON only)",
+    )
+    parser.add_argument(
+        "--subsample",
+        type=int,
+        default=1,
+        help="Take every Nth bar for screening (default=1, windows are smaller)",
     )
     args = parser.parse_args()
 
@@ -578,7 +697,7 @@ def main() -> None:
                 window_bars,
                 len(sliced),
             )
-            tasks.append((window_date_str, sliced, i))
+            tasks.append((window_date_str, sliced, i, args.subsample))
 
         # 3. Run optimization in parallel
         logger.info(
@@ -601,16 +720,16 @@ def main() -> None:
                     result = future.result()
                     all_window_results.append(result)
                     completed += 1
-                    best_ret_dd = 0
+                    best_score = 0
                     if result.get("best"):
-                        best_ret_dd = result["best"].get("_ret_dd", 0)
+                        best_score = result["best"].get("_score", 0)
                     logger.info(
-                        "  [%2d/%d] Window %s done: %d results, best Ret/DD=%.2f",
+                        "  [%2d/%d] Window %s done: %d results, best Score=%.2f",
                         completed,
                         len(tasks),
                         window_date,
                         result["num_results"],
-                        best_ret_dd,
+                        best_score,
                     )
                 except Exception as exc:
                     logger.error(
