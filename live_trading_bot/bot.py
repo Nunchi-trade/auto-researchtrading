@@ -27,7 +27,7 @@ from data.streamer import DataStreamer
 from adapter.ensemble import EnsembleStrategy
 from risk.risk_controller import RiskController
 from risk.position_limiter import PositionLimiter
-from storage.database import Database
+from storage import create_repository, Repository
 from storage.models import Trade, Position, SignalRecord
 from monitoring.logger import setup_logger, get_logger
 from monitoring.alerts import Alerter
@@ -51,7 +51,7 @@ class TradingBot:
         self.strategy: Optional[EnsembleStrategy] = None
         self.risk_controller: Optional[RiskController] = None
         self.position_limiter: Optional[PositionLimiter] = None
-        self.db: Optional[Database] = None
+        self.db: Optional[Repository] = None
         self.alerter: Optional[Alerter] = None
         self.metrics: Optional[MetricsTracker] = None
         self.signal_state: Optional[SignalState] = None
@@ -83,7 +83,7 @@ class TradingBot:
             },
         )
 
-        self.db = Database()
+        self.db = create_repository()
         await self.db.connect()
 
         private_key = get_private_key()

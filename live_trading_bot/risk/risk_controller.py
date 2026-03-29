@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from exchange.order_manager import Signal
 from exchange.types import AccountState
-from storage.database import Database
+from storage.repository import Repository
 from storage.models import RiskEvent, RiskEventType
 from config import get_settings
 from monitoring.logger import get_logger
@@ -20,7 +20,7 @@ class RiskCheckResult:
 
 
 class RiskController:
-    def __init__(self, db: Database):
+    def __init__(self, db: Repository):
         self.settings = get_settings()
         self.db = db
 
