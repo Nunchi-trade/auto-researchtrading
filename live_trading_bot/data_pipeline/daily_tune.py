@@ -92,7 +92,7 @@ def download_max_15m_data() -> dict:
 # ---------------------------------------------------------------------------
 def run_full_optimization(
     data: dict,
-    n_workers: int = 6,
+    n_workers: int = 4,
     subsample: int = 4,
     skip_oos: bool = False,
 ) -> tuple[dict, list[dict], dict | None]:

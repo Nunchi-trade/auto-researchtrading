@@ -1,20 +1,21 @@
-FROM python:3.12-slim
+# syntax=docker/dockerfile:1
+
+FROM python:3.12-slim AS base
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# Install uv
-RUN pip install uv
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-# Copy dependency files first for caching
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml uv.lock ./
 
-# Install dependencies
-RUN uv sync --no-dev
+RUN uv sync --frozen --no-dev
 
-# Copy the rest of the code
 COPY . .
 
-WORKDIR /app/live_trading_bot
+RUN mkdir -p logs
 
-ENV PYTHONUNBUFFERED=1
-CMD ["uv", "run", "python", "-u", "harness/side_by_side.py", "--dry-runs", "2", "--live-runs", "1"]
+WORKDIR /app
+CMD ["uv", "run", "live_trading_bot/bot.py"]
