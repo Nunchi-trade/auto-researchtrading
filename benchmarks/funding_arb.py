@@ -1,14 +1,19 @@
 """Funding rate carry strategy — ported from agent-cli."""
+
 import numpy as np
 from prepare import Signal, PortfolioState, BarData
+from constants import BENCHMARK_SYMBOLS
 
-ACTIVE_SYMBOLS = ["BTC", "ETH", "SOL"]
+ACTIVE_SYMBOLS = BENCHMARK_SYMBOLS
 POSITION_SIZE_PCT = 0.10
-FUNDING_ENTRY_THRESHOLD = 0.00005  # lower threshold for hourly data (funding is small per-hour)
-FUNDING_EXIT_THRESHOLD = 0.00001   # exit when funding normalizes
-LOOKBACK = 24                       # hours to average funding
+FUNDING_ENTRY_THRESHOLD = (
+    0.00005  # lower threshold for hourly data (funding is small per-hour)
+)
+FUNDING_EXIT_THRESHOLD = 0.00001  # exit when funding normalizes
+LOOKBACK = 24  # hours to average funding
 STOP_LOSS_PCT = 0.03
 MAX_EXPOSURE_PCT = 0.30
+
 
 class Strategy:
     def __init__(self):
@@ -32,7 +37,9 @@ class Strategy:
             mid = bd.close
 
             size = equity * POSITION_SIZE_PCT
-            remaining_capacity = equity * MAX_EXPOSURE_PCT - total_exposure + abs(current_pos)
+            remaining_capacity = (
+                equity * MAX_EXPOSURE_PCT - total_exposure + abs(current_pos)
+            )
             size = min(size, max(0, remaining_capacity))
 
             target = current_pos

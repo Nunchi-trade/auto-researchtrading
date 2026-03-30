@@ -9,9 +9,10 @@ Changes from exp28 (ATR 5.5, score 9.382):
 
 import numpy as np
 from prepare import Signal, PortfolioState, BarData
+from constants import INTERVAL_SYMBOLS, make_equal_weights
 
-ACTIVE_SYMBOLS = ["BTC", "ETH", "SOL", "XRP"]
-SYMBOL_WEIGHTS = {"BTC": 0.25, "ETH": 0.25, "SOL": 0.25, "XRP": 0.25}
+ACTIVE_SYMBOLS = INTERVAL_SYMBOLS["1h"]
+SYMBOL_WEIGHTS = make_equal_weights(ACTIVE_SYMBOLS)
 
 SHORT_WINDOW = 6
 MED_WINDOW = 12

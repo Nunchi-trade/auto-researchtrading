@@ -1,13 +1,16 @@
 """Mean reversion z-score strategy — ported from agent-cli."""
+
 import numpy as np
 from prepare import Signal, PortfolioState, BarData
+from constants import BENCHMARK_SYMBOLS
 
-ACTIVE_SYMBOLS = ["BTC", "ETH", "SOL"]
+ACTIVE_SYMBOLS = BENCHMARK_SYMBOLS
 WINDOW = 24
 ENTRY_ZSCORE = 2.0
 EXIT_ZSCORE = 0.5
 POSITION_SIZE_PCT = 0.10
 STOP_LOSS_PCT = 0.04
+
 
 class Strategy:
     def __init__(self):
@@ -41,7 +44,7 @@ class Strategy:
             if zscore > ENTRY_ZSCORE:
                 target = -size  # overbought → short
             elif zscore < -ENTRY_ZSCORE:
-                target = size   # oversold → long
+                target = size  # oversold → long
             # Exit when z-score normalizes
             elif abs(zscore) < EXIT_ZSCORE and current_pos != 0:
                 target = 0.0

@@ -1,14 +1,17 @@
 """Momentum breakout with volume confirmation — ported from agent-cli."""
+
 import numpy as np
 from prepare import Signal, PortfolioState, BarData
+from constants import BENCHMARK_SYMBOLS
 
-ACTIVE_SYMBOLS = ["BTC", "ETH", "SOL"]
+ACTIVE_SYMBOLS = BENCHMARK_SYMBOLS
 LOOKBACK = 48
-BREAKOUT_THRESHOLD = 0.008     # 0.8% for hourly
-VOLUME_SURGE_MULT = 1.0        # no volume filter (volume data may be spotty)
-TRAILING_STOP_BPS = 200        # 2% trailing stop
+BREAKOUT_THRESHOLD = 0.008  # 0.8% for hourly
+VOLUME_SURGE_MULT = 1.0  # no volume filter (volume data may be spotty)
+TRAILING_STOP_BPS = 200  # 2% trailing stop
 POSITION_SIZE_PCT = 0.10
 MAX_HOLD_BARS = 72
+
 
 class Strategy:
     def __init__(self):
@@ -39,7 +42,9 @@ class Strategy:
             size = equity * POSITION_SIZE_PCT
             target = current_pos
 
-            vol_surge = bd.volume > avg_vol * VOLUME_SURGE_MULT if avg_vol > 0 else False
+            vol_surge = (
+                bd.volume > avg_vol * VOLUME_SURGE_MULT if avg_vol > 0 else False
+            )
 
             # Breakout entry
             if current_pos == 0:

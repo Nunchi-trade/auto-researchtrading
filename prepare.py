@@ -8,10 +8,8 @@ Usage:
 """
 
 import os
-import sys
 import time
 import math
-import signal
 import argparse
 from dataclasses import dataclass, field
 
@@ -20,20 +18,19 @@ import pandas as pd
 import requests
 import pyarrow.parquet as pq
 
+from constants import INITIAL_CAPITAL, MAKER_FEE, TAKER_FEE, SLIPPAGE_BPS
+from constants import BENCHMARK_SYMBOLS, HL_INFO_URL
+
 # ---------------------------------------------------------------------------
 # Constants (fixed, do not modify)
 # ---------------------------------------------------------------------------
 
 TIME_BUDGET = 120  # backtest time budget in seconds (2 minutes)
-INITIAL_CAPITAL = 100_000.0  # $100K starting capital
-MAKER_FEE = 0.0002  # 2 bps
-TAKER_FEE = 0.0005  # 5 bps
-SLIPPAGE_BPS = 1.0  # 1 bps simulated slippage
 MAX_LEVERAGE = 20  # max leverage allowed
 LOOKBACK_BARS = 500  # history buffer provided to strategy
 BAR_INTERVAL = "1h"
 
-SYMBOLS = ["BTC", "ETH", "SOL"]
+SYMBOLS = BENCHMARK_SYMBOLS
 
 # Date splits (UTC timestamps)
 TRAIN_START = "2023-06-01"
@@ -104,7 +101,6 @@ class BacktestResult:
 # Data download
 # ---------------------------------------------------------------------------
 
-HL_INFO_URL = "https://api.hyperliquid.xyz/info"
 CRYPTOCOMPARE_URL = "https://min-api.cryptocompare.com/data/v2/histohour"
 
 
