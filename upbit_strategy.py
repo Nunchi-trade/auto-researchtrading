@@ -1,5 +1,5 @@
 """
-Upbit 현물 전용 전략. exp433: RSI_BULL=38, SMA slope>0.02% (val score 4.102)
+Upbit 현물 전용 전략. exp434: RSI_BULL=38, SMA slope>0.022% (val score 4.109)
 
 val 기준 현재 최고 파라미터 (2023-01~2024-06):
   EMA(44/100), RSI(11) 38/52, MACD(9/16/9)
@@ -8,7 +8,7 @@ val 기준 현재 최고 파라미터 (2023-01~2024-06):
   SMA slope>0.02%, recent_high 4봉/0.995
   ADX(24)>18 entry, ADX<8 weak exit
 
-val score: 4.093 → 4.102 (+0.2%)  train: -0.254 → -0.039
+val score: 4.102 → 4.109 (+0.2%)  train: -0.039 (유지)
 """
 
 import numpy as np
@@ -146,7 +146,7 @@ class Strategy:
             sma_prev     = float(np.mean(closes[-(TREND_FILTER_BARS + 8):-8]))
             above_trend  = mid > sma_long * 1.000  # SMA200 0.5% 이상
             sma_slope    = (sma_long - sma_prev) / max(sma_prev, 1.0)
-            sma_rising   = sma_slope > 0.0002   # SMA200 0.02% 이상 상승 중
+            sma_rising   = sma_slope > 0.00022   # SMA200 0.02% 이상 상승 중
 
             # 동적 임계값
             if len(closes) >= VOL_LOOKBACK:
