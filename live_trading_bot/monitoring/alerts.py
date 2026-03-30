@@ -75,6 +75,9 @@ class Alerter:
         return message
 
     async def send_alert(self, message: str, urgent: bool = False):
+        if self.settings.DRY_RUN:
+            return
+
         tasks = []
         message = self._tag_message(message)
 
