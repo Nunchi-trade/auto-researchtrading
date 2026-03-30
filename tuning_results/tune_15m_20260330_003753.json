@@ -1,0 +1,167 @@
+{
+  "timestamp": "20260330_003753",
+  "previous_run": null,
+  "best_params": {
+    "SHORT_WINDOW": 24,
+    "MED_WINDOW": 60,
+    "MED2_WINDOW": 96,
+    "LONG_WINDOW": 144,
+    "EMA_FAST": 24,
+    "EMA_SLOW": 96,
+    "RSI_PERIOD": 16,
+    "RSI_BULL": 55,
+    "RSI_BEAR": 45,
+    "RSI_OVERBOUGHT": 69,
+    "RSI_OVERSOLD": 31,
+    "MACD_FAST": 56,
+    "MACD_SLOW": 92,
+    "MACD_SIGNAL": 36,
+    "BB_PERIOD": 28,
+    "FUNDING_LOOKBACK": 96,
+    "FUNDING_BOOST": 0.0,
+    "BASE_POSITION_PCT": 2.0,
+    "VOL_LOOKBACK": 192,
+    "TARGET_VOL": 0.015,
+    "ATR_LOOKBACK": 72,
+    "ATR_STOP_MULT": 5.5,
+    "TAKE_PROFIT_PCT": 99.0,
+    "BASE_THRESHOLD": 0.012,
+    "BTC_OPPOSE_THRESHOLD": -99.0,
+    "PYRAMID_THRESHOLD": 0.015,
+    "PYRAMID_SIZE": 0.0,
+    "CORR_LOOKBACK": 288,
+    "HIGH_CORR_THRESHOLD": 99.0,
+    "DD_REDUCE_THRESHOLD": 99.0,
+    "DD_REDUCE_SCALE": 0.5,
+    "COOLDOWN_BARS": 8,
+    "MIN_VOTES": 4,
+    "THRESHOLD_MIN": 0.005,
+    "THRESHOLD_MAX": 0.02,
+    "BB_COMPRESS_PCTILE": 95
+  },
+  "best_score": 14.980945516365647,
+  "walk_forward_pass": true,
+  "walk_forward_avg_return": 120.92411589792756,
+  "stability_pass": false,
+  "stability_max_drop_pct": 37.48360077548389,
+  "top10_results": [
+    {
+      "params": {
+        "RSI_PERIOD": 16,
+        "BASE_POSITION_PCT": 2.0
+      },
+      "score": 18.261522617380102,
+      "return_pct": 814.0968628033827,
+      "dd_pct": 6.181469658776261,
+      "sharpe_ann": 18.261522617380102,
+      "trades": 1832,
+      "profit_factor": 15.105867440172657
+    },
+    {
+      "params": {
+        "RSI_PERIOD": 20,
+        "BASE_POSITION_PCT": 2.0
+      },
+      "score": 18.111202985255062,
+      "return_pct": 819.0371858159965,
+      "dd_pct": 6.141407587982405,
+      "sharpe_ann": 18.111202985255062,
+      "trades": 1644,
+      "profit_factor": 18.24740777491085
+    },
+    {
+      "params": {
+        "RSI_PERIOD": 20,
+        "BASE_POSITION_PCT": 1.0
+      },
+      "score": 18.038558159237876,
+      "return_pct": 209.23937470902212,
+      "dd_pct": 3.1114198700158604,
+      "sharpe_ann": 18.038558159237876,
+      "trades": 1644,
+      "profit_factor": 17.063409221037787
+    },
+    {
+      "params": {
+        "RSI_PERIOD": 20,
+        "BASE_POSITION_PCT": 0.5
+      },
+      "score": 18.00005501153425,
+      "return_pct": 76.7494031683174,
+      "dd_pct": 1.5661003025163662,
+      "sharpe_ann": 18.00005501153425,
+      "trades": 1644,
+      "profit_factor": 16.611041973118134
+    },
+    {
+      "params": {
+        "RSI_PERIOD": 24,
+        "BASE_POSITION_PCT": 2.0
+      },
+      "score": 15.186844930552398,
+      "return_pct": 653.1165655029835,
+      "dd_pct": 6.248399467135199,
+      "sharpe_ann": 15.186844930552398,
+      "trades": 1456,
+      "profit_factor": 20.965061412218446
+    },
+    {
+      "params": {
+        "RSI_PERIOD": 24,
+        "BASE_POSITION_PCT": 1.0
+      },
+      "score": 15.082886984001684,
+      "return_pct": 180.09933945475365,
+      "dd_pct": 3.144610126005537,
+      "sharpe_ann": 15.082886984001684,
+      "trades": 1456,
+      "profit_factor": 20.283723194467267
+    },
+    {
+      "params": {
+        "RSI_PERIOD": 24,
+        "BASE_POSITION_PCT": 0.5
+      },
+      "score": 15.028253243720796,
+      "return_pct": 68.2426797239301,
+      "dd_pct": 1.5774585884505203,
+      "sharpe_ann": 15.028253243720796,
+      "trades": 1456,
+      "profit_factor": 20.03353342893785
+    },
+    {
+      "params": {
+        "RSI_PERIOD": 24
+      },
+      "score": 14.980945516365647,
+      "return_pct": 8.758090224765693,
+      "dd_pct": 0.2530902596148269,
+      "sharpe_ann": 14.980945516365647,
+      "trades": 1456,
+      "profit_factor": 19.895901516655485
+    },
+    {
+      "params": {
+        "RSI_BULL": 55,
+        "RSI_BEAR": 45
+      },
+      "score": 12.188492804413007,
+      "return_pct": 7.075504488141887,
+      "dd_pct": 0.4785749810015978,
+      "sharpe_ann": 12.188492804413007,
+      "trades": 975,
+      "profit_factor": 10.864521940452457
+    },
+    {
+      "params": {
+        "MIN_VOTES": 5
+      },
+      "score": 11.510178699924063,
+      "return_pct": 6.4488861017719685,
+      "dd_pct": 0.38947065337760817,
+      "sharpe_ann": 11.510178699924063,
+      "trades": 878,
+      "profit_factor": 7.17091791812554
+    }
+  ]
+}

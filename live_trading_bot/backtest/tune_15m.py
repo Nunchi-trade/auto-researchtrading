@@ -6,18 +6,24 @@ Phases:
   2. Secondary sweeps (paired params + lookback windows, subsampled)
   2b. Re-validate phase 2 winners on full data
   3. Adaptive multi-parameter grid (subsampled, then top-10 on full data)
-  4. Automatic OOS validation of best candidate
+  4. Walk-forward validation of best candidate (expanding window, 5 folds)
+  5. Parameter stability test (perturb ±10%, check robustness)
 
-Scoring:
-  score = (Ret/BPP) / DD * trade_confidence * PF_bonus
-  BPP = BASE_POSITION_PCT (leverage normalization)
-  Prevents leverage inflation from dominating signal quality comparison.
-  trade_confidence = min(num_closes / 20, 1.0)
-  PF_bonus = 1 + max(0, PF - 2) * 0.1
+Scoring (aligned with prepare.py research framework):
+  score = annualized_sharpe * sqrt(min(trades/50, 1.0))
+          - drawdown_penalty - turnover_penalty
+  drawdown_penalty = max(0, max_DD_pct - 15.0) * 0.05
+  turnover_penalty = raw_penalty * max(0, 1 - sharpe_ann/10)
+  Hard cutoffs (return -999): <10 trades, DD>50%, equity<50%
+
+  Sharpe annualization: per_bar_sharpe * sqrt(bars_per_year)
+  For 15m bars: 4 bars/hr * 24 * 365 = 35040 bars/year
 """
 
 import sys
+import os
 import time
+import math
 import itertools
 import json
 import argparse
@@ -35,6 +41,8 @@ for _p in (_this_dir, _bot_root):
 
 from backtest_interval import run_backtest_1m, load_data
 import strategies.strategy_15m as s15m
+
+BARS_PER_YEAR_15M = 4 * 24 * 365  # 35040
 
 # ---------------------------------------------------------------------------
 # DEFAULTS
@@ -124,23 +132,167 @@ BAR_COUNT_PARAMS = {
 
 
 # ---------------------------------------------------------------------------
-# SCORING
+# SCORING — aligned with prepare.py compute_score()
 # ---------------------------------------------------------------------------
+def annualize_sharpe(per_bar_sharpe: float, bars_processed: int) -> float:
+    if per_bar_sharpe == 0 or bars_processed < 20:
+        return 0.0
+    return per_bar_sharpe * math.sqrt(BARS_PER_YEAR_15M)
+
+
 def score_result(r: dict) -> float:
-    ret = r["total_return_pct"]
-    dd = max(r["max_drawdown_pct"], 0.01)
+    num_trades = r.get("num_closes", r.get("num_trades", 0))
+    max_dd = r.get("max_drawdown_pct", 0.0)
+    final_equity = r.get("final_equity", 10000.0)
 
-    bpp = r.get("params", {}).get("BASE_POSITION_PCT", DEFAULTS["BASE_POSITION_PCT"])
-    norm_ret = ret / max(bpp, 0.1)
-    ret_dd = norm_ret / dd
+    if num_trades < 10:
+        return -999.0
+    if max_dd > 50.0:
+        return -999.0
+    if final_equity < 10000.0 * 0.5:
+        return -999.0
 
-    num_closes = r.get("num_closes", r.get("num_trades", 0))
-    trade_confidence = min(num_closes / 20.0, 1.0)
+    per_bar_sharpe = r.get("sharpe", 0.0)
+    bars_processed = r.get("bars_processed", 0)
+    sharpe_ann = annualize_sharpe(per_bar_sharpe, bars_processed)
 
-    pf = r.get("profit_factor", 1.0)
-    pf_bonus = 1.0 + max(0, pf - 2) * 0.1
+    trade_count_factor = min(num_trades / 50.0, 1.0)
+    dd_penalty = max(0, max_dd - 15.0) * 0.05
 
-    return ret_dd * trade_confidence * pf_bonus
+    annual_turnover = r.get("annual_turnover", 0.0)
+    turnover_ratio = annual_turnover / 10000.0 if 10000.0 > 0 else 0
+    raw_turnover_penalty = max(0, turnover_ratio - 500) * 0.001
+    # Scale penalty by inverse Sharpe: high-Sharpe strategies (>=10) get free pass,
+    # low-Sharpe strategies (<10) get progressively penalized for churning.
+    # This prevents the tuner from sacrificing returns to cut turnover.
+    turnover_penalty = raw_turnover_penalty * max(0.0, 1.0 - sharpe_ann / 10.0)
+
+    score = sharpe_ann * math.sqrt(trade_count_factor) - dd_penalty - turnover_penalty
+    return score
+
+
+# ---------------------------------------------------------------------------
+# RESULT PERSISTENCE — save/load tuning results for iterative improvement
+# ---------------------------------------------------------------------------
+_RESULTS_DIR = Path(__file__).resolve().parent.parent.parent / "tuning_results"
+
+
+def _to_native(obj):
+    if isinstance(obj, (np.bool_, np.integer, np.floating)):
+        return obj.item()
+    if isinstance(obj, dict):
+        return {k: _to_native(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_native(v) for v in obj]
+    return obj
+
+
+def save_results(
+    best_params: dict,
+    best_score: float,
+    all_phase_results: list[dict],
+    walk_forward: dict | None,
+    stability: dict | None,
+    previous_file: str | None = None,
+) -> str:
+    """Save tuning results to JSON file. Returns the filename saved."""
+    _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    from datetime import datetime
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"tune_15m_{ts}.json"
+    filepath = _RESULTS_DIR / filename
+
+    # Build serializable result
+    entry = {
+        "timestamp": ts,
+        "previous_run": previous_file,
+        "best_params": best_params,
+        "best_score": best_score,
+        "walk_forward_pass": bool(walk_forward["pass"]) if walk_forward else None,
+        "walk_forward_avg_return": float(walk_forward["avg_test_return"])
+        if walk_forward
+        else None,
+        "stability_pass": bool(stability["pass"]) if stability else None,
+        "stability_max_drop_pct": float(stability["max_score_drop_pct"])
+        if stability
+        else None,
+    }
+
+    # Top 10 phase results (lightweight — just key metrics + params)
+    top10 = sorted(all_phase_results, key=lambda x: x.get("_score", 0), reverse=True)[
+        :10
+    ]
+    entry["top10_results"] = []
+    for r in top10:
+        sharpe_ann = annualize_sharpe(r.get("sharpe", 0), r.get("bars_processed", 0))
+        entry["top10_results"].append(
+            {
+                "params": r.get("params", {}),
+                "score": r.get("_score", 0),
+                "return_pct": r.get("total_return_pct", 0),
+                "dd_pct": r.get("max_drawdown_pct", 0),
+                "sharpe_ann": sharpe_ann,
+                "trades": r.get("num_trades", 0),
+                "profit_factor": r.get("profit_factor", 0),
+            }
+        )
+
+    # Atomic write (same pattern as sliding_window_tune.py)
+    tmp_path = filepath.with_suffix(".tmp")
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(_to_native(entry), fh, indent=2)
+            fh.write("\n")
+        os.rename(tmp_path, filepath)
+        print(f"  Results saved to: {filepath}")
+        return filename
+    except Exception as exc:
+        print(f"  [WARN] Failed to write JSON: {exc}")
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        return ""
+
+
+def load_latest_results() -> tuple[dict | None, str | None]:
+    """Load the most recent tuning results file. Returns (best_params, filename) or (None, None)."""
+    if not _RESULTS_DIR.exists():
+        return None, None
+
+    json_files = sorted(_RESULTS_DIR.glob("tune_15m_*.json"))
+    if not json_files:
+        return None, None
+
+    latest = json_files[-1]
+    print(f"  Loading previous results from: {latest.name}")
+    try:
+        with open(latest, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+
+        best_params = data.get("best_params")
+        prev_score = data.get("best_score", 0)
+        wf_pass = data.get("walk_forward_pass")
+        stab_pass = data.get("stability_pass")
+
+        print(f"  Previous best score: {prev_score:.2f}")
+        if wf_pass is not None:
+            print(f"  Previous walk-forward: {'PASS' if wf_pass else 'FAIL'}")
+        if stab_pass is not None:
+            print(f"  Previous stability: {'PASS' if stab_pass else 'FAIL'}")
+
+        # Show what changed from defaults
+        if best_params:
+            changes = {k: v for k, v in best_params.items() if v != DEFAULTS.get(k)}
+            if changes:
+                print(f"  Previous param changes: {changes}")
+
+        return best_params, latest.name
+    except Exception as exc:
+        print(f"  [WARN] Failed to load {latest.name}: {exc}")
+        return None, None
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +315,7 @@ def subsample_data(data: dict, every_n: int = 4) -> dict:
 SINGLE_SWEEPS = [
     (
         "BASE_POSITION_PCT",
-        {"BASE_POSITION_PCT": [0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.20]},
+        {"BASE_POSITION_PCT": [0.04, 0.08, 0.15, 0.30, 0.60, 1.0, 1.5, 2.0]},
     ),
     (
         "ATR_STOP_MULT",
@@ -229,6 +381,10 @@ SECONDARY_SWEEPS = [
     ),
     ("BB_PERIOD", {"BB_PERIOD": [20, 24, 28, 36, 48]}),
     ("VOL_LOOKBACK", {"VOL_LOOKBACK": [96, 120, 144, 192, 240]}),
+    ("MED2_WINDOW", {"MED2_WINDOW": [48, 72, 96, 120, 144]}),
+    ("LONG_WINDOW", {"LONG_WINDOW": [96, 120, 144, 192, 240]}),
+    ("ATR_LOOKBACK", {"ATR_LOOKBACK": [48, 72, 96, 120, 144]}),
+    ("TARGET_VOL", {"TARGET_VOL": [0.005, 0.010, 0.015, 0.020, 0.030]}),
 ]
 
 
@@ -236,11 +392,13 @@ SECONDARY_SWEEPS = [
 # PARAMETER MANAGEMENT
 # ---------------------------------------------------------------------------
 def reset_params():
+    s15m._SYMBOL_PARAMS = {}  # prevent DB-loaded params from overriding tuning
     for k, v in DEFAULTS.items():
         setattr(s15m, k, v)
 
 
 def set_params(overrides: dict, subsample_factor: int = 1):
+    s15m._SYMBOL_PARAMS = {}  # prevent DB-loaded params from overriding tuning
     # Reset to (possibly scaled) defaults
     for k, v in DEFAULTS.items():
         if subsample_factor > 1 and k in BAR_COUNT_PARAMS:
@@ -393,31 +551,36 @@ def print_results(results: list[dict], name: str, top_n: int = 5):
 
     results.sort(key=lambda x: x["_score"], reverse=True)
 
-    print(f"\n{'=' * 90}")
+    print(f"\n{'=' * 110}")
     print(f"SWEEP: {name}")
-    print(f"{'=' * 90}")
+    print(f"{'=' * 110}")
     header = (
-        f"{'Return%':>10} {'DD%':>8} {'Ret/DD':>8} {'PF':>8} "
-        f"{'WR%':>6} {'Trades':>7} {'Score':>8} Params"
+        f"{'Return%':>10} {'DD%':>8} {'Sharpe':>8} {'PF':>8} "
+        f"{'WR%':>6} {'Trades':>7} {'Turnover':>10} {'Score':>8} Params"
     )
     print(header)
-    print("-" * 90)
+    print("-" * 110)
     for r in results[:top_n]:
         params_str = ", ".join(f"{k}={v}" for k, v in r["params"].items())
+        sharpe_ann = annualize_sharpe(r.get("sharpe", 0), r.get("bars_processed", 0))
+        turnover = r.get("annual_turnover", 0)
         print(
             f"{r['total_return_pct']:>+10.2f} {r['max_drawdown_pct']:>8.2f} "
-            f"{r['total_return_pct'] / max(r['max_drawdown_pct'], 0.01):>8.2f} "
+            f"{sharpe_ann:>8.2f} "
             f"{r['profit_factor']:>8.2f} "
             f"{r['win_rate_pct']:>5.1f}% {r['num_trades']:>7d} "
+            f"${turnover:>9,.0f} "
             f"{r['_score']:>8.2f} {params_str}"
         )
     if len(results) > top_n:
         print(f"  ... ({len(results) - top_n} more)")
     best = results[0]
     best_params = ", ".join(f"{k}={v}" for k, v in best["params"].items())
+    sharpe_ann = annualize_sharpe(best.get("sharpe", 0), best.get("bars_processed", 0))
     print(
         f"\nBEST: {best_params} "
-        f"-> Score={best['_score']:.2f}, Ret/DD={best['total_return_pct'] / max(best['max_drawdown_pct'], 0.01):.2f}, "
+        f"-> Score={best['_score']:.2f}, Sharpe={sharpe_ann:.2f}, "
+        f"DD={best['max_drawdown_pct']:.2f}%, "
         f"PF={best['profit_factor']:.2f}, WR={best['win_rate_pct']:.1f}%"
     )
     print()
@@ -517,7 +680,15 @@ ADAPTIVE_GRID_PARAMS = {
         set([max(8, v - 8), max(8, v - 4), v, v + 4, v + 8])
     ),
     "BASE_POSITION_PCT": lambda v: sorted(
-        set([round(max(0.02, v * 0.5), 3), round(v, 3), round(v * 1.5, 3)])
+        set(
+            [
+                round(max(0.02, min(2.0, v * 0.25)), 3),
+                round(max(0.02, min(2.0, v * 0.5)), 3),
+                round(min(2.0, v), 3),
+                round(min(2.0, v * 2), 3),
+                round(min(2.0, v * 4), 3),
+            ]
+        )
     ),
     "ATR_STOP_MULT": lambda v: sorted(
         set([max(2.0, round(v - 1.5, 1)), round(v, 1), round(v + 1.5, 1)])
@@ -535,21 +706,43 @@ def build_adaptive_grid(best_params: dict) -> dict:
 
     ALWAYS includes RSI_PERIOD (most impactful parameter).
     Includes other params that changed from defaults.
-    Limits to 6 params max to keep grid size manageable.
+    Caps total combinations at 36 to prevent timeout.
     """
     grid = {}
 
     changes = {k: v for k, v in best_params.items() if v != DEFAULTS.get(k)}
 
-    for param, grid_fn in ADAPTIVE_GRID_PARAMS.items():
-        # Always include RSI_PERIOD, include others only if they changed
-        if param == "RSI_PERIOD" or param in changes:
-            val = best_params.get(param, DEFAULTS[param])
-            if param in INT_PARAMS:
-                val = int(val)
-            grid[param] = grid_fn(val)
+    # Prioritize params: RSI_PERIOD first, then changed params
+    ordered_params = []
+    for param in ADAPTIVE_GRID_PARAMS:
+        if param == "RSI_PERIOD":
+            ordered_params.insert(0, param)
+        elif param in changes:
+            ordered_params.append(param)
 
-    # If nothing qualified (shouldn't happen), use RSI_PERIOD default grid
+    for param in ordered_params:
+        val = best_params.get(param, DEFAULTS[param])
+        if param in INT_PARAMS:
+            val = int(val)
+        grid[param] = ADAPTIVE_GRID_PARAMS[param](val)
+
+        # Check total combos — cap at 36
+        total = 1
+        for v in grid.values():
+            total *= len(v)
+        if total > 36:
+            excess = total // len(grid[param])
+            max_vals = 36 // excess
+            if max_vals < 2:
+                del grid[param]
+                break
+            vals = grid[param]
+            if len(vals) > max_vals:
+                indices = [
+                    int(i * (len(vals) - 1) / (max_vals - 1)) for i in range(max_vals)
+                ]
+                grid[param] = sorted(set(vals[i] for i in indices))
+
     if not grid:
         grid["RSI_PERIOD"] = [24, 28, 32, 40]
 
@@ -557,91 +750,213 @@ def build_adaptive_grid(best_params: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# OOS VALIDATION
+# WALK-FORWARD VALIDATION
 # ---------------------------------------------------------------------------
-def run_oos(data, overrides: dict, train_pct: float = 0.6) -> dict:
+def run_walk_forward(data, overrides: dict, n_folds: int = 5) -> dict:
     all_ts = set()
     for df in data.values():
         all_ts.update(df["timestamp"].tolist())
     timestamps = sorted(all_ts)
-    split_idx = int(len(timestamps) * train_pct)
-    split_ts = timestamps[split_idx]
+    total_bars = len(timestamps)
 
-    train_data = {}
-    oos_data = {}
-    for symbol, df in data.items():
-        train_df = df[df["timestamp"] <= split_ts].copy()
-        oos_df = df[df["timestamp"] > split_ts].copy()
-        if len(train_df) > 0:
-            train_data[symbol] = train_df
-        if len(oos_df) > 0:
-            oos_data[symbol] = oos_df
+    fold_results = []
+    for fold in range(n_folds):
+        train_end_pct = 0.3 + (fold + 1) * (0.7 / n_folds)
+        train_end_idx = int(total_bars * train_end_pct)
+        if train_end_idx >= total_bars - 100:
+            break
 
-    print(f"  Train bars: {sum(len(df) for df in train_data.values())}")
-    print(f"  OOS bars:   {sum(len(df) for df in oos_data.values())}")
+        split_ts = timestamps[train_end_idx]
 
-    set_params(overrides)
-    is_result = run_backtest_1m(s15m.Strategy(), train_data, "15m")
-    set_params(overrides)
-    oos_result = run_backtest_1m(s15m.Strategy(), oos_data, "15m")
+        train_data, test_data = {}, {}
+        for symbol, df in data.items():
+            t_df = df[df["timestamp"] <= split_ts].copy()
+            o_df = df[df["timestamp"] > split_ts].copy()
+            if len(t_df) > 0:
+                train_data[symbol] = t_df
+            if len(o_df) > 0:
+                test_data[symbol] = o_df
 
-    is_result["final_equity"] = is_result.get("final_equity", 10000.0)
-    oos_result["final_equity"] = oos_result.get("final_equity", 10000.0)
-    is_result["params"] = dict(overrides)
-    oos_result["params"] = dict(overrides)
-    is_score = score_result(is_result)
-    oos_score = score_result(oos_result)
+        train_bars = sum(len(df) for df in train_data.values())
+        test_bars = sum(len(df) for df in test_data.values())
+
+        set_params(overrides)
+        train_result = run_backtest_1m(s15m.Strategy(), train_data, "15m")
+        set_params(overrides)
+        test_result = run_backtest_1m(s15m.Strategy(), test_data, "15m")
+
+        train_result["final_equity"] = train_result.get("final_equity", 10000.0)
+        test_result["final_equity"] = test_result.get("final_equity", 10000.0)
+
+        train_score = score_result(train_result)
+        test_score = score_result(test_result)
+
+        fold_results.append(
+            {
+                "fold": fold + 1,
+                "train_pct": train_end_pct,
+                "train_bars": train_bars,
+                "test_bars": test_bars,
+                "train_return": train_result.get("total_return_pct", 0),
+                "train_dd": train_result.get("max_drawdown_pct", 0),
+                "train_sharpe": annualize_sharpe(
+                    train_result.get("sharpe", 0), train_result.get("bars_processed", 0)
+                ),
+                "train_score": train_score,
+                "test_return": test_result.get("total_return_pct", 0),
+                "test_dd": test_result.get("max_drawdown_pct", 0),
+                "test_sharpe": annualize_sharpe(
+                    test_result.get("sharpe", 0), test_result.get("bars_processed", 0)
+                ),
+                "test_score": test_score,
+                "degradation": (train_score - test_score) / train_score
+                if train_score > 0
+                else float("inf"),
+            }
+        )
+
+    if not fold_results:
+        return {"error": "insufficient data for walk-forward", "fold_results": []}
+
+    avg_test_score = np.mean([f["test_score"] for f in fold_results])
+    avg_test_return = np.mean([f["test_return"] for f in fold_results])
+    avg_test_dd = np.mean([f["test_dd"] for f in fold_results])
+    avg_degradation = np.mean(
+        [f["degradation"] for f in fold_results if f["degradation"] != float("inf")]
+    )
+    worst_degradation = max(
+        f["degradation"] for f in fold_results if f["degradation"] != float("inf")
+    )
+    positive_folds = sum(1 for f in fold_results if f["test_return"] > 0)
+    consistent = positive_folds / len(fold_results) >= 0.6
 
     return {
         "params": dict(overrides),
-        "IS_return": is_result.get("total_return_pct", 0),
-        "IS_dd": is_result.get("max_drawdown_pct", 0),
-        "IS_pf": is_result.get("profit_factor", 0),
-        "IS_wr": is_result.get("win_rate_pct", 0),
-        "IS_trades": is_result.get("num_trades", 0),
-        "IS_score": is_score,
-        "OOS_return": oos_result.get("total_return_pct", 0),
-        "OOS_dd": oos_result.get("max_drawdown_pct", 0),
-        "OOS_pf": oos_result.get("profit_factor", 0),
-        "OOS_wr": oos_result.get("win_rate_pct", 0),
-        "OOS_trades": oos_result.get("num_trades", 0),
-        "OOS_score": oos_score,
-        "degradation": (is_score - oos_score) / is_score
-        if is_score > 0
-        else float("inf"),
+        "n_folds": len(fold_results),
+        "fold_results": fold_results,
+        "avg_test_score": avg_test_score,
+        "avg_test_return": avg_test_return,
+        "avg_test_dd": avg_test_dd,
+        "avg_degradation": avg_degradation,
+        "worst_degradation": worst_degradation,
+        "consistent": consistent,
+        "pass": consistent and avg_degradation < 0.5 and avg_test_return > 0,
     }
 
 
-def print_oos(result: dict):
+# ---------------------------------------------------------------------------
+# PARAMETER STABILITY TEST
+# ---------------------------------------------------------------------------
+def test_stability(data, overrides: dict, perturbation: float = 0.1) -> dict:
+    baseline = run_once(data, overrides)
+    if "error" in baseline:
+        return {"stable": False, "reason": "baseline error", "details": []}
+
+    baseline_score = baseline["_score"]
+    perturbable = [
+        k
+        for k, v in overrides.items()
+        if isinstance(v, (int, float)) and k not in ("MIN_VOTES",)
+    ]
+
+    details = []
+    max_score_drop = 0.0
+    for k in perturbable:
+        val = overrides[k]
+        for direction, factor in [("+", 1 + perturbation), ("-", 1 - perturbation)]:
+            if k in INT_PARAMS:
+                perturbed_val = max(1, int(round(val * factor)))
+                if perturbed_val == val:
+                    perturbed_val += 1 if factor > 1 else -1
+                    perturbed_val = max(1, perturbed_val)
+            else:
+                perturbed_val = round(max(0.001, val * factor), 6)
+
+            test_overrides = dict(overrides)
+            test_overrides[k] = perturbed_val
+            test_result = run_once(data, test_overrides)
+            if "error" in test_result:
+                continue
+            test_score = test_result["_score"]
+            drop = (baseline_score - test_score) / max(abs(baseline_score), 0.01)
+            max_score_drop = max(max_score_drop, drop)
+            details.append(
+                {
+                    "param": k,
+                    "direction": direction,
+                    "original": val,
+                    "perturbed": perturbed_val,
+                    "score": test_score,
+                    "drop_pct": drop * 100,
+                }
+            )
+
+    stable = max_score_drop < 0.3
+    return {
+        "stable": stable,
+        "baseline_score": baseline_score,
+        "max_score_drop_pct": max_score_drop * 100,
+        "n_params_tested": len(perturbable),
+        "details": sorted(details, key=lambda x: -x["drop_pct"]),
+        "pass": stable,
+    }
+
+
+def print_walk_forward(wf: dict):
     print(f"\n{'=' * 90}")
-    print("OUT-OF-SAMPLE VALIDATION")
+    print("WALK-FORWARD VALIDATION")
     print(f"{'=' * 90}")
-    params_str = ", ".join(f"{k}={v}" for k, v in result["params"].items())
+    params_str = ", ".join(f"{k}={v}" for k, v in wf["params"].items())
     print(f"Params: {params_str}")
-    print(
-        f"{'':>20} {'Return%':>10} {'DD%':>8} {'PF':>8} "
-        f"{'WR%':>6} {'Trades':>7} {'Score':>8}"
-    )
-    print("-" * 90)
-    print(
-        f"{'IS (60%)':>20} {result['IS_return']:>+10.2f} {result['IS_dd']:>8.2f} "
-        f"{result['IS_pf']:>8.2f} {result['IS_wr']:>5.1f}% {result['IS_trades']:>7d} "
-        f"{result['IS_score']:>8.2f}"
-    )
-    print(
-        f"{'OOS (40%)':>20} {result['OOS_return']:>+10.2f} {result['OOS_dd']:>8.2f} "
-        f"{result['OOS_pf']:>8.2f} {result['OOS_wr']:>5.1f}% {result['OOS_trades']:>7d} "
-        f"{result['OOS_score']:>8.2f}"
-    )
-    deg = result["degradation"]
-    if deg < 0.3:
-        verdict = "PASS"
-    elif deg < 0.6:
-        verdict = "CAUTION"
-    else:
-        verdict = "FAIL — likely overfit"
-    print(f"\n  Degradation: {deg * 100:.1f}%  -> {verdict}")
+    print(f"Folds: {wf['n_folds']}")
     print()
+    print(
+        f"{'Fold':>6} {'Train%':>8} {'TrBars':>8} {'TeBars':>8} "
+        f"{'TrRet%':>9} {'TeRet%':>9} {'TrDD%':>8} {'TeDD%':>8} "
+        f"{'TrScore':>9} {'TeScore':>9} {'Degrad%':>9}"
+    )
+    print("-" * 110)
+    for f in wf["fold_results"]:
+        deg = f["degradation"]
+        deg_str = f"{deg * 100:.1f}%" if deg != float("inf") else "INF"
+        print(
+            f"{f['fold']:>6} {f['train_pct']:>8.0%} {f['train_bars']:>8} {f['test_bars']:>8} "
+            f"{f['train_return']:>+9.2f} {f['test_return']:>+9.2f} "
+            f"{f['train_dd']:>8.2f} {f['test_dd']:>8.2f} "
+            f"{f['train_score']:>9.2f} {f['test_score']:>9.2f} {deg_str:>9}"
+        )
+    print("-" * 110)
+    print(
+        f"{'AVG':>6} {'':>8} {'':>8} {'':>8} "
+        f"{'':>9} {wf['avg_test_return']:>+9.2f} {'':>8} {wf['avg_test_dd']:>8.2f} "
+        f"{'':>9} {wf['avg_test_score']:>9.2f} {wf['avg_degradation'] * 100:>8.1f}%"
+    )
+    verdict = "PASS" if wf["pass"] else "FAIL"
+    print(
+        f"\n  Consistent (>60% positive folds): {wf['consistent']}  |  Verdict: {verdict}"
+    )
+
+
+def print_stability(stab: dict):
+    print(f"\n{'=' * 90}")
+    print("PARAMETER STABILITY TEST")
+    print(f"{'=' * 90}")
+    print(f"  Baseline score:  {stab['baseline_score']:.2f}")
+    print(f"  Max score drop:  {stab['max_score_drop_pct']:.1f}%")
+    print(f"  Params tested:   {stab['n_params_tested']}")
+    print(
+        f"  Verdict:         {'STABLE' if stab['stable'] else 'UNSTABLE — results likely fragile'}"
+    )
+    if stab["details"]:
+        print(
+            f"\n  {'Param':>25} {'Dir':>4} {'Orig':>10} {'Perturb':>10} {'Score':>9} {'Drop%':>8}"
+        )
+        print("  " + "-" * 70)
+        for d in stab["details"][:15]:
+            print(
+                f"  {d['param']:>25} {d['direction']:>4} {d['original']:>10} "
+                f"{d['perturbed']:>10} {d['score']:>9.2f} {d['drop_pct']:>7.1f}%"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -651,7 +966,7 @@ def main():
     parser = argparse.ArgumentParser(description="15m Strategy Parameter Tuning")
     parser.add_argument(
         "--phase",
-        choices=["single", "secondary", "multi", "oos", "all"],
+        choices=["single", "secondary", "multi", "validate", "all"],
         default="all",
     )
     parser.add_argument("--multi-grid", type=str, default=None)
@@ -673,6 +988,12 @@ def main():
         type=int,
         default=mp.cpu_count(),
         help=f"Parallel workers for sweeps (default={mp.cpu_count()})",
+    )
+    parser.add_argument(
+        "--load-previous",
+        action="store_true",
+        default=False,
+        help="Load best params from latest tuning_results/ JSON as starting point",
     )
     args = parser.parse_args()
 
@@ -699,6 +1020,18 @@ def main():
     best_params_accumulator = DEFAULTS.copy()
     best_overall_result = None
     all_phase_results = []
+
+    previous_file = None
+    if args.load_previous:
+        prev_params, previous_file = load_latest_results()
+        if prev_params:
+            best_params_accumulator = prev_params.copy()
+            for k, v in DEFAULTS.items():
+                if k not in best_params_accumulator:
+                    best_params_accumulator[k] = v
+            print(f"  Starting from previous best params (score from file)")
+        else:
+            print("  No previous results found, starting from defaults")
 
     # ---- PHASE 1: SINGLE-PARAMETER SWEEPS (screen on subsampled) ----
     if args.phase in ("single", "all"):
@@ -776,7 +1109,7 @@ def main():
         print("FORWARD STEPWISE ACCUMULATOR")
         print("=" * 90)
         stepwise_params, stepwise_score = forward_stepwise_accumulate(
-            full_data, all_phase_results
+            full_data, all_phase_results, initial_params=best_params_accumulator
         )
         changes = {k: v for k, v in stepwise_params.items() if v != DEFAULTS.get(k)}
         print(f"  Final stepwise changes from defaults: {changes}")
@@ -833,50 +1166,92 @@ def main():
             if best:
                 best_params_accumulator.update(best["params"])
 
-    # ---- PHASE 4: OOS VALIDATION ----
-    if args.phase == "oos":
-        oos_overrides = (
+    # ---- PHASE 4: WALK-FORWARD VALIDATION ----
+    wf_result = None
+    stab_result = None
+    if args.phase == "validate":
+        validate_overrides = (
             json.loads(args.oos_params) if args.oos_params else DEFAULTS.copy()
         )
         print("\n" + "=" * 90)
-        print("OUT-OF-SAMPLE VALIDATION")
+        print("WALK-FORWARD VALIDATION")
         print("=" * 90)
-        result = run_oos(full_data, oos_overrides)
-        print_oos(result)
+        wf = run_walk_forward(full_data, validate_overrides)
+        if "error" not in wf:
+            print_walk_forward(wf)
+            wf_result = wf
+            stab = test_stability(full_data, validate_overrides)
+            print_stability(stab)
+            stab_result = stab
 
     elif args.phase == "all":
         print("\n" + "=" * 90)
-        print("PHASE 4: OOS VALIDATION (best candidate)")
+        print("PHASE 4: WALK-FORWARD VALIDATION (best candidate)")
         print("=" * 90)
         print("  Params changed from defaults:")
         for k, v in sorted(best_params_accumulator.items()):
             if v != DEFAULTS.get(k):
                 print(f"    {k}: {DEFAULTS.get(k)} -> {v}")
-        oos_result = run_oos(full_data, best_params_accumulator)
-        print_oos(oos_result)
+        wf = run_walk_forward(full_data, best_params_accumulator)
+        if "error" not in wf:
+            print_walk_forward(wf)
+            wf_result = wf
+
+        print("\n" + "=" * 90)
+        print("PHASE 5: PARAMETER STABILITY TEST")
+        print("=" * 90)
+        stab = test_stability(full_data, best_params_accumulator)
+        print_stability(stab)
+        stab_result = stab
 
     # ---- FINAL SUMMARY ----
     if all_phase_results:
         all_phase_results.sort(key=lambda x: x["_score"], reverse=True)
-        print("\n" + "=" * 90)
+        print("\n" + "=" * 110)
         print("OVERALL TOP 10 (full-data validated)")
-        print("=" * 90)
+        print("=" * 110)
         header = (
-            f"{'Return%':>10} {'DD%':>8} {'Ret/DD':>8} {'PF':>8} "
-            f"{'WR%':>6} {'Trades':>7} {'Score':>8} Params"
+            f"{'Return%':>10} {'DD%':>8} {'Sharpe':>8} {'PF':>8} "
+            f"{'WR%':>6} {'Trades':>7} {'Turnover':>10} {'Score':>8} Params"
         )
         print(header)
-        print("-" * 90)
+        print("-" * 110)
         for r in all_phase_results[:10]:
             params_str = ", ".join(f"{k}={v}" for k, v in r["params"].items())
+            sharpe_ann = annualize_sharpe(
+                r.get("sharpe", 0), r.get("bars_processed", 0)
+            )
+            turnover = r.get("annual_turnover", 0)
             print(
                 f"{r['total_return_pct']:>+10.2f} {r['max_drawdown_pct']:>8.2f} "
-                f"{r['total_return_pct'] / max(r['max_drawdown_pct'], 0.01):>8.2f} "
+                f"{sharpe_ann:>8.2f} "
                 f"{r['profit_factor']:>8.2f} "
                 f"{r['win_rate_pct']:>5.1f}% {r['num_trades']:>7d} "
+                f"${turnover:>9,.0f} "
                 f"{r['_score']:>8.2f} {params_str}"
             )
         print()
+
+    # ---- SAVE RESULTS ----
+    if best_overall_result is not None:
+        accumulator_is_default = not any(
+            best_params_accumulator.get(k) != DEFAULTS.get(k)
+            for k in best_overall_result.get("params", {})
+        )
+        if accumulator_is_default:
+            save_params = DEFAULTS.copy()
+            save_params.update(best_overall_result["params"])
+        else:
+            save_params = best_params_accumulator
+
+        save_results(
+            save_params,
+            best_overall_result.get("_score", 0),
+            all_phase_results,
+            wf_result,
+            stab_result,
+            previous_file=previous_file,
+        )
 
     reset_params()
     print("Done.")
