@@ -27,25 +27,22 @@ import requests
 
 from prepare import BarData, Signal, PortfolioState
 
-INITIAL_CAPITAL = 10_000.0
-TAKER_FEE = 0.0005
-SLIPPAGE_BPS = 1.0
+from constants import TAKER_FEE, SLIPPAGE_BPS
+from constants import BACKTEST_CAPITAL as INITIAL_CAPITAL
+from constants import INTERVAL_MINUTES, VALID_INTERVALS
+from constants import BACKTEST_LOOKBACK_BARS as LOOKBACK_BARS_MAP
+from constants import ALL_SYMBOLS as SYMBOLS
+from constants import HL_INFO_URL
+
 MAX_LEVERAGE = 20
 MINUTES_PER_YEAR = 525_600
 
-INTERVAL_MINUTES = {"1m": 1, "5m": 5, "15m": 15, "1h": 60}
-VALID_INTERVALS = list(INTERVAL_MINUTES.keys())
-
-LOOKBACK_BARS_MAP = {"1m": 1500, "5m": 1500, "15m": 500, "1h": 500}
 FUNDING_BARS_MAP = {
     "1m": 480,
     "5m": 96,
     "15m": 32,
     "1h": 8,
 }
-
-SYMBOLS = ["BTC", "ETH", "SOL", "XRP", "HYPE"]
-HL_INFO_URL = "https://api.hyperliquid.xyz/info"
 
 _HISTORY_COLUMNS = [
     "timestamp",

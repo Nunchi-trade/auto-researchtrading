@@ -33,6 +33,9 @@ for _p in (PIPELINE_ROOT, LIVE_BOT_ROOT):
     if _sp not in sys.path:
         sys.path.insert(0, _sp)
 sys.path = [p for p in sys.path if Path(p).resolve() != REPO_ROOT]
+# Append (not insert) REPO_ROOT so `import constants` resolves, while
+# `import backtest` still hits data_pipeline/backtest/ (PIPELINE_ROOT is at front).
+sys.path.append(str(REPO_ROOT))
 
 
 # ---------------------------------------------------------------------------

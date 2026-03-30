@@ -41,6 +41,7 @@ for _p in (_this_dir, _pipeline_root, _live_bot_root):
     if sp not in sys.path:
         sys.path.insert(0, sp)
 sys.path = [p for p in sys.path if Path(p).resolve() != _repo_root]
+sys.path.append(str(_repo_root))
 
 from backtest_interval import run_backtest_1m, load_data
 import strategies.strategy_15m as s15m
@@ -50,44 +51,9 @@ BARS_PER_YEAR_15M = 4 * 24 * 365  # 35040
 # ---------------------------------------------------------------------------
 # DEFAULTS
 # ---------------------------------------------------------------------------
-DEFAULTS = {
-    "SHORT_WINDOW": 24,
-    "MED_WINDOW": 48,
-    "MED2_WINDOW": 96,
-    "LONG_WINDOW": 144,
-    "EMA_FAST": 28,
-    "EMA_SLOW": 104,
-    "RSI_PERIOD": 32,
-    "RSI_BULL": 50,
-    "RSI_BEAR": 50,
-    "RSI_OVERBOUGHT": 69,
-    "RSI_OVERSOLD": 31,
-    "MACD_FAST": 56,
-    "MACD_SLOW": 92,
-    "MACD_SIGNAL": 36,
-    "BB_PERIOD": 28,
-    "FUNDING_LOOKBACK": 96,
-    "FUNDING_BOOST": 0.0,
-    "BASE_POSITION_PCT": 0.08,
-    "VOL_LOOKBACK": 144,
-    "TARGET_VOL": 0.015,
-    "ATR_LOOKBACK": 96,
-    "ATR_STOP_MULT": 5.5,
-    "TAKE_PROFIT_PCT": 99.0,
-    "BASE_THRESHOLD": 0.012,
-    "BTC_OPPOSE_THRESHOLD": -99.0,
-    "PYRAMID_THRESHOLD": 0.015,
-    "PYRAMID_SIZE": 0.0,
-    "CORR_LOOKBACK": 288,
-    "HIGH_CORR_THRESHOLD": 99.0,
-    "DD_REDUCE_THRESHOLD": 99.0,
-    "DD_REDUCE_SCALE": 0.5,
-    "COOLDOWN_BARS": 8,
-    "MIN_VOTES": 4,
-    "THRESHOLD_MIN": 0.005,
-    "THRESHOLD_MAX": 0.020,
-    "BB_COMPRESS_PCTILE": 90,
-}
+from constants import STRATEGY_DEFAULTS
+
+DEFAULTS = dict(STRATEGY_DEFAULTS["15m"])
 
 INT_PARAMS = {
     "SHORT_WINDOW",

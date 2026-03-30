@@ -30,7 +30,7 @@ from common import (
 logger = logging.getLogger("daily_tune")  # noqa: F821
 
 
-def _run_tune_15m(workers: int, subsample: int, no_oos: bool) -> Path:
+def _run_tune_15m(workers: int, subsample: int) -> Path:
     """Shell out to tune_15m.py --phase all. Returns path to the JSON results file."""
     tune_script = PIPELINE_ROOT / "backtest" / "tune_15m.py"
     cmd = [
@@ -43,9 +43,6 @@ def _run_tune_15m(workers: int, subsample: int, no_oos: bool) -> Path:
         "--subsample",
         str(subsample),
     ]
-    if no_oos:
-        cmd.append("--no-oos")
-
     logger.info("Running: %s", " ".join(cmd))
     proc = subprocess.run(cmd, capture_output=False)
     if proc.returncode != 0:
@@ -135,7 +132,6 @@ def main():
     parser.add_argument(
         "--no-db", action="store_true", help="Skip database persistence"
     )
-    parser.add_argument("--no-oos", action="store_true", help="Skip OOS validation")
     args = parser.parse_args()
 
     t_start = time.time()
@@ -148,11 +144,10 @@ def main():
     )
     logger.info("=" * 60)
     logger.info(
-        "Config: workers=%d, subsample=%d, no-db=%s, no-oos=%s",
+        "Config: workers=%d, subsample=%d, no-db=%s",
         args.workers,
         args.subsample,
         args.no_db,
-        args.no_oos,
     )
 
     try:
@@ -177,7 +172,6 @@ def main():
         json_path = _run_tune_15m(
             workers=args.workers,
             subsample=args.subsample,
-            no_oos=args.no_oos,
         )
         logger.info("tune_15m completed in %.1fs", time.time() - t0)
 
