@@ -4,15 +4,11 @@ import sys
 from pathlib import Path
 
 _repo_root = Path(__file__).resolve().parent.parent.parent
-_bot_root = Path(__file__).resolve().parent.parent
-_pipeline_backtest = _repo_root / "data_pipeline" / "backtest"
-for _p in (_pipeline_backtest, _bot_root, _repo_root):
-    sp = str(_p)
-    if sp not in sys.path:
-        sys.path.insert(0, sp)
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
-from backtest_interval import load_data, run_backtest_1m
-import strategies.strategy_15m as s15m
+from data_pipeline.backtest.backtest_interval import load_data, run_backtest_1m
+from live_trading_bot.strategies import strategy_15m as s15m
 import pandas as pd
 
 data = load_data(

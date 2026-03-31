@@ -9,17 +9,17 @@ import sys
 import math
 from pathlib import Path
 
-# Ensure imports work
 _repo_root = Path(__file__).resolve().parent.parent.parent
-_bot_root = Path(__file__).resolve().parent.parent
-_pipeline_backtest = _repo_root / "data_pipeline" / "backtest"
-for _p in (_pipeline_backtest, _bot_root, _repo_root):
-    sp = str(_p)
-    if sp not in sys.path:
-        sys.path.insert(0, sp)
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
-from tune_15m import score_result, subsample_data, run_once, set_params, reset_params
-from backtest_interval import load_data
+from data_pipeline.backtest.tune_15m import (
+    score_result,
+    subsample_data,
+    run_once,
+    reset_params,
+)
+from data_pipeline.backtest.backtest_interval import load_data
 
 
 # ============================================================================
@@ -301,8 +301,8 @@ def test_subsample_ranking():
     # Spearman rank correlation
     n = len(results)
     labels = [r["label"] for r in results]
-    fr = [full_ranks[l] for l in labels]
-    sr = [sub_ranks[l] for l in labels]
+    fr = [full_ranks[label] for label in labels]
+    sr = [sub_ranks[label] for label in labels]
 
     # Spearman = 1 - (6 * sum(d_i^2)) / (n * (n^2 - 1))
     d_sq_sum = sum((f - s) ** 2 for f, s in zip(fr, sr))
@@ -312,7 +312,7 @@ def test_subsample_ranking():
         spearman = float("nan")
 
     print(f"Spearman rank correlation: {spearman:.4f}")
-    print(f"  (1.0 = perfect agreement, 0.0 = no correlation, -1.0 = inverse)")
+    print("  (1.0 = perfect agreement, 0.0 = no correlation, -1.0 = inverse)")
     print()
 
     # Verdict
@@ -320,7 +320,7 @@ def test_subsample_ranking():
     overall_pass = top2_preserved and spearman_ok
 
     print("-" * 90)
-    print(f"VALIDATION 2 RESULT:")
+    print("VALIDATION 2 RESULT:")
     print(f"  Top-2 preservation: {'PASS' if top2_preserved else 'FAIL'}")
     print(
         f"  Spearman rho={spearman:.4f}: {'PASS (>=0.5)' if spearman_ok else 'FAIL (<0.5)'}"

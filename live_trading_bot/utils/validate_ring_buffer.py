@@ -16,26 +16,19 @@ Usage: uv run validate_ring_buffer.py
 
 import sys
 import time
-import copy
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 _repo_root = Path(__file__).resolve().parent.parent.parent
-_bot_root = Path(__file__).resolve().parent.parent
-_pipeline_backtest = _repo_root / "data_pipeline" / "backtest"
-for _p in (_pipeline_backtest, _bot_root, _repo_root):
-    sp = str(_p)
-    if sp not in sys.path:
-        sys.path.insert(0, sp)
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
-from prepare import BarData, Signal, PortfolioState
+from prepare import BarData, PortfolioState
 
 from constants import (
-    ALL_SYMBOLS as SYMBOLS,
     BACKTEST_CAPITAL as INITIAL_CAPITAL,
-    INTERVAL_MINUTES,
     SLIPPAGE_BPS,
     TAKER_FEE,
 )
@@ -308,7 +301,7 @@ def run_backtest_ringbuffer(
     strategy, data: dict, interval: str = "15m", lookback: int = 500
 ) -> dict:
     """Run backtest using existing run_backtest_1m with monkeypatched lookback."""
-    import backtest_interval as bi
+    import data_pipeline.backtest.backtest_interval as bi
 
     # Save and restore LOOKBACK_BARS_MAP monkeypatch
     orig_lookback = bi.LOOKBACK_BARS_MAP.get(interval, 500)
@@ -481,8 +474,7 @@ def print_summary(label: str, r: dict):
 # Main
 # ---------------------------------------------------------------------------
 def main():
-    import importlib
-    import backtest_interval as bi
+    import data_pipeline.backtest.backtest_interval as bi
 
     data_dir = str(_repo_root / "data_pipeline" / "backtest_data" / "15m_candles")
     print(f"Loading data from {data_dir}")
@@ -496,8 +488,8 @@ def main():
     for sym, df in data.items():
         print(f"  {sym}: {len(df)} bars")
 
-    import strategies.strategy_15m as s15m
-    from tune_15m import reset_params
+    from live_trading_bot.strategies import strategy_15m as s15m
+    from data_pipeline.backtest.tune_15m import reset_params
 
     reset_params()
 
@@ -582,10 +574,8 @@ def main():
     print(f"{'=' * 70}")
 
     if "error" not in results["df_500"] and "error" not in results["df_1000"]:
-        metrics_lb = compare_metrics(
-            results["df_500"], results["df_1000"], "df_500", "df_1000"
-        )
-        eq_lb = compare_equity_curves(
+        compare_metrics(results["df_500"], results["df_1000"], "df_500", "df_1000")
+        compare_equity_curves(
             results["df_500"], results["df_1000"], "df_500", "df_1000"
         )
 
@@ -640,17 +630,17 @@ def main():
         ret500 = results["df_500"]["total_return_pct"]
         ret1000 = results["df_1000"]["total_return_pct"]
         diff = ret1000 - ret500
-        print(f"\n  The 404%→391% gap is ENTIRELY from the lookback change (1000→500).")
+        print("\n  The 404%→391% gap is ENTIRELY from the lookback change (1000→500).")
         print(f"  DataFrame lookback=1000 return: {ret1000:+.2f}%")
         print(f"  DataFrame lookback=500  return: {ret500:+.2f}%")
         print(f"  Difference: {diff:+.2f}%")
-        print(f"  Ring buffer implementation is CORRECT.")
+        print("  Ring buffer implementation is CORRECT.")
     else:
         print(
-            f"\n  The gap has contributions from BOTH the lookback change AND a ring buffer bug."
+            "\n  The gap has contributions from BOTH the lookback change AND a ring buffer bug."
         )
         print(
-            f"  Fix the ring buffer first, then re-run to isolate the lookback effect."
+            "  Fix the ring buffer first, then re-run to isolate the lookback effect."
         )
 
     print()
