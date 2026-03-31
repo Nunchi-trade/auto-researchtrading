@@ -28,9 +28,7 @@ def floats_equal(a: float, b: float) -> bool:
 def compare_signals(a: list, b: list) -> list[str]:
     errors = []
     if len(a) != len(b):
-        errors.append(
-            f"Signal count differs: {len(a)} vs {len(b)}"
-        )
+        errors.append(f"Signal count differs: {len(a)} vs {len(b)}")
 
     for i, (sa, sb) in enumerate(zip(a, b)):
         diffs = []
@@ -53,9 +51,7 @@ def compare_signals(a: list, b: list) -> list[str]:
 def compare_trades(a: list, b: list) -> list[str]:
     errors = []
     if len(a) != len(b):
-        errors.append(
-            f"Trade count differs: {len(a)} vs {len(b)}"
-        )
+        errors.append(f"Trade count differs: {len(a)} vs {len(b)}")
 
     for i, (ta, tb) in enumerate(zip(a, b)):
         diffs = []
@@ -89,6 +85,7 @@ def compare_equity(a: list, b: list) -> list[str]:
                 first_diff = i
 
     if diff_count > 0:
+        assert first_diff is not None
         errors.append(
             f"Equity curve: {diff_count} divergent points, "
             f"first at index {first_diff} ({a[first_diff]} vs {b[first_diff]})"
@@ -120,9 +117,7 @@ def main():
 
     for key in ("final_equity", "total_return_pct", "max_drawdown_pct"):
         if not floats_equal(baseline.get(key, 0), refactored.get(key, 0)):
-            all_errors.append(
-                f"{key}: {baseline.get(key)} vs {refactored.get(key)}"
-            )
+            all_errors.append(f"{key}: {baseline.get(key)} vs {refactored.get(key)}")
 
     # Compare signals
     sig_errors = compare_signals(
@@ -146,8 +141,10 @@ def main():
         sig_count = len(baseline.get("signals", []))
         trade_count = len(baseline.get("trades", []))
         eq_count = len(baseline.get("equity_curve", []))
-        print(f"PASS: {sig_count} signals, {trade_count} trades, "
-              f"{eq_count} equity points all match.")
+        print(
+            f"PASS: {sig_count} signals, {trade_count} trades, "
+            f"{eq_count} equity points all match."
+        )
         sys.exit(0)
     else:
         print(f"FAIL: {len(all_errors)} difference(s) found:\n")

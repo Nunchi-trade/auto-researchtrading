@@ -115,8 +115,12 @@ class TestLoadExistingStops:
         sm = StopManager(mock_client, settings)
         loaded = await sm.load_existing_stops({"BTC", "ETH"})
         assert loaded == 2
-        assert sm.get_stop("BTC").id == "s1"
-        assert sm.get_stop("ETH").id == "s2"
+        btc_stop = sm.get_stop("BTC")
+        assert btc_stop is not None
+        assert btc_stop.id == "s1"
+        eth_stop = sm.get_stop("ETH")
+        assert eth_stop is not None
+        assert eth_stop.id == "s2"
 
     @pytest.mark.asyncio
     async def test_ignores_non_trigger_orders(self, settings, mock_client):
@@ -130,7 +134,9 @@ class TestLoadExistingStops:
         sm = StopManager(mock_client, settings)
         loaded = await sm.load_existing_stops({"BTC"})
         assert loaded == 1
-        assert sm.get_stop("BTC").id == "s1"
+        stop = sm.get_stop("BTC")
+        assert stop is not None
+        assert stop.id == "s1"
 
     @pytest.mark.asyncio
     async def test_ignores_symbols_without_positions(self, settings, mock_client):
@@ -155,7 +161,9 @@ class TestLoadExistingStops:
         sm = StopManager(mock_client, settings)
         loaded = await sm.load_existing_stops({"BTC"})
         assert loaded == 1
-        assert sm.get_stop("BTC").id == "new"
+        stop = sm.get_stop("BTC")
+        assert stop is not None
+        assert stop.id == "new"
         mock_client.cancel_order.assert_called_once_with("BTC", "old")
 
     @pytest.mark.asyncio

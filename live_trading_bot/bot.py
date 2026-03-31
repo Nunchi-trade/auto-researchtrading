@@ -612,9 +612,10 @@ async def main():
 
         if args.close_all:
             logger.info("--close-all: closing all positions and cancelling all orders")
+            assert bot.client is not None
             await bot.client.cancel_all_orders()
             account_state = await bot.client.get_account_state()
-            from exchange.types import OrderSide, OrderType
+            from live_trading_bot.exchange.types import OrderSide, OrderType
 
             for sym, pos in account_state.positions.items():
                 side = OrderSide.SELL if pos.side.value == "long" else OrderSide.BUY

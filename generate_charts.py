@@ -14,6 +14,7 @@ import numpy as np
 import csv
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 # ─── Dark theme setup ───
 plt.style.use("dark_background")
@@ -1340,6 +1341,9 @@ def chart13_equity_evolution():
         facecolor=BG,
         gridspec_kw={"height_ratios": [3, 1], "hspace": 0.12},
     )
+
+    timestamps: list = []
+    pnl_pct: Any = []
 
     for csv_name, label, color, alpha, ls in milestones:
         csv_path = base / csv_name

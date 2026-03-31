@@ -13,7 +13,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from eth_account import Account
 from hyperliquid.info import Info
@@ -141,7 +141,9 @@ class HyperliquidClient:
         self.wallet_address = self.account.address
         # API wallets don't hold equity — query the main wallet for account state.
         # If HYPERLIQUID_MAIN_WALLET is unset, the PK is the main wallet's.
-        self.query_address = self.settings.HYPERLIQUID_MAIN_WALLET or self.wallet_address
+        self.query_address = (
+            self.settings.HYPERLIQUID_MAIN_WALLET or self.wallet_address
+        )
 
         base_url = self.settings.HYPERLIQUID_API_URL
 
@@ -198,7 +200,11 @@ class HyperliquidClient:
             mark_price = float(pos_info.get("markPx", 0))
             unrealized_pnl = float(pos_info.get("unrealizedPnl", 0))
             leverage_raw = pos_info.get("leverage", {})
-            leverage_val = float(leverage_raw.get("value", 1)) if isinstance(leverage_raw, dict) else float(leverage_raw)
+            leverage_val = (
+                float(leverage_raw.get("value", 1))
+                if isinstance(leverage_raw, dict)
+                else float(leverage_raw)
+            )
             margin_used = float(pos_info.get("marginUsed", 0))
             liq_price = pos_info.get("liquidationPx")
 
@@ -273,7 +279,7 @@ class HyperliquidClient:
 
         if order_type == OrderType.MARKET:
             limit_px = self._exchange._slippage_price(symbol, is_buy, slippage, price)
-            sdk_order_type = {"limit": {"tif": "Ioc"}}
+            sdk_order_type: Any = {"limit": {"tif": "Ioc"}}
         else:
             limit_px = price or await self.get_mid_price(symbol)
             sdk_order_type = {"limit": {"tif": "Gtc"}}
@@ -301,7 +307,7 @@ class HyperliquidClient:
     ) -> Order:
         size = self._round_size(symbol, size)
 
-        sdk_order_type = {
+        sdk_order_type: Any = {
             "trigger": {
                 "triggerPx": trigger_price,
                 "isMarket": is_market,
@@ -322,15 +328,26 @@ class HyperliquidClient:
         return self._parse_trigger_result(result, symbol, side, size, trigger_price)
 
     def _parse_order_result(
-        self, result: Any, symbol: str, side: OrderSide,
-        order_type: OrderType, size: float, price: Optional[float],
+        self,
+        result: Any,
+        symbol: str,
+        side: OrderSide,
+        order_type: OrderType,
+        size: float,
+        price: Optional[float],
     ) -> Order:
         if result is None or result.get("status") == "err":
-            error_msg = result.get("response", "Unknown error") if result else "No response"
+            error_msg = (
+                result.get("response", "Unknown error") if result else "No response"
+            )
             logger.error("Order rejected", extra={"symbol": symbol, "error": error_msg})
             return Order(
-                id=str(self._get_nonce()), symbol=symbol, side=side,
-                order_type=order_type, size=size, price=price,
+                id=str(self._get_nonce()),
+                symbol=symbol,
+                side=side,
+                order_type=order_type,
+                size=size,
+                price=price,
                 status=OrderStatus.REJECTED,
             )
 
@@ -353,16 +370,25 @@ class HyperliquidClient:
                 )
 
                 return Order(
-                    id=str(order_id), symbol=symbol, side=side,
-                    order_type=order_type, size=size, price=price,
+                    id=str(order_id),
+                    symbol=symbol,
+                    side=side,
+                    order_type=order_type,
+                    size=size,
+                    price=price,
                     status=fill_status,
-                    filled_size=filled_size, avg_fill_price=avg_fill_price,
+                    filled_size=filled_size,
+                    avg_fill_price=avg_fill_price,
                 )
             elif "resting" in status:
                 oid = status["resting"].get("oid", self._get_nonce())
                 return Order(
-                    id=str(oid), symbol=symbol, side=side,
-                    order_type=order_type, size=size, price=price,
+                    id=str(oid),
+                    symbol=symbol,
+                    side=side,
+                    order_type=order_type,
+                    size=size,
+                    price=price,
                     status=OrderStatus.PENDING,
                 )
             elif "error" in status:
@@ -372,24 +398,38 @@ class HyperliquidClient:
                 )
 
         return Order(
-            id=str(self._get_nonce()), symbol=symbol, side=side,
-            order_type=order_type, size=size, price=price,
+            id=str(self._get_nonce()),
+            symbol=symbol,
+            side=side,
+            order_type=order_type,
+            size=size,
+            price=price,
             status=OrderStatus.REJECTED,
         )
 
     def _parse_trigger_result(
-        self, result: Any, symbol: str, side: OrderSide,
-        size: float, trigger_price: float,
+        self,
+        result: Any,
+        symbol: str,
+        side: OrderSide,
+        size: float,
+        trigger_price: float,
     ) -> Order:
         if result is None or result.get("status") == "err":
-            error_msg = result.get("response", "Unknown error") if result else "No response"
+            error_msg = (
+                result.get("response", "Unknown error") if result else "No response"
+            )
             logger.error(
                 "Trigger order rejected",
                 extra={"symbol": symbol, "error": error_msg},
             )
             return Order(
-                id=str(self._get_nonce()), symbol=symbol, side=side,
-                order_type=OrderType.TRIGGER, size=size, price=trigger_price,
+                id=str(self._get_nonce()),
+                symbol=symbol,
+                side=side,
+                order_type=OrderType.TRIGGER,
+                size=size,
+                price=trigger_price,
                 status=OrderStatus.REJECTED,
             )
 
@@ -401,15 +441,24 @@ class HyperliquidClient:
             if "resting" in status:
                 oid = status["resting"].get("oid", self._get_nonce())
                 return Order(
-                    id=str(oid), symbol=symbol, side=side,
-                    order_type=OrderType.TRIGGER, size=size, price=trigger_price,
-                    status=OrderStatus.PENDING, filled_size=0.0,
+                    id=str(oid),
+                    symbol=symbol,
+                    side=side,
+                    order_type=OrderType.TRIGGER,
+                    size=size,
+                    price=trigger_price,
+                    status=OrderStatus.PENDING,
+                    filled_size=0.0,
                     avg_fill_price=trigger_price,
                 )
 
         return Order(
-            id=str(self._get_nonce()), symbol=symbol, side=side,
-            order_type=OrderType.TRIGGER, size=size, price=trigger_price,
+            id=str(self._get_nonce()),
+            symbol=symbol,
+            side=side,
+            order_type=OrderType.TRIGGER,
+            size=size,
+            price=trigger_price,
             status=OrderStatus.REJECTED,
         )
 
@@ -454,7 +503,9 @@ class HyperliquidClient:
             raw_ot = order_data.get("orderType", "")
             if is_trigger or (isinstance(raw_ot, dict) and "trigger" in raw_ot):
                 ot_type = OrderType.TRIGGER
-                price = float(order_data.get("triggerPx", 0) or order_data.get("limitPx", 0))
+                price = float(
+                    order_data.get("triggerPx", 0) or order_data.get("limitPx", 0)
+                )
             elif raw_ot == "Limit" or raw_ot == "limit":
                 ot_type = OrderType.LIMIT
                 price = float(order_data.get("limitPx", 0))
@@ -487,7 +538,9 @@ class HyperliquidClient:
             self._info.user_fills_by_time, self.query_address, start_time, end_time
         )
 
-    async def get_funding_history(self, start_time: int, end_time: int | None = None) -> list[dict]:
+    async def get_funding_history(
+        self, start_time: int, end_time: int | None = None
+    ) -> list[dict]:
         """Get funding payments for a time window. start_time in ms."""
         return await asyncio.to_thread(
             self._info.user_funding_history, self.query_address, start_time, end_time
