@@ -311,7 +311,7 @@ class TestSaveSnapshotsToDb:
     def _setup_mock_modules(self):
         mock_pg = MagicMock()
         mock_tune = types.ModuleType("backtest.tune_15m")
-        mock_tune.DEFAULTS = self.MOCK_DEFAULTS
+        setattr(mock_tune, "DEFAULTS", self.MOCK_DEFAULTS)
 
         _inject_mock_module("backtest")
         sys.modules["backtest.tune_15m"] = mock_tune
@@ -412,19 +412,23 @@ class TestRunOptimizationPipeline:
 
     def _make_tune_mock(self, **overrides):
         mock_tune = types.ModuleType("backtest.tune_15m")
-        mock_tune.DEFAULTS = self.MOCK_DEFAULTS
-        mock_tune.SINGLE_SWEEPS = self.SINGLE_SWEEPS_MOCK
-        mock_tune.SECONDARY_SWEEPS = self.SECONDARY_SWEEPS_MOCK
-        mock_tune.build_adaptive_grid = MagicMock(return_value={})
-        mock_tune.run_sweep = MagicMock(return_value=[])
-        mock_tune.forward_stepwise_accumulate = MagicMock(
-            return_value=({"SHORT_WINDOW": 30}, 4.0)
+        setattr(mock_tune, "DEFAULTS", self.MOCK_DEFAULTS)
+        setattr(mock_tune, "SINGLE_SWEEPS", self.SINGLE_SWEEPS_MOCK)
+        setattr(mock_tune, "SECONDARY_SWEEPS", self.SECONDARY_SWEEPS_MOCK)
+        setattr(mock_tune, "build_adaptive_grid", MagicMock(return_value={}))
+        setattr(mock_tune, "run_sweep", MagicMock(return_value=[]))
+        setattr(
+            mock_tune,
+            "forward_stepwise_accumulate",
+            MagicMock(return_value=({"SHORT_WINDOW": 30}, 4.0)),
         )
-        mock_tune.run_walk_forward = MagicMock(
-            return_value={"avg_degradation": 0.2, "consistent": True}
+        setattr(
+            mock_tune,
+            "run_walk_forward",
+            MagicMock(return_value={"avg_degradation": 0.2, "consistent": True}),
         )
-        mock_tune.subsample_data = MagicMock(side_effect=lambda d, n: d)
-        mock_tune.revalidate = MagicMock(return_value=[])
+        setattr(mock_tune, "subsample_data", MagicMock(side_effect=lambda d, n: d))
+        setattr(mock_tune, "revalidate", MagicMock(return_value=[]))
         for k, v in overrides.items():
             setattr(mock_tune, k, v)
         return mock_tune
