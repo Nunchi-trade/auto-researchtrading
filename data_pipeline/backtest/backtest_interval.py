@@ -12,6 +12,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import cast
 import numpy as np
 import pandas as pd
 
@@ -80,7 +81,7 @@ class _RingBuffer:
 
     def __init__(self, capacity: int):
         self.capacity = capacity
-        self._arrays = {
+        self._arrays: dict[str, np.ndarray] = {
             col: np.empty(capacity, dtype=np.float64) for col in _HISTORY_COLUMNS
         }
         self._arrays["timestamp"] = np.empty(capacity, dtype=np.int64)
@@ -346,7 +347,7 @@ def run_backtest_1m(strategy, data: dict, interval: str = "1m") -> dict:
                 close=row["close"],
                 volume=row["volume"],
                 funding_rate=row.get("funding_rate", 0.0),
-                history=hist_view,
+                history=cast(pd.DataFrame, hist_view),
             )
 
         if not bar_data:
