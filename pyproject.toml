@@ -23,3 +23,10 @@ dependencies = [
 dev = [
     "pytest>=9.0.2",
 ]
+
+[tool.ruff.lint]
+ignore = ["E402"]  # sys.path manipulation before imports is intentional
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]  # re-exports
+"**/adapter/ensemble.py" = ["F401"]  # re-export alias
