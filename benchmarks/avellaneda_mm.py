@@ -2,7 +2,7 @@
 
 import math
 import numpy as np
-from prepare import Signal, PortfolioState, BarData
+from prepare import Signal, PortfolioState
 from constants import BENCHMARK_SYMBOLS
 
 GAMMA = 0.1
@@ -52,14 +52,6 @@ class Strategy:
             spread = GAMMA * sigma**2 * T
             if GAMMA > 0:
                 spread += (2.0 / GAMMA) * math.log(1.0 + GAMMA / K)
-
-            half_spread = max(
-                mid * MIN_SPREAD_BPS / 10000,
-                min(spread / 2, mid * MAX_SPREAD_BPS / 10000),
-            )
-
-            bid_price = r_price - half_spread
-            ask_price = r_price + half_spread
 
             # Size scaled by inventory utilization
             utilization = abs(current_pos) / max_inv if max_inv > 0 else 0

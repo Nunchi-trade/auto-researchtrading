@@ -1,7 +1,7 @@
 """Funding rate carry strategy — ported from agent-cli."""
 
 import numpy as np
-from prepare import Signal, PortfolioState, BarData
+from prepare import Signal, PortfolioState
 from constants import BENCHMARK_SYMBOLS
 
 ACTIVE_SYMBOLS = BENCHMARK_SYMBOLS

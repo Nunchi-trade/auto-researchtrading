@@ -2,7 +2,7 @@
 
 import math
 import numpy as np
-from prepare import Signal, PortfolioState, BarData
+from prepare import Signal, PortfolioState
 from constants import BENCHMARK_SYMBOLS
 
 VOL_WINDOW = 48
@@ -70,7 +70,6 @@ class Strategy:
             mid = bd.close
             current_pos = portfolio.positions.get(symbol, 0.0)
 
-            half_spread = mid * spread_bps / 10000
             size = equity * BASE_SIZE_PCT * size_mult
 
             # Simple momentum signal within regime-adaptive framework
