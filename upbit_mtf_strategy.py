@@ -27,6 +27,10 @@ MAX_MACRO_DRAWDOWN = 0.18
 MICRO_BREAKOUT_BUFFER = 0.998
 MICRO_MOMENTUM_THRESHOLD = 0.0
 
+STATE_CONFIRM_BARS = 0       # full_long<->reduced 전환에 필요한 연속 확인 봉 수
+MIN_STATE_HOLD_BARS = 0      # 전환 후 최소 유지 봉 수 (flat 종료 제외)
+MIN_REBALANCE_FRACTION = 0.0 # 포지션 변화 비율이 이 값 미만이면 리밸런싱 스킵
+
 DEFAULT_MTF_PARAMS = {
     "FULL_LONG_PCT": FULL_LONG_PCT,
     "REDUCED_PCT": REDUCED_PCT,
@@ -37,6 +41,9 @@ DEFAULT_MTF_PARAMS = {
     "MAX_MACRO_DRAWDOWN": MAX_MACRO_DRAWDOWN,
     "MICRO_BREAKOUT_BUFFER": MICRO_BREAKOUT_BUFFER,
     "MICRO_MOMENTUM_THRESHOLD": MICRO_MOMENTUM_THRESHOLD,
+    "STATE_CONFIRM_BARS": STATE_CONFIRM_BARS,
+    "MIN_STATE_HOLD_BARS": MIN_STATE_HOLD_BARS,
+    "MIN_REBALANCE_FRACTION": MIN_REBALANCE_FRACTION,
 }
 
 
@@ -116,6 +123,9 @@ class MultiTimeframeStrategy:
         self.params = _merge_params(params)
         self.feature_store = feature_store or build_feature_store(interval_data)
         self.position_state: dict[str, str] = {}
+        self._pending_state: dict[str, str] = {}   # 확인 대기 중인 다음 상태
+        self._confirm_count: dict[str, int] = {}   # 연속 확인 카운트
+        self._hold_bars: dict[str, int] = {}       # 현재 상태 유지 봉 수
 
     def _lookup_index(self, symbol: str, interval_minutes: int, timestamp: int) -> tuple[dict[str, np.ndarray] | None, int]:
         interval_store = self.feature_store.get(interval_minutes, {})
@@ -225,6 +235,10 @@ class MultiTimeframeStrategy:
         equity = portfolio.equity if portfolio.equity > 0 else portfolio.cash
         signals: list[UpbitSignal] = []
 
+        confirm_bars = int(self.params.get("STATE_CONFIRM_BARS", 0))
+        min_hold = int(self.params.get("MIN_STATE_HOLD_BARS", 0))
+        min_rebalance = float(self.params.get("MIN_REBALANCE_FRACTION", 0.0))
+
         for symbol in ACTIVE_SYMBOLS:
             if symbol not in bar_data:
                 continue
@@ -233,23 +247,72 @@ class MultiTimeframeStrategy:
             snapshot = self.inspect_state(symbol, int(bar_data[symbol].timestamp))
             next_state = str(snapshot["state"])
             target_fraction = float(snapshot["target_fraction"])
-            target_position = current_position
+
+            # flat 종료는 즉시 — 모든 턴오버 제어 무시
+            if next_state == "flat" and current_position > 0:
+                signals.append(UpbitSignal(symbol=symbol, target_position=0.0))
+                self.position_state[symbol] = "flat"
+                self._hold_bars[symbol] = 0
+                self._confirm_count[symbol] = 0
+                self._pending_state[symbol] = "flat"
+                continue
 
             if current_position == 0.0:
                 self.position_state[symbol] = "flat"
-                if next_state != "flat":
-                    target_position = equity * target_fraction
-            else:
-                previous_state = self.position_state.get(symbol, "full_long")
                 if next_state == "flat":
-                    target_position = 0.0
-                elif next_state != previous_state:
-                    target_position = equity * target_fraction
+                    self._pending_state[symbol] = "flat"
+                    continue
+                # flat → 포지션 진입 (최소 리밸런싱 체크만 적용)
+                target_position = equity * target_fraction
+                delta_frac = abs(target_position) / max(equity, 1.0)
+                if min_rebalance > 0.0 and delta_frac < min_rebalance:
+                    continue
+                if abs(target_position) > 1.0:
+                    signals.append(UpbitSignal(symbol=symbol, target_position=target_position))
+                    self.position_state[symbol] = next_state
+                    self._hold_bars[symbol] = 0
+                    self._confirm_count[symbol] = 0
+                    self._pending_state[symbol] = next_state
+                continue
+
+            # 포지션 보유 중 — full_long <-> reduced 전환
+            previous_state = self.position_state.get(symbol, "full_long")
+
+            if next_state == previous_state:
+                # 상태 유지: hold 카운트 증가, confirm 초기화
+                self._hold_bars[symbol] = self._hold_bars.get(symbol, 0) + 1
+                self._confirm_count[symbol] = 0
+                self._pending_state[symbol] = next_state
+                continue
+
+            # 상태 전환 시도
+            # MIN_STATE_HOLD_BARS 체크
+            hold = self._hold_bars.get(symbol, min_hold)
+            if hold < min_hold:
+                self._hold_bars[symbol] = hold + 1
+                continue
+
+            # STATE_CONFIRM_BARS 체크
+            if self._pending_state.get(symbol) != next_state:
+                self._pending_state[symbol] = next_state
+                self._confirm_count[symbol] = 1
+            else:
+                self._confirm_count[symbol] = self._confirm_count.get(symbol, 0) + 1
+
+            if self._confirm_count.get(symbol, 1) < confirm_bars:
+                continue  # 확인 봉 수 부족
+
+            # 전환 확인 완료 — MIN_REBALANCE_FRACTION 체크
+            target_position = equity * target_fraction
+            delta_frac = abs(target_position - current_position) / max(equity, 1.0)
+            if min_rebalance > 0.0 and delta_frac < min_rebalance:
+                continue
 
             if abs(target_position - current_position) > 1.0:
                 signals.append(UpbitSignal(symbol=symbol, target_position=target_position))
-                self.position_state[symbol] = next_state if target_position > 0 else "flat"
-            elif current_position == 0.0:
                 self.position_state[symbol] = next_state
+                self._hold_bars[symbol] = 0
+                self._confirm_count[symbol] = 0
+                self._pending_state[symbol] = next_state
 
         return signals

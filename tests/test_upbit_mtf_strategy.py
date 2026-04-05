@@ -109,3 +109,136 @@ def test_on_bar_exits_to_flat_when_macro_breaks_down():
 
     assert len(signals) == 1
     assert signals[0].target_position == 0.0
+
+
+# ---------------------------------------------------------------------------
+# 턴오버 제어 테스트 (이슈 #2)
+# ---------------------------------------------------------------------------
+
+def _make_full_long_interval_data() -> dict:
+    """강한 상승 추세 데이터 — inspect_state가 full_long 반환."""
+    macro = [1000.0 + i * 2.0 for i in range(760)]
+    micro = {
+        10: [100.0 + i * 0.6 for i in range(180)],
+        20: [100.0 + i * 0.6 for i in range(180)],
+        30: [100.0 + i * 0.6 for i in range(180)],
+        60: [100.0 + i * 0.8 for i in range(180)],
+        240: macro,
+    }
+    return _build_interval_data(macro_closes=macro, micro_closes=micro)
+
+
+def _make_reduced_interval_data() -> dict:
+    """강한 매크로, 약한 마이크로 — inspect_state가 reduced 반환."""
+    macro = [1000.0 + i * 2.0 for i in range(760)]
+    weak = [100.0 + i * 0.9 for i in range(150)]
+    weak.extend([weak[-1] - i * 0.7 for i in range(1, 31)])
+    micro = {k: weak for k in (10, 20, 30, 60)}
+    micro[240] = macro
+    return _build_interval_data(macro_closes=macro, micro_closes=micro)
+
+
+def _make_flat_interval_data() -> dict:
+    """하락 추세 — inspect_state가 flat 반환."""
+    macro = [2000.0 - i * 1.5 for i in range(760)]
+    micro = {k: [500.0 - i * 0.5 for i in range(180)] for k in (10, 20, 30, 60)}
+    micro[240] = macro
+    return _build_interval_data(macro_closes=macro, micro_closes=micro)
+
+
+def _portfolio_with_full_long(equity: float = 100_000_000.0) -> UpbitPortfolioState:
+    position = equity * 0.95
+    return UpbitPortfolioState(
+        cash=equity - position,
+        positions={"KRW-BTC": position},
+        entry_prices={"KRW-BTC": 80_000_000.0},
+        equity=equity,
+        timestamp=0,
+    )
+
+
+def test_no_state_change_before_confirm_window():
+    """STATE_CONFIRM_BARS=3일 때 2번 연속 reduced 신호로는 전환이 일어나지 않는다."""
+    params = {**DEFAULT_MTF_PARAMS, "STATE_CONFIRM_BARS": 3}
+    interval_data = _make_reduced_interval_data()
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy.position_state["KRW-BTC"] = "full_long"
+
+    portfolio = _portfolio_with_full_long()
+    bar = _make_bar(interval_data[60]["KRW-BTC"])
+
+    # 1번째 reduced 신호
+    strategy.on_bar({"KRW-BTC": bar}, portfolio)
+    # 2번째 reduced 신호 — confirm_bars=3이므로 아직 전환 안 됨
+    signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
+
+    assert signals == [], f"Confirm window(3) 미달인데 신호 발생: {signals}"
+
+
+def test_state_transitions_after_confirm_window():
+    """STATE_CONFIRM_BARS=2일 때 2번 연속 reduced 신호 후 전환이 일어난다."""
+    params = {**DEFAULT_MTF_PARAMS, "STATE_CONFIRM_BARS": 2}
+    interval_data = _make_reduced_interval_data()
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy.position_state["KRW-BTC"] = "full_long"
+
+    portfolio = _portfolio_with_full_long()
+    bar = _make_bar(interval_data[60]["KRW-BTC"])
+
+    # 1번째 reduced 신호 — 아직 전환 없음
+    strategy.on_bar({"KRW-BTC": bar}, portfolio)
+    # 2번째 reduced 신호 — 전환 발생
+    signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
+
+    assert len(signals) == 1, f"Confirm window(2) 충족 후 신호 없음"
+    assert 0 < signals[0].target_position < portfolio.equity, "reduced 포지션이어야 함"
+
+
+def test_flat_exit_ignores_confirm_window():
+    """STATE_CONFIRM_BARS=5여도 flat(매크로 붕괴) 종료는 즉시 발생한다."""
+    params = {**DEFAULT_MTF_PARAMS, "STATE_CONFIRM_BARS": 5}
+    interval_data = _make_flat_interval_data()
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy.position_state["KRW-BTC"] = "full_long"
+
+    base_df = interval_data[60]["KRW-BTC"]
+    portfolio = UpbitPortfolioState(
+        cash=40_000_000.0,
+        positions={"KRW-BTC": 60_000_000.0},
+        entry_prices={"KRW-BTC": float(base_df["close"].iloc[-10])},
+        equity=100_000_000.0,
+        timestamp=int(base_df["timestamp"].iloc[-1]),
+    )
+
+    signals = strategy.on_bar({"KRW-BTC": _make_bar(base_df)}, portfolio)
+
+    assert len(signals) == 1, "flat 종료는 즉시여야 함"
+    assert signals[0].target_position == 0.0
+
+
+def test_no_rebalance_when_delta_below_threshold():
+    """MIN_REBALANCE_FRACTION=0.10일 때 포지션 변화가 10% 미만이면 신호를 생성하지 않는다."""
+    # full_long 상태 (FULL_LONG_PCT=0.95), 이미 0.97 보유 → delta=0.02 < 0.10
+    equity = 100_000_000.0
+    current_position = equity * 0.97  # 이미 가득 찬 것에 가까움
+
+    params = {
+        **DEFAULT_MTF_PARAMS,
+        "FULL_LONG_PCT": 0.95,   # target = 0.95, current = 0.97 → |delta| = 0.02
+        "MIN_REBALANCE_FRACTION": 0.10,
+    }
+    interval_data = _make_full_long_interval_data()
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy.position_state["KRW-BTC"] = "full_long"  # 이미 full_long 상태
+
+    portfolio = UpbitPortfolioState(
+        cash=equity - current_position,
+        positions={"KRW-BTC": current_position},
+        entry_prices={"KRW-BTC": 80_000_000.0},
+        equity=equity,
+        timestamp=0,
+    )
+    bar = _make_bar(interval_data[60]["KRW-BTC"])
+    signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
+
+    assert signals == [], f"delta < MIN_REBALANCE_FRACTION인데 신호 발생: {signals}"
