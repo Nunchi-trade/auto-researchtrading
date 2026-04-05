@@ -299,6 +299,7 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
     total_volume = 0.0
     prev_equity = INITIAL_CAPITAL
     history_buffers: dict[str, list] = {symbol: [] for symbol in data}
+    pending_signals: list = []   # 이전 봉에서 생성된 시그널 (현재 봉 open으로 실행)
 
     for ts in timestamps:
         if time.time() - t_start > TIME_BUDGET:
@@ -335,27 +336,14 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
         if not bar_data:
             continue
 
-        # 미실현 손익 계산
-        unrealized = sum(
-            pos * (bar_data[sym].close - portfolio.entry_prices.get(sym, bar_data[sym].close))
-            / portfolio.entry_prices.get(sym, bar_data[sym].close)
-            for sym, pos in portfolio.positions.items()
-            if sym in bar_data and portfolio.entry_prices.get(sym, 0) > 0
-        )
-        portfolio.equity = portfolio.cash + sum(abs(v) for v in portfolio.positions.values()) + unrealized
-
-        try:
-            signals = strategy.on_bar(bar_data, portfolio) or []
-        except Exception:
-            signals = []
-
-        for sig in signals:
+        # 이전 봉 시그널을 현재 봉 open으로 실행 (look-ahead bias 없음)
+        for sig in pending_signals:
             if sig.symbol not in bar_data:
                 continue
             if sig.target_position < 0:   # 현물: 숏 불가
                 continue
 
-            current_price = bar_data[sig.symbol].close
+            current_price = bar_data[sig.symbol].open   # 다음 봉 open 가격 사용
             current_pos = portfolio.positions.get(sig.symbol, 0.0)
             delta = sig.target_position - current_pos
 
@@ -403,7 +391,22 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
                 portfolio.positions[sig.symbol] = sig.target_position
                 trade_log.append(("modify", sig.symbol, delta, exec_price, 0.0))
 
-        # 거래 후 자산 재계산
+        # 미실현 손익 계산 (거래 후, on_bar에 전달될 portfolio.equity 업데이트)
+        unrealized = sum(
+            pos * (bar_data[sym].close - portfolio.entry_prices.get(sym, bar_data[sym].close))
+            / portfolio.entry_prices.get(sym, bar_data[sym].close)
+            for sym, pos in portfolio.positions.items()
+            if sym in bar_data and portfolio.entry_prices.get(sym, 0) > 0
+        )
+        portfolio.equity = portfolio.cash + sum(abs(v) for v in portfolio.positions.values()) + unrealized
+
+        # 현재 봉 close 기반으로 시그널 생성 — 다음 봉 open에서 실행됨
+        try:
+            pending_signals = strategy.on_bar(bar_data, portfolio) or []
+        except Exception:
+            pending_signals = []
+
+        # 자산 재계산 (equity_curve 기록)
         unrealized = sum(
             pos * (bar_data[sym].close - portfolio.entry_prices.get(sym, bar_data[sym].close))
             / portfolio.entry_prices.get(sym, bar_data[sym].close)

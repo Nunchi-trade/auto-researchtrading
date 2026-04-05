@@ -149,6 +149,77 @@ def test_compute_score_hard_cutoff_no_trades():
     assert compute_upbit_score(result) == -999.0
 
 
+def test_execution_uses_next_bar_open_not_current_close():
+    """이슈 #4: 시그널 실행은 다음 봉 open으로 해야 한다 (look-ahead bias 없음).
+
+    봉1 close=100 → 시그널 생성 → 봉2 open=90에서 실행해야 함.
+    look-ahead bias가 있으면 봉1 close=100에서 실행됨.
+    """
+    from upbit_prepare import UpbitSignal, run_upbit_backtest
+
+    base_ms = int(pd.Timestamp("2024-07-01", tz="UTC").timestamp() * 1000)
+    data = {
+        "KRW-BTC": pd.DataFrame([
+            {"timestamp": base_ms,             "open": 100.0, "high": 105.0, "low": 95.0, "close": 100.0, "volume": 1.0},
+            {"timestamp": base_ms + 3_600_000, "open": 90.0,  "high": 95.0,  "low": 85.0, "close": 95.0,  "volume": 1.0},
+            {"timestamp": base_ms + 7_200_000, "open": 95.0,  "high": 100.0, "low": 90.0, "close": 98.0,  "volume": 1.0},
+        ])
+    }
+
+    class _BuyOnFirstBar:
+        def __init__(self):
+            self._bar_count = 0
+
+        def on_bar(self, bar_data, portfolio):
+            self._bar_count += 1
+            if self._bar_count == 1:
+                return [UpbitSignal(symbol="KRW-BTC", target_position=1_000_000.0)]
+            return []
+
+    result = run_upbit_backtest(_BuyOnFirstBar(), data)
+    open_trades = [t for t in result.trade_log if t[0] == "open"]
+    assert len(open_trades) == 1, "매수 거래가 1건이어야 함"
+    exec_price = open_trades[0][3]
+    # look-ahead bias 없음: 다음 봉 open(90) + slippage ≈ 90.0 → 95 미만
+    # look-ahead bias 있음: 현재 봉 close(100) + slippage → 95 초과
+    assert exec_price < 95.0, (
+        f"Expected execution near 90.0 (next bar open), but got {exec_price:.4f}. "
+        "Look-ahead bias 발생: 시그널이 현재 봉 close 가격으로 실행되고 있음."
+    )
+
+
+def test_modify_position_increase_records_modify_trade():
+    """이슈 #7 관련: 포지션 증가 시 'modify' 거래가 기록되어야 한다."""
+    from upbit_prepare import UpbitSignal, run_upbit_backtest
+
+    base_ms = int(pd.Timestamp("2024-07-01", tz="UTC").timestamp() * 1000)
+    data = {
+        "KRW-BTC": pd.DataFrame([
+            {"timestamp": base_ms + i * 3_600_000,
+             "open": 80_000_000.0, "high": 81_000_000.0,
+             "low": 79_000_000.0, "close": 80_000_000.0 + i * 50_000,
+             "volume": 1.0}
+            for i in range(5)
+        ])
+    }
+
+    class _BuyThenIncrease:
+        def __init__(self):
+            self._bar = 0
+
+        def on_bar(self, bar_data, portfolio):
+            self._bar += 1
+            if self._bar == 1:
+                return [UpbitSignal("KRW-BTC", target_position=5_000_000.0)]
+            if self._bar == 2:
+                return [UpbitSignal("KRW-BTC", target_position=10_000_000.0)]
+            return []
+
+    result = run_upbit_backtest(_BuyThenIncrease(), data)
+    modify_trades = [t for t in result.trade_log if t[0] == "modify"]
+    assert len(modify_trades) >= 1, "포지션 증가 시 modify 거래가 기록되어야 함"
+
+
 def test_full_pipeline_with_synthetic_data(tmp_path, monkeypatch):
     """전체 파이프라인: 데이터 로드 → 전략 → 백테스트 → 스코어."""
     monkeypatch.setattr("upbit_prepare.DATA_DIR", str(tmp_path))
