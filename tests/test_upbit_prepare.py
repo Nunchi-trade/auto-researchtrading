@@ -9,6 +9,7 @@ from upbit_prepare import (
     UpbitSignal,
     UpbitPortfolioState,
     SYMBOLS,
+    VAL_START,
 )
 
 
@@ -60,7 +61,7 @@ def test_load_upbit_data_returns_symbols(tmp_path, monkeypatch):
     monkeypatch.setattr("upbit_prepare.DATA_DIR", str(tmp_path))
 
     # 600개 1분봉 생성 (= 10시간 → 60분봉 10개)
-    base_ms = int(pd.Timestamp("2024-07-01", tz="UTC").timestamp() * 1000)
+    base_ms = int(pd.Timestamp(VAL_START, tz="UTC").timestamp() * 1000)
     rows = [
         {
             "timestamp": base_ms + i * 60_000,   # 1분 간격

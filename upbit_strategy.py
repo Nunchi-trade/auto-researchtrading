@@ -1,14 +1,13 @@
 """
-Upbit 현물 전용 전략. exp434: RSI_BULL=38, SMA slope>0.022% (val score 4.109)
+Upbit 현물 전용 전략.
 
-val 기준 현재 최고 파라미터 (2023-01~2024-06):
+2026-04-02 balanced search 기본값:
   EMA(44/100), RSI(11) 38/52, MACD(9/16/9)
-  MAX_HOLD=72, COOLDOWN=24, TFB=339
+  MAX_HOLD=96, COOLDOWN=36, TFB=339
   ATR*3.0 trailing, entry_stop 1.2xATR
   SMA slope>0.02%, recent_high 4봉/0.995
   ADX(24)>18 entry, ADX<8 weak exit
-
-val score: 4.102 → 4.109 (+0.2%)  train: -0.039 (유지)
+  BASE_POSITION=45%, MIN_BEAR_VOTES=5
 """
 
 import numpy as np
@@ -28,14 +27,41 @@ MACD_SIGNAL       = 9
 MED_WINDOW        = 12
 
 TREND_FILTER_BARS = 339
-BASE_POSITION_PCT = 0.99
+SMA_SLOPE_THRESHOLD = 0.00022
+ADX_ENTRY_THRESHOLD = 18.0
+TREND_BOOST_MAX = 1.0
+ADX_BOOST_THRESHOLD = 24.0
+SLOPE_BOOST_THRESHOLD = 0.0035
+BASE_POSITION_PCT = 0.45
 BASE_THRESHOLD    = 0.015
 VOL_LOOKBACK      = 26
 TARGET_VOL        = 0.015
-COOLDOWN_BARS     = 24
+SIZE_TARGET_VOL   = 0.0035
+MIN_POSITION_SCALE = 0.25
+COOLDOWN_BARS     = 36
 MIN_BULL_VOTES    = 2
-MIN_BEAR_VOTES    = 3
+MIN_BEAR_VOTES    = 5
+STOCH_EXIT_THRESHOLD = 40.0
+RECENT_HIGH_BUFFER = 0.995
 ATR_STOP_MULT     = 3.0
+MAX_HOLD_BARS     = 96
+
+DEFAULT_STRATEGY_PARAMS = {
+    "TREND_FILTER_BARS": TREND_FILTER_BARS,
+    "SMA_SLOPE_THRESHOLD": SMA_SLOPE_THRESHOLD,
+    "ADX_ENTRY_THRESHOLD": ADX_ENTRY_THRESHOLD,
+    "TREND_BOOST_MAX": TREND_BOOST_MAX,
+    "ADX_BOOST_THRESHOLD": ADX_BOOST_THRESHOLD,
+    "SLOPE_BOOST_THRESHOLD": SLOPE_BOOST_THRESHOLD,
+    "BASE_POSITION_PCT": BASE_POSITION_PCT,
+    "SIZE_TARGET_VOL": SIZE_TARGET_VOL,
+    "MIN_POSITION_SCALE": MIN_POSITION_SCALE,
+    "COOLDOWN_BARS": COOLDOWN_BARS,
+    "MAX_HOLD_BARS": MAX_HOLD_BARS,
+    "MIN_BEAR_VOTES": MIN_BEAR_VOTES,
+    "STOCH_EXIT_THRESHOLD": STOCH_EXIT_THRESHOLD,
+    "RECENT_HIGH_BUFFER": RECENT_HIGH_BUFFER,
+}
 
 
 def _ema(values: np.ndarray, span: int) -> np.ndarray:
@@ -107,24 +133,78 @@ def _calc_macd(closes: np.ndarray) -> float:
     return float(macd_line[-1] - signal_line[-1])
 
 
-MAX_HOLD_BARS     = 72
+def _position_scale_from_volatility(
+    realized_vol: float,
+    *,
+    size_target_vol: float = SIZE_TARGET_VOL,
+    min_position_scale: float = MIN_POSITION_SCALE,
+) -> float:
+    """Keep full size in calm markets and shrink materially once hourly volatility expands."""
+    vol_floor = max(realized_vol, 1e-6)
+    vol_ratio = vol_floor / size_target_vol
+    if vol_ratio <= 1.0:
+        return 1.0
+    return float(np.clip(1.0 / vol_ratio, min_position_scale, 1.0))
+
+
+def _trend_position_boost(
+    *,
+    sma_slope: float,
+    adx: float,
+    aux_bull: int,
+    trend_boost_max: float = TREND_BOOST_MAX,
+    adx_boost_threshold: float = ADX_BOOST_THRESHOLD,
+    slope_boost_threshold: float = SLOPE_BOOST_THRESHOLD,
+) -> float:
+    if trend_boost_max <= 1.0:
+        return 1.0
+    if aux_bull < 3:
+        return 1.0
+    if adx < adx_boost_threshold:
+        return 1.0
+    if sma_slope < slope_boost_threshold:
+        return 1.0
+    return trend_boost_max
+
+
+def _merge_strategy_params(overrides: dict | None = None) -> dict:
+    params = DEFAULT_STRATEGY_PARAMS.copy()
+    if overrides:
+        params.update(overrides)
+    return params
 
 ENTRY_STOP_MULT   = 1.2
 
 class Strategy:
-    def __init__(self) -> None:
+    def __init__(self, params: dict | None = None) -> None:
         self.exit_bar: dict[str, int] = {}
         self.entry_bar: dict[str, int] = {}
         self.peak_price: dict[str, float] = {}
         self.entry_price: dict[str, float] = {}
         self.bar_count = 0
+        self.params = _merge_strategy_params(params)
 
     def on_bar(self, bar_data: dict, portfolio: UpbitPortfolioState) -> list:
         signals = []
         equity = portfolio.equity if portfolio.equity > 0 else portfolio.cash
         self.bar_count += 1
+        params = self.params
+        trend_filter_bars = int(params["TREND_FILTER_BARS"])
+        sma_slope_threshold = float(params["SMA_SLOPE_THRESHOLD"])
+        adx_entry_threshold = float(params["ADX_ENTRY_THRESHOLD"])
+        trend_boost_max = float(params["TREND_BOOST_MAX"])
+        adx_boost_threshold = float(params["ADX_BOOST_THRESHOLD"])
+        slope_boost_threshold = float(params["SLOPE_BOOST_THRESHOLD"])
+        base_position_pct = float(params["BASE_POSITION_PCT"])
+        size_target_vol = float(params["SIZE_TARGET_VOL"])
+        min_position_scale = float(params["MIN_POSITION_SCALE"])
+        cooldown_bars = int(params["COOLDOWN_BARS"])
+        max_hold_bars = int(params["MAX_HOLD_BARS"])
+        min_bear_votes = int(params["MIN_BEAR_VOTES"])
+        stoch_exit_threshold = float(params["STOCH_EXIT_THRESHOLD"])
+        recent_high_buffer = float(params["RECENT_HIGH_BUFFER"])
 
-        min_bars = max(TREND_FILTER_BARS, EMA_SLOW + 20, MACD_SLOW + MACD_SIGNAL + 5) + 1
+        min_bars = max(trend_filter_bars, EMA_SLOW + 20, MACD_SLOW + MACD_SIGNAL + 5) + 1
 
         for symbol in ACTIVE_SYMBOLS:
             if symbol not in bar_data:
@@ -142,11 +222,11 @@ class Strategy:
             ema_bull = ema_f[-1] > ema_s[-1]
             ema_bear = ema_f[-1] < ema_s[-1]
 
-            sma_long     = float(np.mean(closes[-TREND_FILTER_BARS:]))
-            sma_prev     = float(np.mean(closes[-(TREND_FILTER_BARS + 8):-8]))
+            sma_long     = float(np.mean(closes[-trend_filter_bars:]))
+            sma_prev     = float(np.mean(closes[-(trend_filter_bars + 8):-8]))
             above_trend  = mid > sma_long * 1.000  # SMA200 0.5% 이상
             sma_slope    = (sma_long - sma_prev) / max(sma_prev, 1.0)
-            sma_rising   = sma_slope > 0.00022   # SMA200 0.02% 이상 상승 중
+            sma_rising   = sma_slope > sma_slope_threshold
 
             # 동적 임계값
             if len(closes) >= VOL_LOOKBACK:
@@ -159,10 +239,10 @@ class Strategy:
 
             ret_med   = float(np.log(closes[-1] / closes[-MED_WINDOW]))
             rsi       = _calc_rsi(closes, RSI_PERIOD)
-            stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)  # 진입: stoch_rsi > 25, 청산: stoch_rsi < 40
+            stoch_rsi = _calc_stoch_rsi(closes, RSI_PERIOD)
             macd_h   = _calc_macd(closes)
             adx, plus_di, minus_di = _calc_adx(bd.history, period=24)
-            strong_trend = adx > 18.0
+            strong_trend = adx > adx_entry_threshold
 
             # ATR trailing stop 계산
             df_atr = bd.history.iloc[-30:]
@@ -182,16 +262,16 @@ class Strategy:
             ])
             # 부가 신호 5개 - 청산에는 4/5 필요
             recent_high = float(np.max(closes[-4:]))
-            below_recent_high = mid < recent_high * 0.995
+            below_recent_high = mid < recent_high * recent_high_buffer
             aux_bear = sum([
                 ret_med < -dyn_threshold,
                 rsi < RSI_BEAR,
                 macd_h < 0,
-                stoch_rsi < 40,
+                stoch_rsi < stoch_exit_threshold,
                 below_recent_high,
             ])
 
-            in_cooldown = (self.bar_count - self.exit_bar.get(symbol, -999)) < COOLDOWN_BARS
+            in_cooldown = (self.bar_count - self.exit_bar.get(symbol, -999)) < cooldown_bars
 
             current_pos = portfolio.positions.get(symbol, 0.0)
             target = current_pos
@@ -199,9 +279,21 @@ class Strategy:
             hold_bars = self.bar_count - self.entry_bar.get(symbol, self.bar_count)
             if current_pos == 0:
                 if ema_bull and above_trend and sma_rising and strong_trend and stoch_rsi > 25 and aux_bull >= MIN_BULL_VOTES and not in_cooldown:
-                    # 변동성 역비례 포지션 사이징 (고변동성일수록 작은 포지션)
-                    pos_scale = float(np.clip(1.0 / max(vol_ratio, 1e-10), 0.7, 1.0))
-                    target = equity * BASE_POSITION_PCT * pos_scale
+                    # Reduce risk materially in volatile regimes instead of staying near full notional.
+                    pos_scale = _position_scale_from_volatility(
+                        realized_vol,
+                        size_target_vol=size_target_vol,
+                        min_position_scale=min_position_scale,
+                    )
+                    trend_boost = _trend_position_boost(
+                        sma_slope=sma_slope,
+                        adx=adx,
+                        aux_bull=aux_bull,
+                        trend_boost_max=trend_boost_max,
+                        adx_boost_threshold=adx_boost_threshold,
+                        slope_boost_threshold=slope_boost_threshold,
+                    )
+                    target = equity * base_position_pct * pos_scale * trend_boost
                     self.entry_bar[symbol] = self.bar_count
                     self.peak_price[symbol] = mid
                     self.entry_price[symbol] = mid
@@ -212,8 +304,8 @@ class Strategy:
                 entry_stop      = self.entry_price.get(symbol, 0.0) - ENTRY_STOP_MULT * atr_val
                 atr_stop_hit    = mid < trailing_stop or mid < entry_stop
                 adx_weak        = adx < 8.0  # 추세 약화 청산
-                time_exit = hold_bars >= MAX_HOLD_BARS
-                if ema_bear or aux_bear >= 4 or time_exit or atr_stop_hit or adx_weak:
+                time_exit = hold_bars >= max_hold_bars
+                if ema_bear or aux_bear >= min_bear_votes or time_exit or atr_stop_hit or adx_weak:
                     target = 0.0
 
             if abs(target - current_pos) > 1.0:
