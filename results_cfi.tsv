@@ -1,0 +1,70 @@
+commit	score	sharpe	max_dd	status	description
+baseline	21.124	21.124	0.43	kept	Baseline: ATR_STOP_MULT=5.5 RSI_OB=69 RSI_OS=31
+exp1	21.124	21.124	0.43	reverted	ATR_STOP_MULT=5.0
+exp2	21.124	21.124	0.43	reverted	ATR_STOP_MULT=6.0
+exp3	21.097	21.097	0.43	reverted	ATR_STOP_MULT=3.0
+exp4	20.208	20.208	0.43	reverted	RSI_OVERBOUGHT=65
+exp5	21.085	21.085	0.43	reverted	RSI_OVERBOUGHT=72
+exp6	21.200	21.200	0.38	kept	RSI_OVERSOLD=28 (IMPROVED)
+exp7	20.680	20.680	0.38	reverted	RSI_OVERSOLD=25
+exp8	21.247	21.247	0.27	kept	RSI_OVERSOLD=29 (IMPROVED)
+exp9	21.228	21.228	0.27	reverted	RSI_OVERSOLD=30
+exp10	21.171	21.171	0.27	reverted	RSI_OVERBOUGHT=70
+exp11	20.844	20.844	0.27	reverted	RSI_OVERBOUGHT=68
+exp12	20.499	20.499	0.34	reverted	COOLDOWN_BARS=3
+exp13	20.361	20.415	0.55	reverted	COOLDOWN_BARS=1
+exp14	21.244	21.247	0.30	reverted	BASE_POSITION_PCT=0.09
+exp15	21.246	21.246	0.24	reverted	BASE_POSITION_PCT=0.07
+exp16	20.931	20.931	0.27	reverted	BASE_THRESHOLD=0.010
+exp17	21.039	21.039	0.27	reverted	BASE_THRESHOLD=0.014
+exp18	16.822	16.929	0.31	reverted	MIN_VOTES=3
+exp19	17.479	17.479	0.54	reverted	MIN_VOTES=5
+exp20	20.254	20.254	0.29	reverted	SHORT_WINDOW=8
+exp21	21.237	21.237	0.27	reverted	EMA_FAST=6
+exp22	21.105	21.105	0.27	reverted	EMA_SLOW=24
+exp23	18.447	18.447	0.44	reverted	RSI_PERIOD=10
+exp24	19.868	19.868	0.49	reverted	RSI_PERIOD=7
+exp25	21.182	21.182	0.27	reverted	BB_PERIOD=8
+exp26	21.190	21.190	0.27	reverted	BB_PERIOD=5
+exp27	21.247	21.247	0.27	reverted	Dynamic ATR mult by vol (0.6+0.4*ratio)
+exp28	21.247	21.247	0.27	reverted	MAX_HOLD_BARS=48 (no effect)
+exp29	21.233	21.233	0.27	reverted	MACD_FAST=12
+exp30	21.149	21.149	0.27	reverted	MACD_SLOW=26
+exp31	21.247	21.247	0.27	reverted	Asymmetric ATR 0.85x shorts (no effect)
+exp32	21.022	21.022	0.27	reverted	BB compress threshold=80
+exp33	21.139	21.139	0.27	reverted	BB compress threshold=95
+exp34	21.179	21.179	0.27	reverted	VOL_LOOKBACK=48
+exp35	21.039	21.039	0.27	reverted	TARGET_VOL=0.012
+exp36	21.027	21.027	0.27	reverted	TARGET_VOL=0.018
+exp37	21.247	21.247	0.27	reverted	CFI index as 7th signal (no effect at MIN_VOTES=4)
+exp38	20.557	20.557	0.25	reverted	CFI exit threshold -0.002/+0.002 (too aggressive)
+exp39	21.247	21.247	0.27	reverted	CFI exit -0.004 (no effect)
+exp40	21.247	21.247	0.27	reverted	CFI exit -0.003 (no effect)
+exp41	21.247	21.247	0.27	reverted	CFI entry confirm (no effect)
+exp42	21.154	21.154	0.29	reverted	BTC weight 0.40
+exp43	21.106	21.106	0.28	reverted	SOL weight=0.26
+exp44	21.089	21.089	0.27	reverted	MACD_SIGNAL=7
+exp45	20.810	20.810	0.28	reverted	MED_WINDOW=10
+exp46	21.247	21.247	0.27	reverted	MED2_WINDOW=20 (no effect)
+exp47	21.247	21.247	0.27	reverted	LONG_WINDOW=30 (no effect)
+exp48	15.554	15.581	0.42	reverted	Momentum strength scaling 0.5-1.5x
+exp49	20.612	20.612	0.27	reverted	FUNDING_BOOST=0.15
+exp50	21.247	21.247	0.27	reverted	ATR_LOOKBACK=18 (no effect)
+exp51	21.115	21.115	0.27	reverted	dyn_threshold 0.4+0.6*vol
+exp52	21.087	21.087	0.27	reverted	vshort threshold mult=0.5
+exp53	21.167	21.167	0.27	reverted	RSI_BULL=52
+exp54	21.199	21.199	0.27	reverted	RSI_BEAR=48
+exp55	21.2475	21.2475	0.27	kept	DD_REDUCE_THRESHOLD=0.003 (IMPROVED)
+exp56	21.2482	21.2482	0.27	kept	DD_REDUCE_THRESHOLD=0.002 (IMPROVED)
+exp57	21.2468	21.2468	0.27	reverted	DD_REDUCE_THRESHOLD=0.001
+exp58	21.2482	21.2482	0.27	reverted	DD_REDUCE_SCALE=0.3 (no effect)
+exp59	21.2482	21.2482	0.27	reverted	TAKE_PROFIT_PCT=5 (no effect)
+exp60	21.2482	21.2482	0.27	reverted	TAKE_PROFIT_PCT=1.0 (no effect)
+exp61	21.2482	21.2482	0.27	reverted	TAKE_PROFIT_PCT=0.5 (no effect)
+exp62	21.2482	21.2482	0.27	reverted	TAKE_PROFIT_PCT=0.1 (no effect)
+exp63	19.495	19.495	-	reverted	TAKE_PROFIT_PCT=0.02
+exp64	21.109	21.109	-	reverted	TAKE_PROFIT_PCT=0.05
+exp65	-5.116	-	-	reverted	No reversal (exit only)
+exp66	21.175	21.175	0.27	reverted	EMA_FAST=8
+exp67	21.173	21.173	0.27	reverted	EMA_SLOW=28
+exp68	21.085	21.085	0.27	reverted	MACD_FAST=16
