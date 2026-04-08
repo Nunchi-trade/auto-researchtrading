@@ -353,10 +353,10 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
             slippage = current_price * SLIPPAGE_BPS / 10000
             exec_price = current_price + slippage if delta > 0 else current_price - slippage
             fee = abs(delta) * TAKER_FEE
-            portfolio.cash -= fee
-            total_volume += abs(delta)
 
             if sig.target_position == 0:
+                portfolio.cash -= fee
+                total_volume += abs(delta)
                 entry = portfolio.entry_prices.get(sig.symbol, exec_price)
                 pnl = current_pos * (exec_price - entry) / entry if entry > 0 else 0.0
                 portfolio.cash += abs(current_pos) + pnl
@@ -365,8 +365,11 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
                 trade_log.append(("close", sig.symbol, delta, exec_price, pnl))
 
             elif current_pos == 0:
-                if portfolio.cash < abs(sig.target_position):
+                required_cash = abs(sig.target_position) + fee
+                if portfolio.cash < required_cash:
                     continue  # 현금 부족 — 주문 스킵
+                portfolio.cash -= fee
+                total_volume += abs(delta)
                 portfolio.cash -= abs(sig.target_position)
                 portfolio.positions[sig.symbol] = sig.target_position
                 portfolio.entry_prices[sig.symbol] = exec_price
@@ -375,13 +378,18 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
             else:
                 old_entry = portfolio.entry_prices.get(sig.symbol, exec_price)
                 if abs(sig.target_position) < abs(current_pos):
+                    portfolio.cash -= fee
+                    total_volume += abs(delta)
                     reduced = abs(current_pos) - abs(sig.target_position)
                     pnl = reduced * (exec_price - old_entry) / old_entry if old_entry > 0 else 0.0
                     portfolio.cash += reduced + pnl
                 else:
                     added = abs(sig.target_position) - abs(current_pos)
-                    if portfolio.cash < added:
+                    required_cash = added + fee
+                    if portfolio.cash < required_cash:
                         continue  # 증액 현금 부족 — 주문 스킵
+                    portfolio.cash -= fee
+                    total_volume += abs(delta)
                     portfolio.cash -= added
                     total = abs(current_pos) + added
                     if total > 0:

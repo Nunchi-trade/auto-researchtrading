@@ -10,6 +10,7 @@ from upbit_prepare import (
     UpbitPortfolioState,
     SYMBOLS,
     VAL_START,
+    INITIAL_CAPITAL,
 )
 
 
@@ -218,6 +219,36 @@ def test_modify_position_increase_records_modify_trade():
     result = run_upbit_backtest(_BuyThenIncrease(), data)
     modify_trades = [t for t in result.trade_log if t[0] == "modify"]
     assert len(modify_trades) >= 1, "포지션 증가 시 modify 거래가 기록되어야 함"
+
+
+def test_skipped_order_does_not_consume_fee_or_turnover():
+    """현금 부족으로 스킵된 주문은 fee/turnover/equity를 바꾸면 안 된다."""
+    from upbit_prepare import UpbitSignal, run_upbit_backtest
+
+    base_ms = int(pd.Timestamp("2024-07-01", tz="UTC").timestamp() * 1000)
+    data = {
+        "KRW-BTC": pd.DataFrame([
+            {"timestamp": base_ms,             "open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0, "volume": 1.0},
+            {"timestamp": base_ms + 3_600_000, "open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0, "volume": 1.0},
+            {"timestamp": base_ms + 7_200_000, "open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0, "volume": 1.0},
+        ])
+    }
+
+    class _OverSizedOrder:
+        def __init__(self):
+            self._sent = False
+
+        def on_bar(self, bar_data, portfolio):
+            if not self._sent:
+                self._sent = True
+                return [UpbitSignal("KRW-BTC", target_position=INITIAL_CAPITAL * 2.0)]
+            return []
+
+    result = run_upbit_backtest(_OverSizedOrder(), data)
+
+    assert result.num_trades == 0
+    assert result.annual_turnover == 0.0
+    assert result.equity_curve[-1] == INITIAL_CAPITAL
 
 
 def test_full_pipeline_with_synthetic_data(tmp_path, monkeypatch):
