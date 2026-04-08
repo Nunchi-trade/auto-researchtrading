@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+generated/
+strategy_backup.py
+results.tsv
+run.log
+mirofish/__pycache__/
