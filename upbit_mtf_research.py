@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import itertools
+import json
+from pathlib import Path
 from typing import Iterator
 
 import numpy as np
@@ -17,7 +19,15 @@ DEFAULT_MTF_PARAMETER_GRID = {
     "MAX_MACRO_DRAWDOWN": [0.16, 0.20],
 }
 
-FULL_PERIOD_MAX_DRAWDOWN_PCT = 20.0
+COARSE_MTF_PARAMETER_GRID = {
+    "FULL_LONG_PCT": [0.90, 1.00],
+    "REDUCED_PCT": [0.35, 0.55],
+    "MACRO_FULL_THRESHOLD": [0.62, 0.70],
+    "MICRO_FULL_THRESHOLD": [0.50],
+    "MAX_MACRO_DRAWDOWN": [0.16],
+}
+
+FULL_PERIOD_MAX_DRAWDOWN_PCT = 15.0
 TEST_EXCESS_WEIGHT = 0.35
 TRADE_PENALTY_WEIGHT = 0.02
 
@@ -26,6 +36,16 @@ def iter_parameter_grid(grid: dict[str, list]) -> Iterator[dict]:
     keys = list(grid.keys())
     for values in itertools.product(*(grid[key] for key in keys)):
         yield dict(zip(keys, values))
+
+
+def get_parameter_grid(preset: str = "default") -> dict[str, list]:
+    presets = {
+        "default": DEFAULT_MTF_PARAMETER_GRID,
+        "coarse": COARSE_MTF_PARAMETER_GRID,
+    }
+    if preset not in presets:
+        raise ValueError(f"unknown grid preset: {preset}")
+    return {key: list(values) for key, values in presets[preset].items()}
 
 
 def _concat_split_frames(frames: list[pd.DataFrame]) -> pd.DataFrame:
@@ -100,6 +120,42 @@ def compute_full_period_excess_score(
     )
 
 
+def _json_safe(value):
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
+def _params_key(params: dict) -> str:
+    return json.dumps(params, sort_keys=True, separators=(",", ":"))
+
+
+def load_search_results(results_path: str | Path) -> list[dict]:
+    path = Path(results_path)
+    if not path.exists():
+        return []
+
+    results = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        results.append(json.loads(line))
+    return results
+
+
+def append_search_result(results_path: str | Path, result: dict) -> None:
+    path = Path(results_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        json.dump(_json_safe(result), handle, ensure_ascii=True, sort_keys=True)
+        handle.write("\n")
+
+
 def _extract_metrics(result, buy_hold_return_pct: float) -> dict[str, float]:
     return {
         "strategy_return_pct": result.total_return_pct,
@@ -114,6 +170,8 @@ def _extract_metrics(result, buy_hold_return_pct: float) -> dict[str, float]:
 def evaluate_parameter_set(
     params: dict,
     datasets: dict,
+    *,
+    max_drawdown_pct: float = FULL_PERIOD_MAX_DRAWDOWN_PCT,
 ) -> dict:
     interval_data = datasets["interval_data"]
     feature_store = datasets["feature_store"]
@@ -131,7 +189,7 @@ def evaluate_parameter_set(
         "full": _extract_metrics(full_result, compute_buy_hold_return_pct(datasets["base_full"])),
         "test": _extract_metrics(test_result, compute_buy_hold_return_pct(datasets["base_test"])),
     }
-    objective_score = compute_full_period_excess_score(metrics)
+    objective_score = compute_full_period_excess_score(metrics, max_drawdown_pct=max_drawdown_pct)
 
     return {
         "params": params.copy(),
@@ -143,19 +201,40 @@ def evaluate_parameter_set(
 def search_parameter_grid(
     *,
     grid: dict[str, list] | None = None,
+    grid_preset: str = "default",
     datasets: dict | None = None,
     intervals: tuple[int, ...] = (10, 20, 30, 60, 240),
     base_interval: int = 60,
     progress_every: int = 10,
+    max_drawdown_pct: float = FULL_PERIOD_MAX_DRAWDOWN_PCT,
+    max_evals: int | None = None,
+    results_path: str | Path | None = None,
 ) -> list[dict]:
-    parameter_grid = grid or DEFAULT_MTF_PARAMETER_GRID
+    parameter_grid = grid or get_parameter_grid(grid_preset)
     search_datasets = datasets or load_search_datasets(intervals=intervals, base_interval=base_interval)
-    results = []
+    results = load_search_results(results_path) if results_path else []
+    seen = {_params_key(item["params"]): item for item in results}
+    evaluated_in_run = 0
 
     for index, params in enumerate(iter_parameter_grid(parameter_grid), start=1):
-        results.append(evaluate_parameter_set(params, search_datasets))
+        key = _params_key(params)
+        if key in seen:
+            continue
+
+        result = evaluate_parameter_set(
+            params,
+            search_datasets,
+            max_drawdown_pct=max_drawdown_pct,
+        )
+        results.append(result)
+        seen[key] = result
+        evaluated_in_run += 1
+        if results_path:
+            append_search_result(results_path, result)
         if progress_every and index % progress_every == 0:
-            print(f"[{index}] combos evaluated")
+            print(f"[{index}] combos scanned, {evaluated_in_run} new combos evaluated", flush=True)
+        if max_evals is not None and evaluated_in_run >= max_evals:
+            break
 
     results.sort(
         key=lambda item: (
