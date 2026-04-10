@@ -1,8 +1,27 @@
 # Autoresearch Loop
 
-## Original Autonomous Loop
+## Project-Level Autoresearch
 
-The original project pattern is:
+The repository now uses `autoresearch` as a project-level skill rather than a Hyperliquid-only shortcut.
+
+The first step is always:
+
+1. Read `AGENTS.md`
+2. Read `CLAUDE.md`
+3. Read `docs/README.md`
+4. Choose the active research track
+
+Track routing:
+
+- Hyperliquid original loop: edit `strategy.py`, run `uv run backtest.py`
+- Upbit spot loop: edit `upbit_strategy.py`, run `uv run upbit_backtest.py`
+- Upbit MTF loop: edit `upbit_mtf_strategy.py` or `upbit_mtf_research.py`, run `uv run scripts/upbit_mtf_search.py`
+
+Claude Code and Codex are expected to follow the same routing model.
+
+## Original Hyperliquid Loop
+
+The original project pattern was:
 
 1. Read current strategy and recent scores
 2. Modify `strategy.py`
@@ -11,7 +30,7 @@ The original project pattern is:
 5. Revert if score does not improve
 6. Repeat indefinitely
 
-The historical Claude Code entrypoint was `/autoresearch`.
+The historical Claude Code entrypoint was `/autoresearch`, but the loop itself was Hyperliquid-specific.
 
 ## Scoring
 
@@ -32,8 +51,10 @@ Hard cutoffs:
 - one commit per experiment
 - `results.tsv` is the lightweight experiment log
 - keep changes only when objective metrics improve
+- use a dedicated experiment branch before relying on `git reset --hard HEAD~1`
 
 ## Current Direction
 
-The original loop was built for Hyperliquid `strategy.py`.
-Current follow-on work is focused on Upbit spot and Upbit MTF research automation.
+- The original loop was built for Hyperliquid `strategy.py`
+- Current follow-on work is focused on Upbit spot and Upbit MTF research automation
+- Upbit MTF should be judged by its own research objective, not by the old Hyperliquid score

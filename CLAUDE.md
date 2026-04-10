@@ -4,6 +4,7 @@ This repository started as a Karpathy-style autonomous research loop for Hyperli
 
 ## Working Model
 
+- The repository-level `autoresearch` skill now routes by track after reading this file and `docs/README.md`
 - Original autonomous loop: repeatedly modify `strategy.py`, run `uv run backtest.py`, keep improvements, revert regressions
 - Newer work in this repo extends beyond the original single-file loop and includes:
   - Upbit spot data + backtest harness
@@ -30,6 +31,7 @@ This repository started as a Karpathy-style autonomous research loop for Hyperli
 
 - Prefer existing libraries only: `numpy`, `pandas`, `scipy`, `requests`, `pyarrow`, stdlib
 - Do not treat the original Hyperliquid harness and the newer Upbit research flow as the same system
+- `autoresearch` is project-wide, but each track keeps its own harness, metrics, and entry points
 - Hyperliquid autoresearch assumptions still center on `strategy.py`, but current strategy improvement work may target the Upbit files instead
 
 ## Practical Context
@@ -38,10 +40,17 @@ This repository started as a Karpathy-style autonomous research loop for Hyperli
 - The historical best recorded Hyperliquid result is `20.634`
 - The strongest historical lesson was that simplifying strategies often improved performance more than adding complexity
 - Current follow-on research is focused on automation and improvement of the Upbit MTF strategy under explicit return and drawdown constraints
+- Claude and Codex should both use the same project-level `autoresearch` skill semantics
 
 ## Read Next
 
 Start with `docs/README.md`, then load only the relevant document set for the task.
+
+If the user asks for autonomous research, first decide which track is active:
+
+- Hyperliquid loop: `strategy.py`
+- Upbit spot loop: `upbit_strategy.py`
+- Upbit MTF loop: `upbit_mtf_strategy.py` plus `upbit_mtf_research.py`
 
 Core indexed docs:
 
