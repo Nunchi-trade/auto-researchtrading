@@ -52,6 +52,10 @@ If the user asks for autonomous research, first decide which track is active:
 - Upbit spot loop: `upbit_strategy.py`
 - Upbit MTF loop: `upbit_mtf_strategy.py` plus `upbit_mtf_research.py`
 
+Recommended Upbit MTF autoresearch command:
+
+`uv run python -u scripts/upbit_mtf_search.py --grid coarse --top 10 --progress-every 1 --max-evals 1 --results-path ~/.cache/autotrader_upbit/mtf-autoresearch.jsonl`
+
 Core indexed docs:
 
 - `docs/context/repo-overview.md`

@@ -130,6 +130,17 @@ The agent will:
 4. Keep the change if the active track's objective improves, revert if not
 5. Repeat until interrupted
 
+Recommended command for the current Upbit MTF autoresearch track:
+
+```bash
+uv run python -u scripts/upbit_mtf_search.py \
+  --grid coarse \
+  --top 10 \
+  --progress-every 1 \
+  --max-evals 1 \
+  --results-path ~/.cache/autotrader_upbit/mtf-autoresearch.jsonl
+```
+
 For the original Hyperliquid-only loop, see [`program.md`](program.md). For the current indexed project context, start with [`CLAUDE.md`](CLAUDE.md).
 
 ---
