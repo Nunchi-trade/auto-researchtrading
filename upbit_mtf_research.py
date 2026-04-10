@@ -136,8 +136,12 @@ def _params_key(params: dict) -> str:
     return json.dumps(params, sort_keys=True, separators=(",", ":"))
 
 
+def _normalize_results_path(results_path: str | Path) -> Path:
+    return Path(results_path).expanduser()
+
+
 def load_search_results(results_path: str | Path) -> list[dict]:
-    path = Path(results_path)
+    path = _normalize_results_path(results_path)
     if not path.exists():
         return []
 
@@ -157,7 +161,7 @@ def load_search_results(results_path: str | Path) -> list[dict]:
 
 
 def append_search_result(results_path: str | Path, result: dict) -> None:
-    path = Path(results_path)
+    path = _normalize_results_path(results_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
         json.dump(_json_safe(result), handle, ensure_ascii=True, sort_keys=True)

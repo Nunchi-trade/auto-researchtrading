@@ -165,3 +165,22 @@ def test_load_search_results_ignores_truncated_last_line(tmp_path):
 
     assert len(results) == 1
     assert results[0]["params"] == {"FULL_LONG_PCT": 0.9}
+
+
+def test_results_path_expands_user_home(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    result = {
+        "params": {"FULL_LONG_PCT": 0.9},
+        "objective_score": 1.0,
+        "metrics": {
+            "full": {"excess_return_pct": 1.0, "drawdown_pct": 10.0, "trades": 1},
+            "test": {"excess_return_pct": 0.5, "drawdown_pct": 5.0, "trades": 1},
+        },
+    }
+
+    upbit_mtf_research.append_search_result("~/mtf-results.jsonl", result)
+
+    saved = tmp_path / "mtf-results.jsonl"
+    assert saved.exists()
+    loaded = upbit_mtf_research.load_search_results("~/mtf-results.jsonl")
+    assert loaded[0]["params"] == {"FULL_LONG_PCT": 0.9}
