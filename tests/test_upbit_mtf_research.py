@@ -147,3 +147,21 @@ def test_search_parameter_grid_max_evals_limits_new_combos(monkeypatch):
 
     assert len(calls) == 1
     assert len(results) == 1
+
+
+def test_load_search_results_ignores_truncated_last_line(tmp_path):
+    results_path = tmp_path / "mtf-results.jsonl"
+    results_path.write_text(
+        "\n".join(
+            [
+                '{"params":{"FULL_LONG_PCT":0.9},"objective_score":1.0,"metrics":{"full":{"excess_return_pct":1.0},"test":{"excess_return_pct":0.5}}}',
+                '{"params":{"FULL_LONG_PCT":1.0},"objective_score":',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    results = upbit_mtf_research.load_search_results(results_path)
+
+    assert len(results) == 1
+    assert results[0]["params"] == {"FULL_LONG_PCT": 0.9}

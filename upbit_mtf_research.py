@@ -125,6 +125,8 @@ def _json_safe(value):
         return {key: _json_safe(item) for key, item in value.items()}
     if isinstance(value, list):
         return [_json_safe(item) for item in value]
+    if isinstance(value, np.ndarray):
+        return value.tolist()
     if isinstance(value, np.generic):
         return value.item()
     return value
@@ -140,11 +142,17 @@ def load_search_results(results_path: str | Path) -> list[dict]:
         return []
 
     results = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        results.append(json.loads(line))
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                results.append(json.loads(line))
+            except json.JSONDecodeError:
+                # Resume files are append-only jsonl. If the process was interrupted
+                # mid-write, skip the truncated tail and recover prior results.
+                break
     return results
 
 
