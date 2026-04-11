@@ -44,6 +44,32 @@ Observed targeted-search result:
 - full-period max drawdown: `14.6%`
 - test-period excess return: `39.4%`
 
+Current default-parameter evaluation snapshot:
+
+- params: `FULL_LONG_PCT=0.90`, `REDUCED_PCT=0.55`, `MACRO_FULL_THRESHOLD=0.62`, `MICRO_FULL_THRESHOLD=0.50`, `MAX_MACRO_DRAWDOWN=0.10`
+- objective: `15902.32`
+- full-period return: `18301.2%`
+- full-period buy-and-hold: `2292.9%`
+- full-period excess return: `16008.3%`
+- full-period max drawdown: `14.63%`
+- full-period trades: `5987`
+- test-period return: `53.22%`
+- test-period buy-and-hold: `13.84%`
+- test-period excess return: `39.38%`
+- test-period max drawdown: `7.55%`
+
+## Upbit Spot Snapshot
+
+Current `uv run upbit_backtest.py` snapshot on `val` split with `60`-minute candles:
+
+- score: `2.336701`
+- sharpe: `2.336701`
+- total return: `27.15%`
+- max drawdown: `3.44%`
+- trades: `184`
+- win rate: `34.78%`
+- profit factor: `2.66`
+
 ## Biggest Historical Lesson
 
 Removing complexity improved results more than adding it.
