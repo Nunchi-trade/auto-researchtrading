@@ -4,6 +4,14 @@ from upbit_prepare import UpbitBarData, UpbitPortfolioState
 from upbit_mtf_strategy import DEFAULT_MTF_PARAMS, MultiTimeframeStrategy
 
 
+def test_default_mtf_params_match_current_dd15_candidate():
+    assert DEFAULT_MTF_PARAMS["FULL_LONG_PCT"] == 0.90
+    assert DEFAULT_MTF_PARAMS["REDUCED_PCT"] == 0.55
+    assert DEFAULT_MTF_PARAMS["MACRO_FULL_THRESHOLD"] == 0.62
+    assert DEFAULT_MTF_PARAMS["MICRO_FULL_THRESHOLD"] == 0.50
+    assert DEFAULT_MTF_PARAMS["MAX_MACRO_DRAWDOWN"] == 0.10
+
+
 def _make_interval_df(interval_minutes: int, closes: list[float]) -> pd.DataFrame:
     rows = []
     for index, close in enumerate(closes):

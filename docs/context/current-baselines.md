@@ -27,6 +27,23 @@ Key parameters:
 - `ATR_STOP_MULT=5.5`
 - `MIN_VOTES=4`
 
+## Upbit MTF Reference Candidate
+
+Current DD<15 autoresearch candidate:
+
+- `FULL_LONG_PCT=0.90`
+- `REDUCED_PCT=0.55`
+- `MACRO_FULL_THRESHOLD=0.62`
+- `MICRO_FULL_THRESHOLD=0.50`
+- `MAX_MACRO_DRAWDOWN=0.10`
+
+Observed targeted-search result:
+
+- objective: `15902.32`
+- full-period excess return: `16008.3%`
+- full-period max drawdown: `14.6%`
+- test-period excess return: `39.4%`
+
 ## Biggest Historical Lesson
 
 Removing complexity improved results more than adding it.
