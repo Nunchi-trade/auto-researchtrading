@@ -10,6 +10,7 @@ def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["REDUCED_PCT"] == 0.55
     assert DEFAULT_MTF_PARAMS["MACRO_FULL_THRESHOLD"] == 0.62
     assert DEFAULT_MTF_PARAMS["MICRO_FULL_THRESHOLD"] == 0.50
+    assert DEFAULT_MTF_PARAMS["MICRO_ENTER_FULL_THRESHOLD"] == 0.54
     assert DEFAULT_MTF_PARAMS["MICRO_EXIT_FULL_THRESHOLD"] == 0.46
     assert DEFAULT_MTF_PARAMS["MAX_MACRO_DRAWDOWN"] == 0.10
 
@@ -323,3 +324,110 @@ def test_full_long_reduces_when_micro_breaks_exit_threshold():
     assert len(signals) == 1
     assert signals[0].target_position == pytest.approx(55_000_000.0)
     assert strategy.position_state["KRW-BTC"] == "reduced"
+
+
+def test_reduced_waits_for_stronger_micro_before_promoting_to_full_long():
+    interval_data = _make_full_long_interval_data()
+    params = {
+        **DEFAULT_MTF_PARAMS,
+        "FULL_LONG_PCT": 0.90,
+        "REDUCED_PCT": 0.55,
+        "MICRO_FULL_THRESHOLD": 0.50,
+        "MICRO_ENTER_FULL_THRESHOLD": 0.55,
+    }
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy.position_state["KRW-BTC"] = "reduced"
+
+    portfolio = UpbitPortfolioState(
+        cash=45_000_000.0,
+        positions={"KRW-BTC": 55_000_000.0},
+        entry_prices={"KRW-BTC": 80_000_000.0},
+        equity=100_000_000.0,
+        timestamp=0,
+    )
+    bar = _make_bar(interval_data[60]["KRW-BTC"])
+
+    strategy.inspect_state = lambda symbol, timestamp: {
+        "state": "full_long",
+        "target_fraction": 0.90,
+        "macro_strength": 0.80,
+        "micro_strength": 0.52,
+        "macro_drawdown": 0.04,
+    }
+
+    signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
+
+    assert signals == []
+    assert strategy.position_state["KRW-BTC"] == "reduced"
+
+
+def test_flat_enters_reduced_before_full_long_when_micro_entry_band_not_cleared():
+    interval_data = _make_full_long_interval_data()
+    params = {
+        **DEFAULT_MTF_PARAMS,
+        "FULL_LONG_PCT": 0.90,
+        "REDUCED_PCT": 0.55,
+        "MICRO_FULL_THRESHOLD": 0.50,
+        "MICRO_ENTER_FULL_THRESHOLD": 0.55,
+    }
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy.position_state["KRW-BTC"] = "flat"
+
+    portfolio = UpbitPortfolioState(
+        cash=100_000_000.0,
+        positions={},
+        entry_prices={},
+        equity=100_000_000.0,
+        timestamp=0,
+    )
+    bar = _make_bar(interval_data[60]["KRW-BTC"])
+
+    strategy.inspect_state = lambda symbol, timestamp: {
+        "state": "full_long",
+        "target_fraction": 0.90,
+        "macro_strength": 0.80,
+        "micro_strength": 0.52,
+        "macro_drawdown": 0.04,
+    }
+
+    signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
+
+    assert len(signals) == 1
+    assert signals[0].target_position == pytest.approx(55_000_000.0)
+    assert strategy.position_state["KRW-BTC"] == "reduced"
+
+
+def test_reduced_promotes_to_full_long_after_entry_threshold_clears():
+    interval_data = _make_full_long_interval_data()
+    params = {
+        **DEFAULT_MTF_PARAMS,
+        "FULL_LONG_PCT": 0.90,
+        "REDUCED_PCT": 0.55,
+        "MICRO_FULL_THRESHOLD": 0.50,
+        "MICRO_ENTER_FULL_THRESHOLD": 0.55,
+    }
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy.position_state["KRW-BTC"] = "reduced"
+
+    portfolio = UpbitPortfolioState(
+        cash=45_000_000.0,
+        positions={"KRW-BTC": 55_000_000.0},
+        entry_prices={"KRW-BTC": 80_000_000.0},
+        equity=100_000_000.0,
+        timestamp=0,
+    )
+    bar = _make_bar(interval_data[60]["KRW-BTC"])
+
+    strategy.inspect_state = lambda symbol, timestamp: {
+        "state": "full_long",
+        "target_fraction": 0.90,
+        "macro_strength": 0.80,
+        "micro_strength": 0.56,
+        "macro_drawdown": 0.04,
+    }
+
+    signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
+
+    assert len(signals) == 1
+    assert signals[0].target_position == pytest.approx(90_000_000.0)
+    assert strategy.position_state["KRW-BTC"] == "full_long"

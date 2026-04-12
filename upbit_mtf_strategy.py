@@ -22,6 +22,7 @@ REDUCED_PCT = 0.55
 MACRO_FULL_THRESHOLD = 0.62
 MACRO_REDUCED_THRESHOLD = 0.50
 MICRO_FULL_THRESHOLD = 0.50
+MICRO_ENTER_FULL_THRESHOLD = 0.54
 MICRO_EXIT_FULL_THRESHOLD = 0.46
 MICRO_REDUCED_THRESHOLD = 0.30
 MAX_MACRO_DRAWDOWN = 0.10
@@ -38,6 +39,7 @@ DEFAULT_MTF_PARAMS = {
     "MACRO_FULL_THRESHOLD": MACRO_FULL_THRESHOLD,
     "MACRO_REDUCED_THRESHOLD": MACRO_REDUCED_THRESHOLD,
     "MICRO_FULL_THRESHOLD": MICRO_FULL_THRESHOLD,
+    "MICRO_ENTER_FULL_THRESHOLD": MICRO_ENTER_FULL_THRESHOLD,
     "MICRO_EXIT_FULL_THRESHOLD": MICRO_EXIT_FULL_THRESHOLD,
     "MICRO_REDUCED_THRESHOLD": MICRO_REDUCED_THRESHOLD,
     "MAX_MACRO_DRAWDOWN": MAX_MACRO_DRAWDOWN,
@@ -246,9 +248,23 @@ class MultiTimeframeStrategy:
                 continue
 
             current_position = portfolio.positions.get(symbol, 0.0)
+            previous_state = self.position_state.get(symbol, "flat")
             snapshot = self.inspect_state(symbol, int(bar_data[symbol].timestamp))
             next_state = str(snapshot["state"])
             target_fraction = float(snapshot["target_fraction"])
+
+            # Use a higher micro threshold only for promotion into full_long.
+            if next_state == "full_long" and previous_state != "full_long":
+                macro_full = float(self.params["MACRO_FULL_THRESHOLD"])
+                micro_enter_full = float(
+                    self.params.get("MICRO_ENTER_FULL_THRESHOLD", self.params["MICRO_FULL_THRESHOLD"])
+                )
+                if (
+                    float(snapshot["macro_strength"]) >= macro_full
+                    and float(snapshot["micro_strength"]) < micro_enter_full
+                ):
+                    next_state = "reduced"
+                    target_fraction = float(self.params["REDUCED_PCT"])
 
             # flat 종료는 즉시 — 모든 턴오버 제어 무시
             if next_state == "flat" and current_position > 0:
@@ -278,8 +294,6 @@ class MultiTimeframeStrategy:
                 continue
 
             # 포지션 보유 중 — full_long <-> reduced 전환
-            previous_state = self.position_state.get(symbol, "full_long")
-
             # Avoid churn when macro remains strong and micro only softens slightly.
             # Require a deeper micro break before stepping down from full_long to reduced.
             if previous_state == "full_long" and next_state == "reduced":
