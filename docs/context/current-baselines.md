@@ -35,28 +35,29 @@ Current DD<15 autoresearch candidate:
 - `REDUCED_PCT=0.55`
 - `MACRO_FULL_THRESHOLD=0.62`
 - `MICRO_FULL_THRESHOLD=0.50`
+- `MICRO_EXIT_FULL_THRESHOLD=0.46`
 - `MAX_MACRO_DRAWDOWN=0.10`
 
 Observed targeted-search result:
 
-- objective: `15902.32`
-- full-period excess return: `16008.3%`
-- full-period max drawdown: `14.6%`
-- test-period excess return: `39.4%`
+- objective: `20680.75`
+- full-period excess return: `20774.8%`
+- full-period max drawdown: `13.59%`
+- test-period excess return: `45.3%`
 
 Current default-parameter evaluation snapshot:
 
-- params: `FULL_LONG_PCT=0.90`, `REDUCED_PCT=0.55`, `MACRO_FULL_THRESHOLD=0.62`, `MICRO_FULL_THRESHOLD=0.50`, `MAX_MACRO_DRAWDOWN=0.10`
-- objective: `15902.32`
-- full-period return: `18301.2%`
+- params: `FULL_LONG_PCT=0.90`, `REDUCED_PCT=0.55`, `MACRO_FULL_THRESHOLD=0.62`, `MICRO_FULL_THRESHOLD=0.50`, `MICRO_EXIT_FULL_THRESHOLD=0.46`, `MAX_MACRO_DRAWDOWN=0.10`
+- objective: `20680.75`
+- full-period return: `23067.7%`
 - full-period buy-and-hold: `2292.9%`
-- full-period excess return: `16008.3%`
-- full-period max drawdown: `14.63%`
-- full-period trades: `5987`
-- test-period return: `53.22%`
+- full-period excess return: `20774.8%`
+- full-period max drawdown: `13.59%`
+- full-period trades: `5493`
+- test-period return: `59.12%`
 - test-period buy-and-hold: `13.84%`
-- test-period excess return: `39.38%`
-- test-period max drawdown: `7.55%`
+- test-period excess return: `45.28%`
+- test-period max drawdown: `6.93%`
 
 ## Upbit Spot Snapshot
 

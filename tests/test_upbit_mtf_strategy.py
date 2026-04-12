@@ -1,3 +1,4 @@
+import pytest
 import pandas as pd
 
 from upbit_prepare import UpbitBarData, UpbitPortfolioState
@@ -9,6 +10,7 @@ def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["REDUCED_PCT"] == 0.55
     assert DEFAULT_MTF_PARAMS["MACRO_FULL_THRESHOLD"] == 0.62
     assert DEFAULT_MTF_PARAMS["MICRO_FULL_THRESHOLD"] == 0.50
+    assert DEFAULT_MTF_PARAMS["MICRO_EXIT_FULL_THRESHOLD"] == 0.46
     assert DEFAULT_MTF_PARAMS["MAX_MACRO_DRAWDOWN"] == 0.10
 
 
@@ -250,3 +252,74 @@ def test_no_rebalance_when_delta_below_threshold():
     signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
 
     assert signals == [], f"delta < MIN_REBALANCE_FRACTION인데 신호 발생: {signals}"
+
+
+def test_full_long_holds_through_borderline_reduced_signal():
+    interval_data = _make_full_long_interval_data()
+    params = {
+        **DEFAULT_MTF_PARAMS,
+        "FULL_LONG_PCT": 0.90,
+        "REDUCED_PCT": 0.55,
+        "MICRO_FULL_THRESHOLD": 0.50,
+        "MICRO_EXIT_FULL_THRESHOLD": 0.46,
+    }
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy.position_state["KRW-BTC"] = "full_long"
+
+    portfolio = UpbitPortfolioState(
+        cash=10_000_000.0,
+        positions={"KRW-BTC": 90_000_000.0},
+        entry_prices={"KRW-BTC": 80_000_000.0},
+        equity=100_000_000.0,
+        timestamp=0,
+    )
+    bar = _make_bar(interval_data[60]["KRW-BTC"])
+
+    strategy.inspect_state = lambda symbol, timestamp: {
+        "state": "reduced",
+        "target_fraction": 0.55,
+        "macro_strength": 0.80,
+        "micro_strength": 0.47,
+        "macro_drawdown": 0.04,
+    }
+
+    signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
+
+    assert signals == []
+    assert strategy.position_state["KRW-BTC"] == "full_long"
+
+
+def test_full_long_reduces_when_micro_breaks_exit_threshold():
+    interval_data = _make_full_long_interval_data()
+    params = {
+        **DEFAULT_MTF_PARAMS,
+        "FULL_LONG_PCT": 0.90,
+        "REDUCED_PCT": 0.55,
+        "MICRO_FULL_THRESHOLD": 0.50,
+        "MICRO_EXIT_FULL_THRESHOLD": 0.46,
+    }
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy.position_state["KRW-BTC"] = "full_long"
+
+    portfolio = UpbitPortfolioState(
+        cash=10_000_000.0,
+        positions={"KRW-BTC": 90_000_000.0},
+        entry_prices={"KRW-BTC": 80_000_000.0},
+        equity=100_000_000.0,
+        timestamp=0,
+    )
+    bar = _make_bar(interval_data[60]["KRW-BTC"])
+
+    strategy.inspect_state = lambda symbol, timestamp: {
+        "state": "reduced",
+        "target_fraction": 0.55,
+        "macro_strength": 0.80,
+        "micro_strength": 0.25,
+        "macro_drawdown": 0.04,
+    }
+
+    signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
+
+    assert len(signals) == 1
+    assert signals[0].target_position == pytest.approx(55_000_000.0)
+    assert strategy.position_state["KRW-BTC"] == "reduced"

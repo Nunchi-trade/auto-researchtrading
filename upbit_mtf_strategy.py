@@ -22,6 +22,7 @@ REDUCED_PCT = 0.55
 MACRO_FULL_THRESHOLD = 0.62
 MACRO_REDUCED_THRESHOLD = 0.50
 MICRO_FULL_THRESHOLD = 0.50
+MICRO_EXIT_FULL_THRESHOLD = 0.46
 MICRO_REDUCED_THRESHOLD = 0.30
 MAX_MACRO_DRAWDOWN = 0.10
 MICRO_BREAKOUT_BUFFER = 0.998
@@ -37,6 +38,7 @@ DEFAULT_MTF_PARAMS = {
     "MACRO_FULL_THRESHOLD": MACRO_FULL_THRESHOLD,
     "MACRO_REDUCED_THRESHOLD": MACRO_REDUCED_THRESHOLD,
     "MICRO_FULL_THRESHOLD": MICRO_FULL_THRESHOLD,
+    "MICRO_EXIT_FULL_THRESHOLD": MICRO_EXIT_FULL_THRESHOLD,
     "MICRO_REDUCED_THRESHOLD": MICRO_REDUCED_THRESHOLD,
     "MAX_MACRO_DRAWDOWN": MAX_MACRO_DRAWDOWN,
     "MICRO_BREAKOUT_BUFFER": MICRO_BREAKOUT_BUFFER,
@@ -277,6 +279,22 @@ class MultiTimeframeStrategy:
 
             # 포지션 보유 중 — full_long <-> reduced 전환
             previous_state = self.position_state.get(symbol, "full_long")
+
+            # Avoid churn when macro remains strong and micro only softens slightly.
+            # Require a deeper micro break before stepping down from full_long to reduced.
+            if previous_state == "full_long" and next_state == "reduced":
+                macro_full = float(self.params["MACRO_FULL_THRESHOLD"])
+                micro_exit_full = float(
+                    self.params.get("MICRO_EXIT_FULL_THRESHOLD", self.params["MICRO_FULL_THRESHOLD"])
+                )
+                if (
+                    float(snapshot["macro_strength"]) >= macro_full
+                    and float(snapshot["micro_strength"]) >= micro_exit_full
+                ):
+                    self._hold_bars[symbol] = self._hold_bars.get(symbol, 0) + 1
+                    self._confirm_count[symbol] = 0
+                    self._pending_state[symbol] = previous_state
+                    continue
 
             if next_state == previous_state:
                 # 상태 유지: hold 카운트 증가, confirm 초기화
