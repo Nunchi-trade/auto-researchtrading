@@ -24,6 +24,9 @@ TIME_BUDGET = 120
 INITIAL_CAPITAL = 100_000_000.0   # 1억 KRW
 TAKER_FEE = 0.0005                # 0.05%
 SLIPPAGE_BPS = 1.0
+VOLATILITY_SLIPPAGE_FACTOR = 0.02
+MAX_VOLATILITY_SLIPPAGE_BPS = 6.0
+SIZE_SLIPPAGE_BPS_AT_FULL_NOTIONAL = 2.0
 LOOKBACK_BARS = 500
 HOURS_PER_YEAR = 8760
 
@@ -87,6 +90,22 @@ class UpbitBacktestResult:
     backtest_seconds: float = 0.0
     equity_curve: list = field(default_factory=list)
     trade_log: list = field(default_factory=list)
+
+
+def _estimate_execution_slippage_bps(
+    *,
+    open_price: float,
+    high_price: float,
+    low_price: float,
+    notional_delta: float,
+    equity: float,
+) -> float:
+    price = max(float(open_price), 1e-9)
+    range_bps = max(0.0, (float(high_price) - float(low_price)) / price * 10_000)
+    volatility_bps = min(MAX_VOLATILITY_SLIPPAGE_BPS, range_bps * VOLATILITY_SLIPPAGE_FACTOR)
+    size_ratio = min(1.0, abs(float(notional_delta)) / max(float(equity), 1.0))
+    size_bps = size_ratio * SIZE_SLIPPAGE_BPS_AT_FULL_NOTIONAL
+    return float(SLIPPAGE_BPS + volatility_bps + size_bps)
 
 # ---------------------------------------------------------------------------
 # 데이터 다운로드
@@ -350,7 +369,14 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
             if abs(delta) < 1.0:
                 continue
 
-            slippage = current_price * SLIPPAGE_BPS / 10000
+            slippage_bps = _estimate_execution_slippage_bps(
+                open_price=current_price,
+                high_price=float(bar_data[sig.symbol].high),
+                low_price=float(bar_data[sig.symbol].low),
+                notional_delta=delta,
+                equity=portfolio.equity,
+            )
+            slippage = current_price * slippage_bps / 10000
             exec_price = current_price + slippage if delta > 0 else current_price - slippage
             fee = abs(delta) * TAKER_FEE
 

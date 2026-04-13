@@ -19,6 +19,8 @@ MICRO_MOMENTUM_LOOKBACK = 6
 
 FULL_LONG_PCT = 0.90
 REDUCED_PCT = 0.55
+REDUCED_HIGH_PCT = REDUCED_PCT
+REDUCED_LOW_PCT = 0.30
 MACRO_FULL_THRESHOLD = 0.62
 MACRO_REDUCED_THRESHOLD = 0.45
 MICRO_FULL_THRESHOLD = 0.50
@@ -36,6 +38,8 @@ MIN_REBALANCE_FRACTION = 0.0 # 포지션 변화 비율이 이 값 미만이면 �
 DEFAULT_MTF_PARAMS = {
     "FULL_LONG_PCT": FULL_LONG_PCT,
     "REDUCED_PCT": REDUCED_PCT,
+    "REDUCED_HIGH_PCT": REDUCED_HIGH_PCT,
+    "REDUCED_LOW_PCT": REDUCED_LOW_PCT,
     "MACRO_FULL_THRESHOLD": MACRO_FULL_THRESHOLD,
     "MACRO_REDUCED_THRESHOLD": MACRO_REDUCED_THRESHOLD,
     "MICRO_FULL_THRESHOLD": MICRO_FULL_THRESHOLD,
@@ -204,6 +208,8 @@ class MultiTimeframeStrategy:
         micro_full = float(self.params["MICRO_FULL_THRESHOLD"])
         micro_reduced = float(self.params["MICRO_REDUCED_THRESHOLD"])
         max_macro_drawdown = float(self.params["MAX_MACRO_DRAWDOWN"])
+        reduced_high_pct = float(self.params.get("REDUCED_HIGH_PCT", self.params["REDUCED_PCT"]))
+        reduced_low_pct = float(self.params.get("REDUCED_LOW_PCT", self.params["REDUCED_PCT"]))
 
         state = "flat"
         target_fraction = 0.0
@@ -214,11 +220,11 @@ class MultiTimeframeStrategy:
             state = "full_long"
             target_fraction = float(self.params["FULL_LONG_PCT"])
         elif macro_strength >= macro_full:
-            state = "reduced"
-            target_fraction = float(self.params["REDUCED_PCT"])
+            state = "reduced_high"
+            target_fraction = reduced_high_pct
         elif macro_strength >= macro_reduced and micro_strength >= micro_reduced:
-            state = "reduced"
-            target_fraction = float(self.params["REDUCED_PCT"])
+            state = "reduced_low"
+            target_fraction = reduced_low_pct
 
         snapshot = StrategySnapshot(
             state=state,
@@ -263,8 +269,8 @@ class MultiTimeframeStrategy:
                     float(snapshot["macro_strength"]) >= macro_full
                     and float(snapshot["micro_strength"]) < micro_enter_full
                 ):
-                    next_state = "reduced"
-                    target_fraction = float(self.params["REDUCED_PCT"])
+                    next_state = "reduced_high"
+                    target_fraction = float(self.params.get("REDUCED_HIGH_PCT", self.params["REDUCED_PCT"]))
 
             # flat 종료는 즉시 — 모든 턴오버 제어 무시
             if next_state == "flat" and current_position > 0:
@@ -296,7 +302,7 @@ class MultiTimeframeStrategy:
             # 포지션 보유 중 — full_long <-> reduced 전환
             # Avoid churn when macro remains strong and micro only softens slightly.
             # Require a deeper micro break before stepping down from full_long to reduced.
-            if previous_state == "full_long" and next_state == "reduced":
+            if previous_state == "full_long" and next_state.startswith("reduced"):
                 macro_full = float(self.params["MACRO_FULL_THRESHOLD"])
                 micro_exit_full = float(
                     self.params.get("MICRO_EXIT_FULL_THRESHOLD", self.params["MICRO_FULL_THRESHOLD"])

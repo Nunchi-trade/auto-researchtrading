@@ -8,6 +8,8 @@ from upbit_mtf_strategy import DEFAULT_MTF_PARAMS, MultiTimeframeStrategy
 def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["FULL_LONG_PCT"] == 0.90
     assert DEFAULT_MTF_PARAMS["REDUCED_PCT"] == 0.55
+    assert DEFAULT_MTF_PARAMS["REDUCED_HIGH_PCT"] == 0.55
+    assert DEFAULT_MTF_PARAMS["REDUCED_LOW_PCT"] == 0.30
     assert DEFAULT_MTF_PARAMS["MACRO_FULL_THRESHOLD"] == 0.62
     assert DEFAULT_MTF_PARAMS["MACRO_REDUCED_THRESHOLD"] == 0.45
     assert DEFAULT_MTF_PARAMS["MICRO_FULL_THRESHOLD"] == 0.50
@@ -76,7 +78,7 @@ def test_inspect_state_returns_full_long_when_macro_and_micro_align():
     assert snapshot["target_fraction"] == DEFAULT_MTF_PARAMS["FULL_LONG_PCT"]
 
 
-def test_inspect_state_returns_reduced_when_macro_strong_but_micro_softens():
+def test_inspect_state_returns_reduced_high_when_macro_strong_but_micro_softens():
     macro = [1000.0 + index * 2.0 for index in range(760)]
     weak_micro = [100.0 + index * 0.9 for index in range(150)]
     weak_micro.extend([weak_micro[-1] - index * 0.7 for index in range(1, 31)])
@@ -88,12 +90,28 @@ def test_inspect_state_returns_reduced_when_macro_strong_but_micro_softens():
         240: macro,
     }
     interval_data = _build_interval_data(macro_closes=macro, micro_closes=micro)
-    strategy = MultiTimeframeStrategy(interval_data)
+    strategy = MultiTimeframeStrategy(interval_data, params={**DEFAULT_MTF_PARAMS, "REDUCED_HIGH_PCT": 0.60})
 
     snapshot = strategy.inspect_state("KRW-BTC", int(interval_data[60]["KRW-BTC"]["timestamp"].iloc[-1]))
 
-    assert snapshot["state"] == "reduced"
-    assert snapshot["target_fraction"] == DEFAULT_MTF_PARAMS["REDUCED_PCT"]
+    assert snapshot["state"] == "reduced_high"
+    assert snapshot["target_fraction"] == 0.60
+
+
+def test_inspect_state_returns_reduced_low_when_macro_secondary_and_micro_confirms():
+    interval_data = _make_full_long_interval_data()
+    params = {
+        **DEFAULT_MTF_PARAMS,
+        "REDUCED_LOW_PCT": 0.35,
+    }
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy._macro_snapshot = lambda symbol, timestamp: (0.50, 0.04)
+    strategy._micro_snapshot = lambda symbol, timestamp: 0.45
+
+    snapshot = strategy.inspect_state("KRW-BTC", int(interval_data[60]["KRW-BTC"]["timestamp"].iloc[-1]))
+
+    assert snapshot["state"] == "reduced_low"
+    assert snapshot["target_fraction"] == 0.35
 
 
 def test_on_bar_exits_to_flat_when_macro_breaks_down():
@@ -142,7 +160,7 @@ def _make_full_long_interval_data() -> dict:
 
 
 def _make_reduced_interval_data() -> dict:
-    """강한 매크로, 약한 마이크로 — inspect_state가 reduced 반환."""
+    """강한 매크로, 약한 마이크로 — inspect_state가 reduced_high 반환."""
     macro = [1000.0 + i * 2.0 for i in range(760)]
     weak = [100.0 + i * 0.9 for i in range(150)]
     weak.extend([weak[-1] - i * 0.7 for i in range(1, 31)])
@@ -171,7 +189,7 @@ def _portfolio_with_full_long(equity: float = 100_000_000.0) -> UpbitPortfolioSt
 
 
 def test_no_state_change_before_confirm_window():
-    """STATE_CONFIRM_BARS=3일 때 2번 연속 reduced 신호로는 전환이 일어나지 않는다."""
+    """STATE_CONFIRM_BARS=3일 때 2번 연속 reduced_high 신호로는 전환이 일어나지 않는다."""
     params = {**DEFAULT_MTF_PARAMS, "STATE_CONFIRM_BARS": 3}
     interval_data = _make_reduced_interval_data()
     strategy = MultiTimeframeStrategy(interval_data, params=params)
@@ -180,16 +198,16 @@ def test_no_state_change_before_confirm_window():
     portfolio = _portfolio_with_full_long()
     bar = _make_bar(interval_data[60]["KRW-BTC"])
 
-    # 1번째 reduced 신호
+    # 1번째 reduced_high 신호
     strategy.on_bar({"KRW-BTC": bar}, portfolio)
-    # 2번째 reduced 신호 — confirm_bars=3이므로 아직 전환 안 됨
+    # 2번째 reduced_high 신호 — confirm_bars=3이므로 아직 전환 안 됨
     signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
 
     assert signals == [], f"Confirm window(3) 미달인데 신호 발생: {signals}"
 
 
 def test_state_transitions_after_confirm_window():
-    """STATE_CONFIRM_BARS=2일 때 2번 연속 reduced 신호 후 전환이 일어난다."""
+    """STATE_CONFIRM_BARS=2일 때 2번 연속 reduced_high 신호 후 전환이 일어난다."""
     params = {**DEFAULT_MTF_PARAMS, "STATE_CONFIRM_BARS": 2}
     interval_data = _make_reduced_interval_data()
     strategy = MultiTimeframeStrategy(interval_data, params=params)
@@ -198,9 +216,9 @@ def test_state_transitions_after_confirm_window():
     portfolio = _portfolio_with_full_long()
     bar = _make_bar(interval_data[60]["KRW-BTC"])
 
-    # 1번째 reduced 신호 — 아직 전환 없음
+    # 1번째 reduced_high 신호 — 아직 전환 없음
     strategy.on_bar({"KRW-BTC": bar}, portfolio)
-    # 2번째 reduced 신호 — 전환 발생
+    # 2번째 reduced_high 신호 — 전환 발생
     signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
 
     assert len(signals) == 1, f"Confirm window(2) 충족 후 신호 없음"
@@ -279,7 +297,7 @@ def test_full_long_holds_through_borderline_reduced_signal():
     bar = _make_bar(interval_data[60]["KRW-BTC"])
 
     strategy.inspect_state = lambda symbol, timestamp: {
-        "state": "reduced",
+        "state": "reduced_high",
         "target_fraction": 0.55,
         "macro_strength": 0.80,
         "micro_strength": 0.47,
@@ -314,7 +332,7 @@ def test_full_long_reduces_when_micro_breaks_exit_threshold():
     bar = _make_bar(interval_data[60]["KRW-BTC"])
 
     strategy.inspect_state = lambda symbol, timestamp: {
-        "state": "reduced",
+        "state": "reduced_high",
         "target_fraction": 0.55,
         "macro_strength": 0.80,
         "micro_strength": 0.25,
@@ -325,7 +343,40 @@ def test_full_long_reduces_when_micro_breaks_exit_threshold():
 
     assert len(signals) == 1
     assert signals[0].target_position == pytest.approx(55_000_000.0)
-    assert strategy.position_state["KRW-BTC"] == "reduced"
+    assert strategy.position_state["KRW-BTC"] == "reduced_high"
+
+
+def test_flat_enters_reduced_low_with_custom_fraction():
+    interval_data = _make_full_long_interval_data()
+    params = {
+        **DEFAULT_MTF_PARAMS,
+        "REDUCED_LOW_PCT": 0.35,
+    }
+    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy.position_state["KRW-BTC"] = "flat"
+
+    portfolio = UpbitPortfolioState(
+        cash=100_000_000.0,
+        positions={},
+        entry_prices={},
+        equity=100_000_000.0,
+        timestamp=0,
+    )
+    bar = _make_bar(interval_data[60]["KRW-BTC"])
+
+    strategy.inspect_state = lambda symbol, timestamp: {
+        "state": "reduced_low",
+        "target_fraction": 0.35,
+        "macro_strength": 0.50,
+        "micro_strength": 0.45,
+        "macro_drawdown": 0.04,
+    }
+
+    signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
+
+    assert len(signals) == 1
+    assert signals[0].target_position == pytest.approx(35_000_000.0)
+    assert strategy.position_state["KRW-BTC"] == "reduced_low"
 
 
 def test_reduced_waits_for_stronger_micro_before_promoting_to_full_long():
@@ -338,7 +389,7 @@ def test_reduced_waits_for_stronger_micro_before_promoting_to_full_long():
         "MICRO_ENTER_FULL_THRESHOLD": 0.55,
     }
     strategy = MultiTimeframeStrategy(interval_data, params=params)
-    strategy.position_state["KRW-BTC"] = "reduced"
+    strategy.position_state["KRW-BTC"] = "reduced_high"
 
     portfolio = UpbitPortfolioState(
         cash=45_000_000.0,
@@ -360,7 +411,7 @@ def test_reduced_waits_for_stronger_micro_before_promoting_to_full_long():
     signals = strategy.on_bar({"KRW-BTC": bar}, portfolio)
 
     assert signals == []
-    assert strategy.position_state["KRW-BTC"] == "reduced"
+    assert strategy.position_state["KRW-BTC"] == "reduced_high"
 
 
 def test_flat_enters_reduced_before_full_long_when_micro_entry_band_not_cleared():
@@ -396,7 +447,7 @@ def test_flat_enters_reduced_before_full_long_when_micro_entry_band_not_cleared(
 
     assert len(signals) == 1
     assert signals[0].target_position == pytest.approx(55_000_000.0)
-    assert strategy.position_state["KRW-BTC"] == "reduced"
+    assert strategy.position_state["KRW-BTC"] == "reduced_high"
 
 
 def test_reduced_promotes_to_full_long_after_entry_threshold_clears():
@@ -409,7 +460,7 @@ def test_reduced_promotes_to_full_long_after_entry_threshold_clears():
         "MICRO_ENTER_FULL_THRESHOLD": 0.55,
     }
     strategy = MultiTimeframeStrategy(interval_data, params=params)
-    strategy.position_state["KRW-BTC"] = "reduced"
+    strategy.position_state["KRW-BTC"] = "reduced_high"
 
     portfolio = UpbitPortfolioState(
         cash=45_000_000.0,

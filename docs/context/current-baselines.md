@@ -29,10 +29,12 @@ Key parameters:
 
 ## Upbit MTF Reference Candidate
 
-Current DD<15 autoresearch candidate:
+Current DD<15 autoresearch candidate under dynamic slippage and taker-fee costs:
 
 - `FULL_LONG_PCT=0.90`
 - `REDUCED_PCT=0.55`
+- `REDUCED_HIGH_PCT=0.55`
+- `REDUCED_LOW_PCT=0.30`
 - `MACRO_FULL_THRESHOLD=0.62`
 - `MACRO_REDUCED_THRESHOLD=0.45`
 - `MICRO_FULL_THRESHOLD=0.50`
@@ -43,24 +45,24 @@ Current DD<15 autoresearch candidate:
 
 Observed targeted-search result:
 
-- objective: `22185.99`
-- full-period excess return: `22272.18%`
-- full-period max drawdown: `13.59%`
-- test-period excess return: `48.03%`
+- objective: `15494.35`
+- full-period excess return: `15583.48%`
+- full-period max drawdown: `13.64%`
+- test-period excess return: `41.38%`
 
 Current default-parameter evaluation snapshot:
 
-- params: `FULL_LONG_PCT=0.90`, `REDUCED_PCT=0.55`, `MACRO_FULL_THRESHOLD=0.62`, `MACRO_REDUCED_THRESHOLD=0.45`, `MICRO_FULL_THRESHOLD=0.50`, `MICRO_ENTER_FULL_THRESHOLD=0.54`, `MICRO_EXIT_FULL_THRESHOLD=0.46`, `MICRO_REDUCED_THRESHOLD=0.40`, `MAX_MACRO_DRAWDOWN=0.10`
-- objective: `22185.99`
-- full-period return: `24565.11%`
+- params: `FULL_LONG_PCT=0.90`, `REDUCED_PCT=0.55`, `REDUCED_HIGH_PCT=0.55`, `REDUCED_LOW_PCT=0.30`, `MACRO_FULL_THRESHOLD=0.62`, `MACRO_REDUCED_THRESHOLD=0.45`, `MICRO_FULL_THRESHOLD=0.50`, `MICRO_ENTER_FULL_THRESHOLD=0.54`, `MICRO_EXIT_FULL_THRESHOLD=0.46`, `MICRO_REDUCED_THRESHOLD=0.40`, `MAX_MACRO_DRAWDOWN=0.10`
+- objective: `15494.35`
+- full-period return: `17876.41%`
 - full-period buy-and-hold: `2292.9%`
-- full-period excess return: `22272.18%`
-- full-period max drawdown: `13.59%`
-- full-period trades: `5150`
-- test-period return: `61.87%`
+- full-period excess return: `15583.48%`
+- full-period max drawdown: `13.64%`
+- full-period trades: `5181`
+- test-period return: `55.22%`
 - test-period buy-and-hold: `13.84%`
-- test-period excess return: `48.03%`
-- test-period max drawdown: `6.61%`
+- test-period excess return: `41.38%`
+- test-period max drawdown: `6.90%`
 
 ## Upbit Spot Snapshot
 

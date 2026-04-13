@@ -4,6 +4,7 @@ import pandas as pd
 from unittest.mock import patch, MagicMock
 from upbit_prepare import (
     _download_upbit_candles,
+    _estimate_execution_slippage_bps,
     load_upbit_data,
     UpbitBarData,
     UpbitSignal,
@@ -249,6 +250,44 @@ def test_skipped_order_does_not_consume_fee_or_turnover():
     assert result.num_trades == 0
     assert result.annual_turnover == 0.0
     assert result.equity_curve[-1] == INITIAL_CAPITAL
+
+
+def test_slippage_bps_increases_with_bar_volatility():
+    calm = _estimate_execution_slippage_bps(
+        open_price=100.0,
+        high_price=100.2,
+        low_price=99.8,
+        notional_delta=10_000_000.0,
+        equity=100_000_000.0,
+    )
+    volatile = _estimate_execution_slippage_bps(
+        open_price=100.0,
+        high_price=104.0,
+        low_price=96.0,
+        notional_delta=10_000_000.0,
+        equity=100_000_000.0,
+    )
+
+    assert volatile > calm
+
+
+def test_slippage_bps_increases_with_order_size():
+    small = _estimate_execution_slippage_bps(
+        open_price=100.0,
+        high_price=101.0,
+        low_price=99.0,
+        notional_delta=5_000_000.0,
+        equity=100_000_000.0,
+    )
+    large = _estimate_execution_slippage_bps(
+        open_price=100.0,
+        high_price=101.0,
+        low_price=99.0,
+        notional_delta=90_000_000.0,
+        equity=100_000_000.0,
+    )
+
+    assert large > small
 
 
 def test_full_pipeline_with_synthetic_data(tmp_path, monkeypatch):
