@@ -7,8 +7,8 @@ from upbit_mtf_strategy import DEFAULT_MTF_PARAMS, MultiTimeframeStrategy
 
 def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["FULL_LONG_PCT"] == 0.94
-    assert DEFAULT_MTF_PARAMS["REDUCED_PCT"] == 0.5578
-    assert DEFAULT_MTF_PARAMS["REDUCED_HIGH_PCT"] == 0.5578
+    assert DEFAULT_MTF_PARAMS["REDUCED_PCT"] == 0.576
+    assert DEFAULT_MTF_PARAMS["REDUCED_HIGH_PCT"] == 0.576
     assert DEFAULT_MTF_PARAMS["REDUCED_LOW_PCT"] == 0.00
     assert DEFAULT_MTF_PARAMS["MACRO_FULL_THRESHOLD"] == 0.62
     assert DEFAULT_MTF_PARAMS["MACRO_REDUCED_THRESHOLD"] == 0.45
@@ -19,7 +19,7 @@ def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["MAX_MACRO_DRAWDOWN"] == 0.10
     assert DEFAULT_MTF_PARAMS["STATE_CONFIRM_BARS"] == 2
     assert DEFAULT_MTF_PARAMS["MIN_STATE_HOLD_BARS"] == 1
-    assert DEFAULT_MTF_PARAMS["MIN_REBALANCE_FRACTION"] == 0.0
+    assert DEFAULT_MTF_PARAMS["MIN_REBALANCE_FRACTION"] == 0.12
 
 
 def _make_interval_df(interval_minutes: int, closes: list[float]) -> pd.DataFrame:
