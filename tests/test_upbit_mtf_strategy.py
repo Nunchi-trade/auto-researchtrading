@@ -7,8 +7,8 @@ from upbit_mtf_strategy import DEFAULT_MTF_PARAMS, MultiTimeframeStrategy
 
 def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["FULL_LONG_PCT"] == 0.90
-    assert DEFAULT_MTF_PARAMS["REDUCED_PCT"] == 0.55
-    assert DEFAULT_MTF_PARAMS["REDUCED_HIGH_PCT"] == 0.55
+    assert DEFAULT_MTF_PARAMS["REDUCED_PCT"] == 0.549
+    assert DEFAULT_MTF_PARAMS["REDUCED_HIGH_PCT"] == 0.549
     assert DEFAULT_MTF_PARAMS["REDUCED_LOW_PCT"] == 0.30
     assert DEFAULT_MTF_PARAMS["MACRO_FULL_THRESHOLD"] == 0.62
     assert DEFAULT_MTF_PARAMS["MACRO_REDUCED_THRESHOLD"] == 0.45
@@ -17,6 +17,7 @@ def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["MICRO_EXIT_FULL_THRESHOLD"] == 0.46
     assert DEFAULT_MTF_PARAMS["MICRO_REDUCED_THRESHOLD"] == 0.40
     assert DEFAULT_MTF_PARAMS["MAX_MACRO_DRAWDOWN"] == 0.10
+    assert DEFAULT_MTF_PARAMS["STATE_CONFIRM_BARS"] == 2
     assert DEFAULT_MTF_PARAMS["MIN_STATE_HOLD_BARS"] == 1
     assert DEFAULT_MTF_PARAMS["MIN_REBALANCE_FRACTION"] == 0.0
 
@@ -283,8 +284,11 @@ def test_full_long_holds_through_borderline_reduced_signal():
         **DEFAULT_MTF_PARAMS,
         "FULL_LONG_PCT": 0.90,
         "REDUCED_PCT": 0.55,
+        "REDUCED_HIGH_PCT": 0.55,
         "MICRO_FULL_THRESHOLD": 0.50,
         "MICRO_EXIT_FULL_THRESHOLD": 0.46,
+        "STATE_CONFIRM_BARS": 0,
+        "MIN_STATE_HOLD_BARS": 0,
     }
     strategy = MultiTimeframeStrategy(interval_data, params=params)
     strategy.position_state["KRW-BTC"] = "full_long"
@@ -318,8 +322,11 @@ def test_full_long_reduces_when_micro_breaks_exit_threshold():
         **DEFAULT_MTF_PARAMS,
         "FULL_LONG_PCT": 0.90,
         "REDUCED_PCT": 0.55,
+        "REDUCED_HIGH_PCT": 0.55,
         "MICRO_FULL_THRESHOLD": 0.50,
         "MICRO_EXIT_FULL_THRESHOLD": 0.46,
+        "STATE_CONFIRM_BARS": 0,
+        "MIN_STATE_HOLD_BARS": 0,
     }
     strategy = MultiTimeframeStrategy(interval_data, params=params)
     strategy.position_state["KRW-BTC"] = "full_long"
@@ -387,8 +394,11 @@ def test_reduced_waits_for_stronger_micro_before_promoting_to_full_long():
         **DEFAULT_MTF_PARAMS,
         "FULL_LONG_PCT": 0.90,
         "REDUCED_PCT": 0.55,
+        "REDUCED_HIGH_PCT": 0.55,
         "MICRO_FULL_THRESHOLD": 0.50,
         "MICRO_ENTER_FULL_THRESHOLD": 0.55,
+        "STATE_CONFIRM_BARS": 0,
+        "MIN_STATE_HOLD_BARS": 0,
     }
     strategy = MultiTimeframeStrategy(interval_data, params=params)
     strategy.position_state["KRW-BTC"] = "reduced_high"
@@ -422,8 +432,11 @@ def test_flat_enters_reduced_before_full_long_when_micro_entry_band_not_cleared(
         **DEFAULT_MTF_PARAMS,
         "FULL_LONG_PCT": 0.90,
         "REDUCED_PCT": 0.55,
+        "REDUCED_HIGH_PCT": 0.55,
         "MICRO_FULL_THRESHOLD": 0.50,
         "MICRO_ENTER_FULL_THRESHOLD": 0.55,
+        "STATE_CONFIRM_BARS": 0,
+        "MIN_STATE_HOLD_BARS": 0,
     }
     strategy = MultiTimeframeStrategy(interval_data, params=params)
     strategy.position_state["KRW-BTC"] = "flat"
@@ -458,8 +471,11 @@ def test_reduced_promotes_to_full_long_after_entry_threshold_clears():
         **DEFAULT_MTF_PARAMS,
         "FULL_LONG_PCT": 0.90,
         "REDUCED_PCT": 0.55,
+        "REDUCED_HIGH_PCT": 0.55,
         "MICRO_FULL_THRESHOLD": 0.50,
         "MICRO_ENTER_FULL_THRESHOLD": 0.55,
+        "STATE_CONFIRM_BARS": 0,
+        "MIN_STATE_HOLD_BARS": 0,
     }
     strategy = MultiTimeframeStrategy(interval_data, params=params)
     strategy.position_state["KRW-BTC"] = "reduced_high"
