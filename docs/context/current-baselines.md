@@ -31,9 +31,9 @@ Key parameters:
 
 Current DD<15 autoresearch candidate under dynamic slippage and taker-fee costs:
 
-- `FULL_LONG_PCT=0.90`
-- `REDUCED_PCT=0.556`
-- `REDUCED_HIGH_PCT=0.556`
+- `FULL_LONG_PCT=0.94`
+- `REDUCED_PCT=0.5578`
+- `REDUCED_HIGH_PCT=0.5578`
 - `REDUCED_LOW_PCT=0.00`
 - `MACRO_FULL_THRESHOLD=0.62`
 - `MACRO_REDUCED_THRESHOLD=0.45`
@@ -47,29 +47,29 @@ Current DD<15 autoresearch candidate under dynamic slippage and taker-fee costs:
 
 Observed targeted-search result:
 
-- objective: `35571.23`
-- full-period excess return: `35605.54%`
-- full-period max drawdown: `14.98%`
-- test-period excess return: `64.55%`
+- objective: `39790.50`
+- full-period excess return: `39820.66%`
+- full-period max drawdown: `14.99%`
+- test-period excess return: `69.27%`
 
 Current default-parameter evaluation snapshot:
 
-- params: `FULL_LONG_PCT=0.90`, `REDUCED_PCT=0.556`, `REDUCED_HIGH_PCT=0.556`, `REDUCED_LOW_PCT=0.00`, `MACRO_FULL_THRESHOLD=0.62`, `MACRO_REDUCED_THRESHOLD=0.45`, `MICRO_FULL_THRESHOLD=0.50`, `MICRO_ENTER_FULL_THRESHOLD=0.52`, `MICRO_EXIT_FULL_THRESHOLD=0.46`, `MICRO_REDUCED_THRESHOLD=0.40`, `MAX_MACRO_DRAWDOWN=0.10`, `STATE_CONFIRM_BARS=2`, `MIN_STATE_HOLD_BARS=1`
-- objective: `35571.23`
-- full-period return: `37898.47%`
+- params: `FULL_LONG_PCT=0.94`, `REDUCED_PCT=0.5578`, `REDUCED_HIGH_PCT=0.5578`, `REDUCED_LOW_PCT=0.00`, `MACRO_FULL_THRESHOLD=0.62`, `MACRO_REDUCED_THRESHOLD=0.45`, `MICRO_FULL_THRESHOLD=0.50`, `MICRO_ENTER_FULL_THRESHOLD=0.52`, `MICRO_EXIT_FULL_THRESHOLD=0.46`, `MICRO_REDUCED_THRESHOLD=0.40`, `MAX_MACRO_DRAWDOWN=0.10`, `STATE_CONFIRM_BARS=2`, `MIN_STATE_HOLD_BARS=1`
+- objective: `39790.50`
+- full-period return: `42113.59%`
 - full-period buy-and-hold: `2292.9%`
-- full-period excess return: `35605.54%`
-- full-period max drawdown: `14.98%`
-- full-period trades: `2845`
-- test-period return: `78.39%`
+- full-period excess return: `39820.66%`
+- full-period max drawdown: `14.99%`
+- full-period trades: `2720`
+- test-period return: `83.11%`
 - test-period buy-and-hold: `13.84%`
-- test-period excess return: `64.55%`
-- test-period max drawdown: `6.02%`
+- test-period excess return: `69.27%`
+- test-period max drawdown: `6.24%`
 
 Walk-forward validation snapshot for the current candidate:
 
-- 180d test windows, 2y train / 180d step: mean excess `-9.79%`, min excess `-232.29%`, max test DD `9.67%`, positive ratio `61.54%`
-- 1y test windows, 2y train / 1y step: mean excess `-4.17%`, min excess `-95.55%`, max test DD `9.67%`, positive ratio `50.00%`
+- 180d test windows, 2y train / 180d step: mean excess `-9.06%`, min excess `-236.53%`, max test DD `10.48%`, positive ratio `61.54%`
+- 1y test windows, 2y train / 1y step: mean excess `-2.31%`, min excess `-100.06%`, max test DD `10.48%`, positive ratio `66.67%`
 
 ## Upbit Spot Snapshot
 
