@@ -32,6 +32,83 @@ TEST_EXCESS_WEIGHT = 0.35
 TRADE_PENALTY_WEIGHT = 0.02
 
 
+def _slice_symbol_frames(data: dict[str, pd.DataFrame], start_ts: int, end_ts: int) -> dict[str, pd.DataFrame]:
+    sliced: dict[str, pd.DataFrame] = {}
+    for symbol, df in data.items():
+        window = df[(df["timestamp"] >= start_ts) & (df["timestamp"] <= end_ts)].reset_index(drop=True)
+        if not window.empty:
+            sliced[symbol] = window
+    return sliced
+
+
+def _slice_interval_frames(
+    interval_data: dict[int, dict[str, pd.DataFrame]],
+    start_ts: int,
+    end_ts: int,
+) -> dict[int, dict[str, pd.DataFrame]]:
+    sliced: dict[int, dict[str, pd.DataFrame]] = {}
+    for interval_minutes, symbol_frames in interval_data.items():
+        interval_slice = _slice_symbol_frames(symbol_frames, start_ts, end_ts)
+        if interval_slice:
+            sliced[interval_minutes] = interval_slice
+    return sliced
+
+
+def _slice_feature_store(
+    feature_store: dict[int, dict[str, dict[str, np.ndarray]]],
+    start_ts: int,
+    end_ts: int,
+) -> dict[int, dict[str, dict[str, np.ndarray]]]:
+    sliced: dict[int, dict[str, dict[str, np.ndarray]]] = {}
+    for interval_minutes, symbol_store in feature_store.items():
+        interval_slice: dict[str, dict[str, np.ndarray]] = {}
+        for symbol, features in symbol_store.items():
+            timestamps = features["timestamp"]
+            mask = (timestamps >= start_ts) & (timestamps <= end_ts)
+            if not np.any(mask):
+                continue
+            interval_slice[symbol] = {
+                name: values[mask]
+                for name, values in features.items()
+            }
+        if interval_slice:
+            sliced[interval_minutes] = interval_slice
+    return sliced
+
+
+def build_walkforward_windows(
+    base_df: pd.DataFrame,
+    *,
+    train_bars: int,
+    test_bars: int,
+    step_bars: int | None = None,
+) -> list[dict[str, int]]:
+    if train_bars <= 0 or test_bars <= 0:
+        raise ValueError("train_bars and test_bars must be positive")
+
+    step = step_bars or test_bars
+    if step <= 0:
+        raise ValueError("step_bars must be positive")
+
+    windows: list[dict[str, int]] = []
+    total_rows = len(base_df)
+    for test_start_index in range(train_bars, total_rows - test_bars + 1, step):
+        train_start_index = test_start_index - train_bars
+        train_end_index = test_start_index - 1
+        test_end_index = test_start_index + test_bars - 1
+        windows.append(
+            {
+                "train_start_ts": int(base_df["timestamp"].iloc[train_start_index]),
+                "train_end_ts": int(base_df["timestamp"].iloc[train_end_index]),
+                "test_start_ts": int(base_df["timestamp"].iloc[test_start_index]),
+                "test_end_ts": int(base_df["timestamp"].iloc[test_end_index]),
+                "train_bars": train_bars,
+                "test_bars": test_bars,
+            }
+        )
+    return windows
+
+
 def iter_parameter_grid(grid: dict[str, list]) -> Iterator[dict]:
     keys = list(grid.keys())
     for values in itertools.product(*(grid[key] for key in keys)):
@@ -207,6 +284,97 @@ def evaluate_parameter_set(
         "params": params.copy(),
         "objective_score": objective_score,
         "metrics": metrics,
+    }
+
+
+def evaluate_walkforward_parameter_set(
+    params: dict,
+    datasets: dict,
+    *,
+    train_bars: int,
+    test_bars: int,
+    step_bars: int | None = None,
+    base_interval: int = 60,
+) -> dict:
+    base_full = datasets["base_full"]
+    if not base_full:
+        return {
+            "params": params.copy(),
+            "aggregate": {
+                "num_windows": 0,
+                "mean_test_excess_return_pct": 0.0,
+                "min_test_excess_return_pct": 0.0,
+                "max_test_drawdown_pct": 0.0,
+                "positive_test_window_ratio": 0.0,
+            },
+            "windows": [],
+        }
+    full_feature_store = datasets.get("feature_store") or build_feature_store(datasets["interval_data"])
+
+    symbol = sorted(base_full.keys())[0]
+    windows = build_walkforward_windows(
+        base_full[symbol],
+        train_bars=train_bars,
+        test_bars=test_bars,
+        step_bars=step_bars,
+    )
+
+    window_results: list[dict] = []
+    for index, window in enumerate(windows, start=1):
+        train_feature_store = _slice_feature_store(
+            full_feature_store,
+            window["train_start_ts"],
+            window["train_end_ts"],
+        )
+        test_feature_store = _slice_feature_store(
+            full_feature_store,
+            window["train_start_ts"],
+            window["test_end_ts"],
+        )
+        train_base = _slice_symbol_frames(base_full, window["train_start_ts"], window["train_end_ts"])
+        test_base = _slice_symbol_frames(base_full, window["test_start_ts"], window["test_end_ts"])
+
+        train_result = run_upbit_backtest(
+            MultiTimeframeStrategy({}, params=params, feature_store=train_feature_store),
+            train_base,
+        )
+        test_result = run_upbit_backtest(
+            MultiTimeframeStrategy({}, params=params, feature_store=test_feature_store),
+            test_base,
+        )
+
+        window_results.append(
+            {
+                "index": index,
+                **window,
+                "train_metrics": _extract_metrics(train_result, compute_buy_hold_return_pct(train_base)),
+                "test_metrics": _extract_metrics(test_result, compute_buy_hold_return_pct(test_base)),
+            }
+        )
+
+    if not window_results:
+        aggregate = {
+            "num_windows": 0,
+            "mean_test_excess_return_pct": 0.0,
+            "min_test_excess_return_pct": 0.0,
+            "max_test_drawdown_pct": 0.0,
+            "positive_test_window_ratio": 0.0,
+        }
+    else:
+        test_excess = np.array([item["test_metrics"]["excess_return_pct"] for item in window_results], dtype=float)
+        test_drawdowns = np.array([item["test_metrics"]["drawdown_pct"] for item in window_results], dtype=float)
+        aggregate = {
+            "num_windows": len(window_results),
+            "mean_test_excess_return_pct": float(test_excess.mean()),
+            "min_test_excess_return_pct": float(test_excess.min()),
+            "max_test_drawdown_pct": float(test_drawdowns.max()),
+            "positive_test_window_ratio": float((test_excess > 0).mean()),
+        }
+
+    return {
+        "params": params.copy(),
+        "aggregate": aggregate,
+        "windows": window_results,
     }
 
 

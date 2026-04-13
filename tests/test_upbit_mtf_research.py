@@ -1,7 +1,15 @@
 from pathlib import Path
+from types import SimpleNamespace
+
+import pandas as pd
 
 import upbit_mtf_research
-from upbit_mtf_research import compute_full_period_excess_score, search_parameter_grid
+from upbit_mtf_research import (
+    build_walkforward_windows,
+    compute_full_period_excess_score,
+    evaluate_walkforward_parameter_set,
+    search_parameter_grid,
+)
 
 
 def test_full_period_excess_score_rejects_drawdown_above_20pct():
@@ -184,3 +192,115 @@ def test_results_path_expands_user_home(tmp_path, monkeypatch):
     assert saved.exists()
     loaded = upbit_mtf_research.load_search_results("~/mtf-results.jsonl")
     assert loaded[0]["params"] == {"FULL_LONG_PCT": 0.9}
+
+
+def test_build_walkforward_windows_advances_by_step():
+    base_df = pd.DataFrame({
+        "timestamp": list(range(10)),
+        "close": [100.0 + i for i in range(10)],
+    })
+
+    windows = build_walkforward_windows(base_df, train_bars=4, test_bars=2, step_bars=2)
+
+    assert [window["train_start_ts"] for window in windows] == [0, 2, 4]
+    assert [window["test_start_ts"] for window in windows] == [4, 6, 8]
+    assert [window["test_end_ts"] for window in windows] == [5, 7, 9]
+
+
+def test_evaluate_walkforward_parameter_set_aggregates_test_windows(monkeypatch):
+    base_df = pd.DataFrame(
+        {
+            "timestamp": list(range(8)),
+            "open": [100.0] * 8,
+            "high": [101.0] * 8,
+            "low": [99.0] * 8,
+            "close": [100.0, 102.0, 104.0, 106.0, 108.0, 110.0, 112.0, 114.0],
+            "volume": [1.0] * 8,
+        }
+    )
+    datasets = {
+        "interval_data": {60: {"KRW-BTC": base_df}},
+        "base_full": {"KRW-BTC": base_df},
+    }
+    returns = iter([10.0, 6.0, 20.0, 8.0])
+    drawdowns = iter([4.0, 2.0, 5.0, 3.0])
+    trades = iter([100, 40, 120, 50])
+
+    def fake_run(strategy, data):
+        return SimpleNamespace(
+            total_return_pct=next(returns),
+            max_drawdown_pct=next(drawdowns),
+            num_trades=next(trades),
+            sharpe=1.0,
+        )
+
+    monkeypatch.setattr(upbit_mtf_research, "run_upbit_backtest", fake_run)
+    monkeypatch.setattr(upbit_mtf_research, "compute_buy_hold_return_pct", lambda data: 5.0)
+
+    result = evaluate_walkforward_parameter_set(
+        params={"FULL_LONG_PCT": 0.9},
+        datasets=datasets,
+        train_bars=4,
+        test_bars=2,
+        step_bars=2,
+        base_interval=60,
+    )
+
+    assert result["aggregate"]["num_windows"] == 2
+    assert result["aggregate"]["mean_test_excess_return_pct"] == 2.0
+    assert result["aggregate"]["min_test_excess_return_pct"] == 1.0
+    assert result["aggregate"]["max_test_drawdown_pct"] == 3.0
+    assert result["aggregate"]["positive_test_window_ratio"] == 1.0
+    assert [window["test_metrics"]["excess_return_pct"] for window in result["windows"]] == [1.0, 3.0]
+
+
+def test_evaluate_walkforward_parameter_set_passes_causal_feature_store_ranges(monkeypatch):
+    base_df = pd.DataFrame(
+        {
+            "timestamp": list(range(6)),
+            "open": [100.0] * 6,
+            "high": [101.0] * 6,
+            "low": [99.0] * 6,
+            "close": [100.0, 101.0, 102.0, 103.0, 104.0, 105.0],
+            "volume": [1.0] * 6,
+        }
+    )
+    datasets = {
+        "interval_data": {
+            60: {"KRW-BTC": base_df},
+            240: {"KRW-BTC": base_df},
+        },
+        "base_full": {"KRW-BTC": base_df},
+    }
+    strategy_interval_data: list[dict] = []
+    feature_store_max_timestamps: list[int] = []
+
+    class FakeStrategy:
+        def __init__(self, interval_data, params=None, feature_store=None):
+            strategy_interval_data.append(interval_data)
+            feature_store_max_timestamps.append(
+                int(feature_store[60]["KRW-BTC"]["timestamp"].max())
+            )
+
+    def fake_run(strategy, data):
+        return SimpleNamespace(
+            total_return_pct=10.0,
+            max_drawdown_pct=2.0,
+            num_trades=10,
+            sharpe=1.0,
+        )
+
+    monkeypatch.setattr(upbit_mtf_research, "MultiTimeframeStrategy", FakeStrategy)
+    monkeypatch.setattr(upbit_mtf_research, "run_upbit_backtest", fake_run)
+    monkeypatch.setattr(upbit_mtf_research, "compute_buy_hold_return_pct", lambda data: 5.0)
+
+    evaluate_walkforward_parameter_set(
+        params={"FULL_LONG_PCT": 0.9},
+        datasets=datasets,
+        train_bars=4,
+        test_bars=2,
+        step_bars=2,
+    )
+
+    assert strategy_interval_data == [{}, {}]
+    assert feature_store_max_timestamps == [3, 5]
