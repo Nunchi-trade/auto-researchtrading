@@ -32,7 +32,7 @@ MICRO_BREAKOUT_BUFFER = 0.998
 MICRO_MOMENTUM_THRESHOLD = 0.0
 
 STATE_CONFIRM_BARS = 0       # full_long<->reduced 전환에 필요한 연속 확인 봉 수
-MIN_STATE_HOLD_BARS = 0      # 전환 후 최소 유지 봉 수 (flat 종료 제외)
+MIN_STATE_HOLD_BARS = 1      # 전환 후 최소 유지 봉 수 (flat 종료 제외)
 MIN_REBALANCE_FRACTION = 0.0 # 포지션 변화 비율이 이 값 미만이면 리밸런싱 스킵
 
 DEFAULT_MTF_PARAMS = {

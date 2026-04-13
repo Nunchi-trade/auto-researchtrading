@@ -42,27 +42,33 @@ Current DD<15 autoresearch candidate under dynamic slippage and taker-fee costs:
 - `MICRO_EXIT_FULL_THRESHOLD=0.46`
 - `MICRO_REDUCED_THRESHOLD=0.40`
 - `MAX_MACRO_DRAWDOWN=0.10`
+- `MIN_STATE_HOLD_BARS=1`
 
 Observed targeted-search result:
 
-- objective: `15494.35`
-- full-period excess return: `15583.48%`
-- full-period max drawdown: `13.64%`
-- test-period excess return: `41.38%`
+- objective: `16906.35`
+- full-period excess return: `16990.29%`
+- full-period max drawdown: `13.82%`
+- test-period excess return: `38.88%`
 
 Current default-parameter evaluation snapshot:
 
-- params: `FULL_LONG_PCT=0.90`, `REDUCED_PCT=0.55`, `REDUCED_HIGH_PCT=0.55`, `REDUCED_LOW_PCT=0.30`, `MACRO_FULL_THRESHOLD=0.62`, `MACRO_REDUCED_THRESHOLD=0.45`, `MICRO_FULL_THRESHOLD=0.50`, `MICRO_ENTER_FULL_THRESHOLD=0.54`, `MICRO_EXIT_FULL_THRESHOLD=0.46`, `MICRO_REDUCED_THRESHOLD=0.40`, `MAX_MACRO_DRAWDOWN=0.10`
-- objective: `15494.35`
-- full-period return: `17876.41%`
+- params: `FULL_LONG_PCT=0.90`, `REDUCED_PCT=0.55`, `REDUCED_HIGH_PCT=0.55`, `REDUCED_LOW_PCT=0.30`, `MACRO_FULL_THRESHOLD=0.62`, `MACRO_REDUCED_THRESHOLD=0.45`, `MICRO_FULL_THRESHOLD=0.50`, `MICRO_ENTER_FULL_THRESHOLD=0.54`, `MICRO_EXIT_FULL_THRESHOLD=0.46`, `MICRO_REDUCED_THRESHOLD=0.40`, `MAX_MACRO_DRAWDOWN=0.10`, `MIN_STATE_HOLD_BARS=1`
+- objective: `16906.35`
+- full-period return: `19283.22%`
 - full-period buy-and-hold: `2292.9%`
-- full-period excess return: `15583.48%`
-- full-period max drawdown: `13.64%`
-- full-period trades: `5181`
-- test-period return: `55.22%`
+- full-period excess return: `16990.29%`
+- full-period max drawdown: `13.82%`
+- full-period trades: `4877`
+- test-period return: `52.72%`
 - test-period buy-and-hold: `13.84%`
-- test-period excess return: `41.38%`
-- test-period max drawdown: `6.90%`
+- test-period excess return: `38.88%`
+- test-period max drawdown: `6.46%`
+
+Walk-forward validation snapshot for the current candidate:
+
+- 180d test windows, 2y train / 180d step: mean excess `-15.64%`, min excess `-257.43%`, max test DD `10.33%`, positive ratio `61.54%`
+- 1y test windows, 2y train / 1y step: mean excess `-18.98%`, min excess `-124.58%`, max test DD `10.48%`, positive ratio `50.00%`
 
 ## Upbit Spot Snapshot
 

@@ -17,6 +17,8 @@ def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["MICRO_EXIT_FULL_THRESHOLD"] == 0.46
     assert DEFAULT_MTF_PARAMS["MICRO_REDUCED_THRESHOLD"] == 0.40
     assert DEFAULT_MTF_PARAMS["MAX_MACRO_DRAWDOWN"] == 0.10
+    assert DEFAULT_MTF_PARAMS["MIN_STATE_HOLD_BARS"] == 1
+    assert DEFAULT_MTF_PARAMS["MIN_REBALANCE_FRACTION"] == 0.0
 
 
 def _make_interval_df(interval_minutes: int, closes: list[float]) -> pd.DataFrame:
