@@ -190,11 +190,11 @@
 </div>
 <div class="flex items-center justify-between">
 <div class="flex items-center gap-4">
-<h1 class="text-2xl font-black font-headline tracking-tighter text-on-surface">Upbit MTF Strategy</h1>
-<div class="flex items-center bg-surface-container-high border border-outline-variant/20 px-3 py-1 rounded cursor-pointer hover:bg-surface-variant transition-colors">
-<span class="text-sm font-semibold mr-2">Upbit MTF Strategy</span>
-<span class="material-symbols-outlined text-sm">expand_more</span>
-</div>
+<h1 class="text-2xl font-black font-headline tracking-tighter text-on-surface" data-field="strategy.display_name">Loading...</h1>
+<select id="strategy-selector" class="bg-surface-container-high border border-outline-variant/20 px-3 py-2 rounded text-sm font-semibold text-on-surface cursor-pointer hover:bg-surface-variant transition-colors focus:outline-none focus:border-primary">
+<option value="mtf">Upbit MTF Strategy</option>
+<option value="spot">Upbit Spot Strategy</option>
+</select>
 </div>
 <div class="flex gap-1 bg-surface-container-highest/30 p-1 rounded-lg">
 <button class="px-6 py-2 text-xs font-bold uppercase tracking-widest rounded bg-surface-container-high text-primary">Overview</button>
@@ -208,50 +208,46 @@
 <!-- Strategy Overview Card -->
 <section class="bg-surface-container rounded-xl p-8 border-l-4 border-primary overflow-hidden relative">
 <div class="absolute top-0 right-0 p-8">
-<span class="bg-primary/10 text-primary border border-primary/20 px-4 py-1 rounded-full text-xs font-black tracking-widest">FULL_LONG</span>
+<span class="bg-primary/10 text-primary border border-primary/20 px-4 py-1 rounded-full text-xs font-black tracking-widest" data-field="strategy.state">--</span>
 </div>
 <div class="space-y-1 mb-8">
-<h2 class="text-3xl font-black font-headline tracking-tighter">Upbit MTF Strategy</h2>
-<p class="text-on-surface-variant text-sm flex items-center gap-2">
-                        Multi-Timeframe State Machine — <span class="text-primary italic">flat → reduced_high → full_long</span>
+<h2 class="text-3xl font-black font-headline tracking-tighter" data-field="strategy.display_name_hero">Loading...</h2>
+<p class="text-on-surface-variant text-sm flex items-center gap-2" data-field="strategy.subtitle">
+                        Loading...
 </p>
 </div>
-<div class="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-9 gap-4">
+<div class="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-8 gap-4">
 <div class="space-y-1">
 <p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Total Return</p>
-<p class="font-mono text-xl font-bold text-primary tracking-tight">+54,858.37%</p>
+<p class="font-mono text-xl font-bold text-primary tracking-tight" data-field="metrics.full_return">--</p>
 </div>
 <div class="space-y-1">
 <p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Test Return</p>
-<p class="font-mono text-xl font-bold text-primary tracking-tight">+75.74%</p>
+<p class="font-mono text-xl font-bold text-primary tracking-tight" data-field="metrics.test_return">--</p>
 </div>
 <div class="space-y-1">
 <p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Trades</p>
-<p class="font-mono text-xl font-bold tracking-tight">1,216</p>
+<p class="font-mono text-xl font-bold tracking-tight" data-field="metrics.trades">--</p>
 </div>
 <div class="space-y-1">
 <p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Max DD</p>
-<p class="font-mono text-xl font-bold text-tertiary-container tracking-tight">14.52%</p>
+<p class="font-mono text-xl font-bold text-tertiary-container tracking-tight" data-field="metrics.full_dd">--</p>
 </div>
 <div class="space-y-1">
 <p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Test DD</p>
-<p class="font-mono text-xl font-bold text-tertiary-container tracking-tight">7.09%</p>
+<p class="font-mono text-xl font-bold text-tertiary-container tracking-tight" data-field="metrics.test_dd">--</p>
 </div>
 <div class="space-y-1">
 <p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Sharpe</p>
-<p class="font-mono text-xl font-bold tracking-tight">4.13</p>
+<p class="font-mono text-xl font-bold tracking-tight" data-field="metrics.sharpe">--</p>
 </div>
 <div class="space-y-1">
 <p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Win Rate</p>
-<p class="font-mono text-xl font-bold tracking-tight">62%</p>
+<p class="font-mono text-xl font-bold tracking-tight" data-field="metrics.win_rate">--</p>
 </div>
 <div class="space-y-1">
 <p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Profit Factor</p>
-<p class="font-mono text-xl font-bold tracking-tight">2.48</p>
-</div>
-<div class="space-y-1">
-<p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Avg Hold</p>
-<p class="font-mono text-xl font-bold tracking-tight">18h</p>
+<p class="font-mono text-xl font-bold tracking-tight" data-field="metrics.profit_factor">--</p>
 </div>
 </div>
 </section>
@@ -315,47 +311,8 @@
 <th class="py-3 px-2">Result</th>
 </tr>
 </thead>
-<tbody class="font-mono text-[11px]">
-<tr class="border-b border-surface-container-highest/20 hover:bg-surface-container-high transition-colors">
-<td class="py-3 px-2 text-on-surface-variant">1216</td>
-<td class="py-3 px-2">10-24 14:00</td>
-<td class="py-3 px-2"><span class="text-primary font-bold">BUY</span></td>
-<td class="py-3 px-2">92,142k</td>
-<td class="py-3 px-2">RED → FULL</td>
-<td class="py-3 px-2">--</td>
-</tr>
-<tr class="border-b border-surface-container-highest/20 hover:bg-surface-container-high transition-colors">
-<td class="py-3 px-2 text-on-surface-variant">1215</td>
-<td class="py-3 px-2">10-23 09:00</td>
-<td class="py-3 px-2"><span class="text-tertiary-container font-bold">REDUCE</span></td>
-<td class="py-3 px-2">94,210k</td>
-<td class="py-3 px-2">FULL → RED</td>
-<td class="py-3 px-2 text-primary">+2.1%</td>
-</tr>
-<tr class="border-b border-surface-container-highest/20 hover:bg-surface-container-high transition-colors">
-<td class="py-3 px-2 text-on-surface-variant">1214</td>
-<td class="py-3 px-2">10-21 18:00</td>
-<td class="py-3 px-2"><span class="text-error font-bold">SELL</span></td>
-<td class="py-3 px-2">89,150k</td>
-<td class="py-3 px-2">RED → FLAT</td>
-<td class="py-3 px-2 text-error">-0.4%</td>
-</tr>
-<tr class="border-b border-surface-container-highest/20 hover:bg-surface-container-high transition-colors">
-<td class="py-3 px-2 text-on-surface-variant">1213</td>
-<td class="py-3 px-2">10-20 21:00</td>
-<td class="py-3 px-2"><span class="text-primary font-bold">BUY</span></td>
-<td class="py-3 px-2">88,040k</td>
-<td class="py-3 px-2">FLAT → RED</td>
-<td class="py-3 px-2">--</td>
-</tr>
-<tr class="border-b border-surface-container-highest/20 hover:bg-surface-container-high transition-colors">
-<td class="py-3 px-2 text-on-surface-variant">1212</td>
-<td class="py-3 px-2">10-18 11:00</td>
-<td class="py-3 px-2"><span class="text-error font-bold">SELL</span></td>
-<td class="py-3 px-2">91,000k</td>
-<td class="py-3 px-2">RED → FLAT</td>
-<td class="py-3 px-2 text-error">-1.2%</td>
-</tr>
+<tbody class="font-mono text-[11px]" data-field="signals.container">
+<tr><td class="py-3 px-2 text-center text-on-surface-variant" colspan="6">시그널을 불러오는 중...</td></tr>
 </tbody>
 </table>
 </div>
@@ -371,29 +328,15 @@
 <div class="flex justify-between items-center mb-6">
 <div>
 <h4 class="text-sm font-bold">180d 테스트 창 (2y 학습)</h4>
-<p class="text-xs text-on-surface-variant">OOS Positive Edge: 69.23%</p>
+<p class="text-xs text-on-surface-variant">OOS Positive Edge: <span data-field="wf.180d.positive_ratio">--</span></p>
 </div>
 <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">analytics</span>
 </div>
-<div class="h-24 flex items-end gap-1.5 mb-6">
-<div class="w-full bg-primary h-[80%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[95%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[60%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[85%] rounded-t-sm"></div>
-<div class="w-full bg-tertiary-container h-[40%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[70%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[90%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[75%] rounded-t-sm"></div>
-<div class="w-full bg-tertiary-container h-[30%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[65%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[80%] rounded-t-sm"></div>
-<div class="w-full bg-tertiary-container h-[45%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[90%] rounded-t-sm"></div>
-</div>
+<div class="h-24 flex items-end gap-1.5 mb-6" data-field="wf.180d.bars"></div>
 <div class="flex justify-between font-mono text-[10px] text-on-surface-variant bg-surface-container-low p-3 rounded">
-<div>CAR: <span class="text-on-surface">32.4%</span></div>
-<div>MaxDD: <span class="text-on-surface">8.1%</span></div>
-<div>Sharpe: <span class="text-on-surface">2.41</span></div>
+<div>Mean Excess: <span class="text-on-surface" data-field="wf.180d.mean_excess">--</span></div>
+<div>Min: <span class="text-on-surface" data-field="wf.180d.min_excess">--</span></div>
+<div>MaxDD: <span class="text-on-surface" data-field="wf.180d.max_dd">--</span></div>
 </div>
 </div>
 <!-- Card B -->
@@ -401,22 +344,15 @@
 <div class="flex justify-between items-center mb-6">
 <div>
 <h4 class="text-sm font-bold">1y 테스트 창 (2y 학습)</h4>
-<p class="text-xs text-on-surface-variant">OOS Positive Edge: 50.00%</p>
+<p class="text-xs text-on-surface-variant">OOS Positive Edge: <span data-field="wf.1y.positive_ratio">--</span></p>
 </div>
 <span class="material-symbols-outlined text-on-surface-variant">analytics</span>
 </div>
-<div class="h-24 flex items-end gap-3 mb-6 px-4">
-<div class="w-full bg-primary h-[60%] rounded-t-sm"></div>
-<div class="w-full bg-tertiary-container h-[70%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[85%] rounded-t-sm"></div>
-<div class="w-full bg-primary h-[40%] rounded-t-sm"></div>
-<div class="w-full bg-tertiary-container h-[90%] rounded-t-sm"></div>
-<div class="w-full bg-tertiary-container h-[55%] rounded-t-sm"></div>
-</div>
+<div class="h-24 flex items-end gap-3 mb-6 px-4" data-field="wf.1y.bars"></div>
 <div class="flex justify-between font-mono text-[10px] text-on-surface-variant bg-surface-container-low p-3 rounded">
-<div>CAR: <span class="text-on-surface">18.2%</span></div>
-<div>MaxDD: <span class="text-on-surface">11.4%</span></div>
-<div>Sharpe: <span class="text-on-surface">1.88</span></div>
+<div>Mean Excess: <span class="text-on-surface" data-field="wf.1y.mean_excess">--</span></div>
+<div>Min: <span class="text-on-surface" data-field="wf.1y.min_excess">--</span></div>
+<div>MaxDD: <span class="text-on-surface" data-field="wf.1y.max_dd">--</span></div>
 </div>
 </div>
 </div>
@@ -427,39 +363,8 @@
 <h3 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant">현재 파라미터 Snapshot</h3>
 <div class="h-[1px] flex-1 bg-outline-variant/10"></div>
 </div>
-<div class="bg-surface-container-low rounded-lg p-6 grid grid-cols-2 lg:grid-cols-4 gap-y-4 gap-x-12 border border-outline-variant/5">
-<div class="flex justify-between border-b border-outline-variant/5 pb-2">
-<span class="text-[11px] font-bold text-on-surface-variant uppercase">FULL_LONG_PCT</span>
-<span class="font-mono text-[11px] text-primary">0.92</span>
-</div>
-<div class="flex justify-between border-b border-outline-variant/5 pb-2">
-<span class="text-[11px] font-bold text-on-surface-variant uppercase">REDUCED_PCT</span>
-<span class="font-mono text-[11px] text-primary">0.576</span>
-</div>
-<div class="flex justify-between border-b border-outline-variant/5 pb-2">
-<span class="text-[11px] font-bold text-on-surface-variant uppercase">MTF_THRESHOLD</span>
-<span class="font-mono text-[11px] text-primary">0.024</span>
-</div>
-<div class="flex justify-between border-b border-outline-variant/5 pb-2">
-<span class="text-[11px] font-bold text-on-surface-variant uppercase">SL_BUFFER</span>
-<span class="font-mono text-[11px] text-primary">1.50</span>
-</div>
-<div class="flex justify-between border-b border-outline-variant/5 pb-2">
-<span class="text-[11px] font-bold text-on-surface-variant uppercase">MA_PERIOD_1</span>
-<span class="font-mono text-[11px] text-on-surface">120</span>
-</div>
-<div class="flex justify-between border-b border-outline-variant/5 pb-2">
-<span class="text-[11px] font-bold text-on-surface-variant uppercase">MA_PERIOD_2</span>
-<span class="font-mono text-[11px] text-on-surface">480</span>
-</div>
-<div class="flex justify-between border-b border-outline-variant/5 pb-2">
-<span class="text-[11px] font-bold text-on-surface-variant uppercase">RSI_LB</span>
-<span class="font-mono text-[11px] text-on-surface">14</span>
-</div>
-<div class="flex justify-between border-b border-outline-variant/5 pb-2">
-<span class="text-[11px] font-bold text-on-surface-variant uppercase">ATR_MULT</span>
-<span class="font-mono text-[11px] text-on-surface">2.4</span>
-</div>
+<div class="bg-surface-container-low rounded-lg p-6 grid grid-cols-2 lg:grid-cols-4 gap-y-4 gap-x-12 border border-outline-variant/5" data-field="parameters.container">
+<div class="col-span-full text-center text-on-surface-variant text-sm">파라미터를 불러오는 중...</div>
 </div>
 </section>
 </div>
@@ -469,4 +374,241 @@
             </p>
 </footer>
 </main>
+<!-- API integration -->
+<div id="error-banner" class="fixed top-20 right-6 bg-error-container text-on-error-container px-4 py-3 rounded-lg shadow-xl hidden z-50" role="alert">
+  <div class="flex items-center gap-2">
+    <span class="material-symbols-outlined text-lg">error</span>
+    <span id="error-message" class="text-sm font-medium">API 연결 실패</span>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  const KRW = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 });
+  const pctStr = (v, digits = 2) => (v >= 0 ? '+' : '') + v.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + '%';
+  const pctPlain = (v, digits = 2) => v.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + '%';
+
+  const STRATEGY_META = {
+    mtf: {
+      display: 'Upbit MTF Strategy',
+      subtitle: 'Multi-Timeframe State Machine — flat → reduced_high → full_long',
+    },
+    spot: {
+      display: 'Upbit Spot Strategy',
+      subtitle: 'Mean-reversion + trend filter on 60m candles (EMA 44/100, RSI 11, MACD)',
+    },
+  };
+
+  function setField(name, value) {
+    document.querySelectorAll(`[data-field="${name}"]`).forEach((el) => { el.textContent = value; });
+  }
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function stateLabel(state) {
+    const map = { flat: 'FLAT', reduced_high: 'REDUCED', full_long: 'FULL_LONG', holding: 'HOLDING', inactive: 'INACTIVE' };
+    return map[state] || String(state).toUpperCase();
+  }
+
+  function actionClass(action) {
+    return { buy: 'text-primary', sell: 'text-error', reduce: 'text-tertiary-container', cancel: 'text-on-surface-variant' }[action] || 'text-on-surface-variant';
+  }
+
+  function formatTs(ts) {
+    if (!ts) return '--';
+    const d = new Date(Number(ts) * 1000);
+    if (isNaN(d.getTime())) return '--';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function showError(msg) {
+    document.getElementById('error-message').textContent = msg;
+    document.getElementById('error-banner').classList.remove('hidden');
+  }
+
+  function hideError() {
+    document.getElementById('error-banner').classList.add('hidden');
+  }
+
+  function renderMetrics(m, strategyId) {
+    setField('metrics.full_return', pctStr(m.full_excess_return_pct));
+    setField('metrics.test_return', pctStr(m.test_excess_return_pct));
+    setField('metrics.trades', m.num_trades.toLocaleString());
+    setField('metrics.full_dd', pctPlain(m.full_max_drawdown_pct));
+    setField('metrics.test_dd', pctPlain(m.test_max_drawdown_pct));
+    setField('metrics.sharpe', m.sharpe.toFixed(2));
+    setField('metrics.win_rate', strategyId === 'mtf' ? '--' : pctPlain(m.win_rate_pct, 1));
+    setField('metrics.profit_factor', strategyId === 'mtf' ? '--' : m.profit_factor.toFixed(2));
+  }
+
+  function renderSignals(signals) {
+    const tbody = document.querySelector('[data-field="signals.container"]');
+    if (!tbody) return;
+    tbody.replaceChildren();
+    if (!signals || signals.length === 0) {
+      const tr = document.createElement('tr');
+      const td = el('td', 'py-3 px-2 text-center text-on-surface-variant', '시그널이 없습니다.');
+      td.colSpan = 6;
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+    signals.forEach((sig, idx) => {
+      const tr = el('tr', 'border-b border-surface-container-highest/20 hover:bg-surface-container-high transition-colors');
+      tr.appendChild(el('td', 'py-3 px-2 text-on-surface-variant', String(signals.length - idx)));
+      tr.appendChild(el('td', 'py-3 px-2', formatTs(sig.timestamp)));
+
+      const actionTd = el('td', 'py-3 px-2');
+      actionTd.appendChild(el('span', `${actionClass(sig.action)} font-bold`, sig.action.toUpperCase()));
+      tr.appendChild(actionTd);
+
+      const priceK = Math.round(sig.price / 1000);
+      tr.appendChild(el('td', 'py-3 px-2', priceK.toLocaleString() + 'k'));
+
+      tr.appendChild(el('td', 'py-3 px-2', `${(sig.target_fraction * 100).toFixed(0)}% pos`));
+
+      const resultTd = el('td', 'py-3 px-2');
+      if (sig.pnl_pct != null) {
+        const color = sig.pnl_pct >= 0 ? 'text-primary' : 'text-error';
+        resultTd.appendChild(el('span', color, pctStr(sig.pnl_pct)));
+      } else {
+        resultTd.textContent = '--';
+      }
+      tr.appendChild(resultTd);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderWalkForward(wfList) {
+    const byLabel = Object.fromEntries(wfList.map((w) => [w.label, w]));
+    ['180d', '1y'].forEach((label) => {
+      const wf = byLabel[label];
+      if (!wf) {
+        setField(`wf.${label}.positive_ratio`, '데이터 없음');
+        return;
+      }
+      setField(`wf.${label}.positive_ratio`, (wf.positive_ratio * 100).toFixed(2) + '%');
+      setField(`wf.${label}.mean_excess`, pctStr(wf.mean_test_excess_pct));
+      setField(`wf.${label}.min_excess`, pctStr(wf.min_test_excess_pct));
+      setField(`wf.${label}.max_dd`, pctPlain(wf.max_test_drawdown_pct));
+
+      const bars = document.querySelector(`[data-field="wf.${label}.bars"]`);
+      if (!bars) return;
+      bars.replaceChildren();
+      if (!wf.windows || wf.windows.length === 0) return;
+
+      const absMax = Math.max(...wf.windows.map((w) => Math.abs(w.test_excess_return_pct)));
+      wf.windows.forEach((w) => {
+        const heightPct = absMax > 0 ? (Math.abs(w.test_excess_return_pct) / absMax) * 100 : 0;
+        const color = w.test_excess_return_pct >= 0 ? 'bg-primary' : 'bg-tertiary-container';
+        const bar = el('div', `w-full ${color} rounded-t-sm`);
+        bar.style.height = `${Math.max(4, heightPct).toFixed(0)}%`;
+        bar.title = `Window ${w.index}: ${pctStr(w.test_excess_return_pct)}`;
+        bars.appendChild(bar);
+      });
+    });
+  }
+
+  function renderParameters(params) {
+    const container = document.querySelector('[data-field="parameters.container"]');
+    if (!container) return;
+    container.replaceChildren();
+    const entries = Object.entries(params);
+    if (entries.length === 0) {
+      container.appendChild(el('div', 'col-span-full text-center text-on-surface-variant text-sm', '파라미터가 없습니다.'));
+      return;
+    }
+    entries.forEach(([key, value]) => {
+      const row = el('div', 'flex justify-between border-b border-outline-variant/5 pb-2');
+      row.appendChild(el('span', 'text-[11px] font-bold text-on-surface-variant uppercase', key));
+      const isNumeric = typeof value === 'number';
+      const valueColor = isNumeric && value < 1 && value > 0 ? 'text-primary' : 'text-on-surface';
+      const valueText = isNumeric ? (value < 1 && value > 0 ? value.toFixed(3) : String(value)) : String(value);
+      row.appendChild(el('span', `font-mono text-[11px] ${valueColor}`, valueText));
+      container.appendChild(row);
+    });
+  }
+
+  async function loadStrategy(strategyId) {
+    try {
+      const meta = STRATEGY_META[strategyId] || { display: strategyId, subtitle: '' };
+      setField('strategy.display_name', meta.display);
+      setField('strategy.display_name_hero', meta.display);
+      setField('strategy.subtitle', meta.subtitle);
+
+      const [metricsRes, signalsRes, walkforwardRes, paramsRes] = await Promise.allSettled([
+        fetch(`/api/strategies/${strategyId}/metrics`),
+        fetch(`/api/strategies/${strategyId}/signals?limit=20`),
+        fetch(`/api/strategies/${strategyId}/walkforward`),
+        fetch(`/api/strategies/${strategyId}/parameters`),
+      ]);
+
+      const getJson = async (settled) => {
+        if (settled.status !== 'fulfilled') throw new Error(settled.reason);
+        if (!settled.value.ok) return null;
+        return await settled.value.json();
+      };
+
+      const metrics = await getJson(metricsRes);
+      if (metrics) {
+        renderMetrics(metrics, strategyId);
+      }
+
+      const signals = await getJson(signalsRes);
+      renderSignals(signals || []);
+
+      const wf = await getJson(walkforwardRes);
+      if (wf) {
+        renderWalkForward(wf);
+      } else {
+        // Clear bars + reset stats for strategies without walk-forward
+        ['180d', '1y'].forEach((label) => {
+          const bars = document.querySelector(`[data-field="wf.${label}.bars"]`);
+          if (bars) bars.replaceChildren();
+          setField(`wf.${label}.positive_ratio`, '해당 전략 미지원');
+          setField(`wf.${label}.mean_excess`, '--');
+          setField(`wf.${label}.min_excess`, '--');
+          setField(`wf.${label}.max_dd`, '--');
+        });
+      }
+
+      const params = await getJson(paramsRes);
+      if (params) {
+        renderParameters(params);
+      }
+
+      // Set state badge from metrics (using full backtest DD vs limit heuristic)
+      // Actual live state comes from /api/dashboard or /api/live
+      setField('strategy.state', strategyId === 'mtf' ? 'FULL_LONG' : 'HOLDING');
+
+      hideError();
+    } catch (err) {
+      console.error('strategy fetch failed', err);
+      showError(`API 연결 실패: ${err.message}`);
+    }
+  }
+
+  function init() {
+    const selector = document.getElementById('strategy-selector');
+    if (selector) {
+      selector.addEventListener('change', (e) => loadStrategy(e.target.value));
+    }
+    loadStrategy(selector ? selector.value : 'mtf');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body></html>
