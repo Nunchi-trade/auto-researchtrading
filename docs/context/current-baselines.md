@@ -65,8 +65,8 @@ Current default-parameter evaluation snapshot:
 
 Walk-forward validation snapshot for the current candidate:
 
-- 180d test windows, 2y train / 180d step: mean excess `-6.27%`, min excess `-210.26%`, max test DD `9.39%`, positive ratio `61.54%`
-- 1y test windows, 2y train / 1y step: mean excess `4.56%`, min excess `-71.22%`, max test DD `9.39%`, positive ratio `66.67%`
+- 180d test windows, 2y train / 180d step: mean excess `-4.87%`, min excess `-176.22%`, max test DD `10.04%`, positive ratio `69.23%`
+- 1y test windows, 2y train / 1y step: mean excess `8.48%`, min excess `-27.33%`, max test DD `10.04%`, positive ratio `50.00%`
 
 ## Upbit Spot Snapshot
 
