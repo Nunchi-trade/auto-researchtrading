@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AutoTrader | Parameter Lab</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#e1e2ea",
+                        "tertiary-container": "#ffa3a3",
+                        "surface-tint": "#28dfb5",
+                        "primary-container": "#00d4aa",
+                        "on-tertiary-fixed": "#410008",
+                        "on-tertiary": "#680013",
+                        "tertiary": "#ffcbca",
+                        "primary": "#46f1c5",
+                        "tertiary-fixed-dim": "#ffb3b2",
+                        "on-secondary-fixed-variant": "#39485b",
+                        "surface": "#111319",
+                        "on-tertiary-fixed-variant": "#920020",
+                        "surface-container-lowest": "#0b0e13",
+                        "error": "#ffb4ab",
+                        "on-secondary": "#233144",
+                        "on-secondary-container": "#a7b6cd",
+                        "on-surface-variant": "#bacac2",
+                        "on-secondary-fixed": "#0d1c2e",
+                        "background": "#111319",
+                        "on-tertiary-container": "#9b0022",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed-dim": "#28dfb5",
+                        "outline": "#85948d",
+                        "on-error": "#690005",
+                        "on-primary-container": "#005643",
+                        "surface-variant": "#32353b",
+                        "surface-bright": "#36393f",
+                        "secondary-container": "#39485b",
+                        "on-primary-fixed": "#002118",
+                        "on-primary": "#00382b",
+                        "on-surface": "#e1e2ea",
+                        "primary-fixed": "#55fcd0",
+                        "on-primary-fixed-variant": "#00513f",
+                        "surface-container-highest": "#32353b",
+                        "tertiary-fixed": "#ffdad9",
+                        "secondary-fixed": "#d4e4fc",
+                        "outline-variant": "#3b4a44",
+                        "error-container": "#93000a",
+                        "surface-container-high": "#272a30",
+                        "surface-container": "#1d2025",
+                        "inverse-surface": "#e1e2ea",
+                        "surface-container-low": "#191c21",
+                        "secondary": "#b8c8df",
+                        "secondary-fixed-dim": "#b8c8df",
+                        "inverse-primary": "#006b55",
+                        "surface-dim": "#111319",
+                        "inverse-on-surface": "#2e3036"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #0b0e13;
+            color: #e1e2ea;
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #111319;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #32353b;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen overflow-hidden">
+<!-- SideNavBar -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-slate-900 flex flex-col py-6 border-r border-slate-800/50 z-[100]">
+<div class="px-6 mb-10">
+<h1 class="text-xl font-black tracking-tighter text-[#46F1C5] uppercase font-['JetBrains_Mono']">AutoTrader</h1>
+<p class="text-[10px] text-slate-500 tracking-widest uppercase font-bold">High-Freq Engine</p>
+</div>
+<nav class="flex-1 space-y-1 px-3">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-slate-200 hover:bg-[#272A30] transition-colors duration-200 font-['JetBrains_Mono'] text-sm tracking-tight rounded-sm" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-slate-200 hover:bg-[#272A30] transition-colors duration-200 font-['JetBrains_Mono'] text-sm tracking-tight rounded-sm" href="#">
+<span class="material-symbols-outlined text-lg">query_stats</span>
+                Strategies
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-slate-200 hover:bg-[#272A30] transition-colors duration-200 font-['JetBrains_Mono'] text-sm tracking-tight rounded-sm" href="#">
+<span class="material-symbols-outlined text-lg">analytics</span>
+                Live Monitor
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#46F1C5] font-bold border-r-2 border-[#46F1C5] bg-[#272A30] font-['JetBrains_Mono'] text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined text-lg">browse</span>
+                Parameter Lab
+            </a>
+</nav>
+<div class="px-4 mb-4">
+<button class="w-full bg-[#46F1C5] text-[#00382b] py-2 font-bold text-xs uppercase tracking-tighter hover:brightness-110 transition-all active:scale-95">
+                Deploy Strategy
+            </button>
+</div>
+<div class="px-3 border-t border-slate-800 pt-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-slate-200 hover:bg-[#272A30] transition-colors duration-200 font-['JetBrains_Mono'] text-sm tracking-tight rounded-sm" href="#">
+<span class="material-symbols-outlined text-lg">menu_book</span>
+                Docs
+            </a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-slate-200 hover:bg-[#272A30] transition-colors duration-200 font-['JetBrains_Mono'] text-sm tracking-tight rounded-sm" href="#">
+<span class="material-symbols-outlined text-lg">settings</span>
+                Settings
+            </a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 flex-1 flex flex-col h-screen overflow-y-auto custom-scrollbar bg-surface-container-lowest">
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 z-50 bg-[#0B0E13]/80 backdrop-blur-xl flex justify-between items-center px-8 border-b border-slate-800/50">
+<div class="flex items-center gap-4">
+<div class="flex items-center text-[10px] font-['Inter'] font-medium uppercase tracking-widest">
+<span class="text-slate-500">Parameter Lab</span>
+<span class="material-symbols-outlined text-xs mx-2 text-slate-700">chevron_right</span>
+<span class="text-[#00D4AA]">Upbit MTF Search</span>
+</div>
+<div class="flex items-center gap-2 ml-6">
+<div class="bg-surface-container px-3 py-1.5 flex items-center gap-2 text-[10px] font-bold border border-outline-variant/30">
+<span class="text-slate-400 uppercase">Strategy:</span>
+<span class="text-on-surface">Upbit MTF Strategy</span>
+<span class="material-symbols-outlined text-xs">arrow_drop_down</span>
+</div>
+<div class="bg-surface-container px-3 py-1.5 flex items-center gap-2 text-[10px] font-bold border border-outline-variant/30">
+<span class="text-slate-400 uppercase">Run:</span>
+<span class="text-on-surface">mtf-autoresearch-2026...jsonl</span>
+<span class="text-[#00D4AA] opacity-70">(1,248)</span>
+<span class="material-symbols-outlined text-xs">arrow_drop_down</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-4 py-1.5 border border-outline-variant text-[10px] font-bold uppercase tracking-widest hover:bg-surface-container transition-colors">
+                    재시작
+                </button>
+<button class="px-4 py-1.5 bg-[#46F1C5] text-[#00382b] text-[10px] font-bold uppercase tracking-widest hover:brightness-110">
+                    새 탐색 시작
+                </button>
+<div class="h-6 w-px bg-slate-800 mx-2"></div>
+<button class="text-slate-400 hover:text-[#46F1C5]">
+<span class="material-symbols-outlined text-xl">notifications</span>
+</button>
+<button class="text-slate-400 hover:text-[#46F1C5]">
+<span class="material-symbols-outlined text-xl">account_circle</span>
+</button>
+</div>
+</header>
+<div class="mt-16 p-8 space-y-6">
+<!-- Search Status Hero Card -->
+<section class="bg-surface-container border-l-4 border-[#46F1C5] p-6 shadow-2xl relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-[120px] rotate-12">query_stats</span>
+</div>
+<div class="flex justify-between items-start mb-6">
+<div>
+<h2 class="text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-1">탐색 진행 상황</h2>
+<div class="flex items-baseline gap-4">
+<span class="text-4xl font-headline font-bold tracking-tight text-on-surface">1,248 <span class="text-xl text-slate-600 font-normal">/ 2,500</span></span>
+<div class="flex items-center gap-2 text-[10px] font-mono text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+<span class="animate-pulse">●</span> LIVE OPTIMIZING
+                            </div>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[10px] font-bold text-slate-500 uppercase mb-1">남은 시간 (ETA)</div>
+<div class="text-2xl font-mono text-on-surface">2h 26m <span class="text-sm text-slate-600 font-normal">남음</span></div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<div class="col-span-1 md:col-span-2">
+<div class="flex justify-between text-[10px] font-bold text-slate-400 mb-2 uppercase">
+<span>전체 공정률</span>
+<span>50.0%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-lowest overflow-hidden">
+<div class="h-full bg-gradient-to-r from-primary to-primary-container w-1/2"></div>
+</div>
+</div>
+<div class="bg-surface-container-low p-4">
+<div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Objective 최고값</div>
+<div class="flex items-center justify-between">
+<span class="text-xl font-mono text-primary font-bold">+54,860.56</span>
+<span class="text-[10px] font-mono text-primary-container bg-primary-container/10 px-1">+4,470 vs 이전</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-4">
+<div class="text-[10px] font-bold text-slate-500 uppercase mb-1">현재 실행 시간</div>
+<div class="text-xl font-mono text-on-surface">2h 34m</div>
+</div>
+</div>
+<div class="mt-6 flex flex-wrap gap-2">
+<span class="text-[10px] text-slate-500 uppercase font-bold mr-2 self-center">Current Params:</span>
+<div class="bg-surface-container-highest px-3 py-1 rounded text-[10px] font-mono border border-outline-variant/30">
+<span class="text-slate-400">MAX_MACRO_DRAWDOWN=</span><span class="text-[#46F1C5]">0.065</span>
+</div>
+<div class="bg-surface-container-highest px-3 py-1 rounded text-[10px] font-mono border border-outline-variant/30">
+<span class="text-slate-400">STATE_CONFIRM=</span><span class="text-[#46F1C5]">4</span>
+</div>
+<div class="bg-surface-container-highest px-3 py-1 rounded text-[10px] font-mono border border-outline-variant/30">
+<span class="text-slate-400">FULL_LONG=</span><span class="text-[#46F1C5]">0.92</span>
+</div>
+</div>
+</section>
+<!-- Main Content: Two columns -->
+<div class="grid grid-cols-1 lg:grid-cols-10 gap-6">
+<!-- Left: Top Candidates Table -->
+<div class="lg:col-span-6 bg-surface-container p-6 shadow-sm">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider">상위 후보 (balanced_score 기준)</h3>
+<button class="text-xs text-primary hover:underline">Full Export CSV</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left font-mono text-[11px] border-collapse">
+<thead>
+<tr class="text-slate-500 border-b border-outline-variant/20">
+<th class="py-3 font-normal px-2">RANK</th>
+<th class="py-3 font-normal">OBJECTIVE</th>
+<th class="py-3 font-normal">TOTAL RET.</th>
+<th class="py-3 font-normal">MAX DD</th>
+<th class="py-3 font-normal">TRADES</th>
+<th class="py-3 font-normal text-right">ACTION</th>
+</tr>
+</thead>
+<tbody class="text-on-surface">
+<tr class="group border-b border-outline-variant/10 hover:bg-surface-container-high transition-colors cursor-pointer">
+<td class="py-4 px-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+                                        1
+                                    </td>
+<td class="py-4 font-bold text-primary">54,860.56</td>
+<td class="py-4 text-primary">+142.4%</td>
+<td class="py-4 text-tertiary-container">-4.2%</td>
+<td class="py-4">1,842</td>
+<td class="py-4 text-right">
+<button class="bg-primary/10 text-primary px-3 py-1 opacity-0 group-hover:opacity-100 transition-opacity uppercase text-[10px] font-bold">적용</button>
+</td>
+</tr>
+<tr class="group border-b border-outline-variant/10 hover:bg-surface-container-high transition-colors cursor-pointer">
+<td class="py-4 px-2">2</td>
+<td class="py-4 font-bold">52,110.12</td>
+<td class="py-4 text-primary">+138.1%</td>
+<td class="py-4 text-tertiary-container">-3.8%</td>
+<td class="py-4">1,720</td>
+<td class="py-4 text-right">
+<button class="bg-primary/10 text-primary px-3 py-1 opacity-0 group-hover:opacity-100 transition-opacity uppercase text-[10px] font-bold">적용</button>
+</td>
+</tr>
+<tr class="group border-b border-outline-variant/10 hover:bg-surface-container-high transition-colors cursor-pointer">
+<td class="py-4 px-2">3</td>
+<td class="py-4 font-bold">51,980.44</td>
+<td class="py-4 text-primary">+135.2%</td>
+<td class="py-4 text-tertiary-container">-5.1%</td>
+<td class="py-4">2,105</td>
+<td class="py-4 text-right">
+<button class="bg-primary/10 text-primary px-3 py-1 opacity-0 group-hover:opacity-100 transition-opacity uppercase text-[10px] font-bold">적용</button>
+</td>
+</tr>
+<tr class="group border-b border-outline-variant/10 hover:bg-surface-container-high transition-colors cursor-pointer">
+<td class="py-4 px-2">4</td>
+<td class="py-4 font-bold">49,200.31</td>
+<td class="py-4 text-primary">+129.8%</td>
+<td class="py-4 text-tertiary-container">-4.9%</td>
+<td class="py-4">1,550</td>
+<td class="py-4 text-right">
+<button class="bg-primary/10 text-primary px-3 py-1 opacity-0 group-hover:opacity-100 transition-opacity uppercase text-[10px] font-bold">적용</button>
+</td>
+</tr>
+<tr class="group border-b border-outline-variant/10 hover:bg-surface-container-high transition-colors cursor-pointer">
+<td class="py-4 px-2">5</td>
+<td class="py-4 font-bold">48,450.99</td>
+<td class="py-4 text-primary">+125.4%</td>
+<td class="py-4 text-tertiary-container">-4.0%</td>
+<td class="py-4">1,911</td>
+<td class="py-4 text-right">
+<button class="bg-primary/10 text-primary px-3 py-1 opacity-0 group-hover:opacity-100 transition-opacity uppercase text-[10px] font-bold">적용</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Right: Parameter Distribution Heatmap -->
+<div class="lg:col-span-4 flex flex-col gap-6">
+<div class="bg-surface-container p-6 shadow-sm flex-1">
+<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider mb-6">파라미터 분포 (상위 10%)</h3>
+<div class="relative">
+<div class="flex mb-2 text-[10px] font-mono text-slate-500">
+<div class="w-8"></div>
+<div class="flex-1 flex justify-between px-2">
+<span>0.01</span><span>0.05</span><span>0.10</span>
+</div>
+</div>
+<div class="flex gap-2 h-48">
+<div class="w-8 flex flex-col justify-between text-[10px] font-mono text-slate-500 py-2">
+<span>10</span><span>6</span><span>2</span>
+</div>
+<div class="flex-1 grid grid-cols-5 grid-rows-5 gap-1">
+<div class="bg-primary/10 border border-primary/5"></div>
+<div class="bg-primary/20 border border-primary/10"></div>
+<div class="bg-primary/40 border border-primary/20"></div>
+<div class="bg-primary/10 border border-primary/5"></div>
+<div class="bg-primary/5 border border-white/5"></div>
+<div class="bg-primary/20 border border-primary/10"></div>
+<div class="bg-primary/60 border border-primary/40 flex items-center justify-center text-[8px] font-bold text-white">42</div>
+<div class="bg-primary/80 border border-primary flex items-center justify-center text-[8px] font-bold text-white">88</div>
+<div class="bg-primary/50 border border-primary/30"></div>
+<div class="bg-primary/20 border border-primary/10"></div>
+<div class="bg-primary/10 border border-primary/5"></div>
+<div class="bg-primary/40 border border-primary/20"></div>
+<div class="bg-primary/95 border border-white flex items-center justify-center text-[8px] font-bold text-[#00382b]">124</div>
+<div class="bg-primary/70 border border-primary/50"></div>
+<div class="bg-primary/30 border border-primary/10"></div>
+<div class="bg-primary/5 border border-white/5"></div>
+<div class="bg-primary/20 border border-primary/10"></div>
+<div class="bg-primary/40 border border-primary/20"></div>
+<div class="bg-primary/20 border border-primary/10"></div>
+<div class="bg-primary/10 border border-primary/5"></div>
+<div class="bg-primary/5 border border-white/5"></div>
+<div class="bg-primary/5 border border-white/5"></div>
+<div class="bg-primary/10 border border-primary/5"></div>
+<div class="bg-primary/5 border border-white/5"></div>
+<div class="bg-primary/5 border border-white/5"></div>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-center gap-4">
+<div class="text-[9px] uppercase font-bold text-slate-500">Legend:</div>
+<div class="h-2 w-24 bg-gradient-to-r from-primary/10 to-primary"></div>
+<div class="text-[9px] font-mono text-slate-400">Dense Area</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container p-4 shadow-sm">
+<h4 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-4">FULL_LONG_PCT Histogram</h4>
+<div class="flex items-end gap-0.5 h-12 px-2">
+<div class="flex-1 bg-slate-800 h-[20%]"></div>
+<div class="flex-1 bg-slate-800 h-[30%]"></div>
+<div class="flex-1 bg-primary/40 h-[60%]"></div>
+<div class="flex-1 bg-primary/70 h-[85%]"></div>
+<div class="flex-1 bg-primary h-[100%]"></div>
+<div class="flex-1 bg-primary/80 h-[90%]"></div>
+<div class="flex-1 bg-primary/60 h-[70%]"></div>
+<div class="flex-1 bg-slate-800 h-[40%]"></div>
+<div class="flex-1 bg-slate-800 h-[25%]"></div>
+<div class="flex-1 bg-slate-800 h-[10%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Compare Panel -->
+<section class="bg-surface-container p-6 shadow-sm">
+<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider mb-6">후보 비교</h3>
+<div class="grid grid-cols-3 gap-6">
+<!-- Candidate A (Current Best) -->
+<div class="bg-surface-container-low border-t-2 border-primary p-5 relative">
+<div class="absolute -top-3 right-4 bg-primary text-[#00382b] text-[9px] font-black px-2 py-0.5 uppercase">Rank 1 (Best)</div>
+<div class="mb-4">
+<h4 class="text-[10px] font-bold text-slate-500 uppercase">Parameter Set A</h4>
+<p class="font-mono text-xs text-primary font-bold">MACRO=0.065 | CONF=4 | LONG=0.92</p>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between border-b border-outline-variant/10 pb-2">
+<span class="text-[10px] text-slate-400 uppercase">Total Return</span>
+<span class="text-sm font-mono font-bold text-primary">+142.4%</span>
+</div>
+<div class="flex justify-between border-b border-outline-variant/10 pb-2">
+<span class="text-[10px] text-slate-400 uppercase">Sharp Ratio</span>
+<span class="text-sm font-mono font-bold">3.24</span>
+</div>
+<div class="flex justify-between border-b border-outline-variant/10 pb-2">
+<span class="text-[10px] text-slate-400 uppercase">Calmar Ratio</span>
+<span class="text-sm font-mono font-bold">11.8</span>
+</div>
+</div>
+<button class="w-full mt-6 bg-primary text-[#00382b] py-2 text-[10px] font-black uppercase hover:brightness-110">후보 A 적용</button>
+</div>
+<!-- Candidate B -->
+<div class="bg-surface-container-low border-t-2 border-slate-700 p-5">
+<div class="mb-4 flex justify-between items-start">
+<div>
+<h4 class="text-[10px] font-bold text-slate-500 uppercase">Parameter Set B</h4>
+<p class="font-mono text-xs text-on-surface font-bold">MACRO=<span class="text-tertiary-container">0.080</span> | CONF=4 | LONG=0.92</p>
+</div>
+<span class="text-[10px] bg-surface-container-highest px-2 text-slate-400">Rank 3</span>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between border-b border-outline-variant/10 pb-2">
+<span class="text-[10px] text-slate-400 uppercase">Total Return</span>
+<span class="text-sm font-mono font-bold">+135.2%</span>
+</div>
+<div class="flex justify-between border-b border-outline-variant/10 pb-2">
+<span class="text-[10px] text-slate-400 uppercase">Sharp Ratio</span>
+<span class="text-sm font-mono font-bold text-tertiary-container">2.91</span>
+</div>
+<div class="flex justify-between border-b border-outline-variant/10 pb-2">
+<span class="text-[10px] text-slate-400 uppercase">Calmar Ratio</span>
+<span class="text-sm font-mono font-bold">9.4</span>
+</div>
+</div>
+<button class="w-full mt-6 bg-surface-container-highest text-on-surface py-2 text-[10px] font-black uppercase hover:bg-slate-700">후보 B 적용</button>
+</div>
+<!-- Candidate C -->
+<div class="bg-surface-container-low border-t-2 border-slate-700 p-5">
+<div class="mb-4 flex justify-between items-start">
+<div>
+<h4 class="text-[10px] font-bold text-slate-500 uppercase">Current Strategy</h4>
+<p class="font-mono text-xs text-on-surface font-bold">MACRO=0.100 | CONF=8 | LONG=0.75</p>
+</div>
+<span class="text-[10px] bg-surface-container-highest px-2 text-slate-400">Baseline</span>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between border-b border-outline-variant/10 pb-2">
+<span class="text-[10px] text-slate-400 uppercase">Total Return</span>
+<span class="text-sm font-mono font-bold">+88.1%</span>
+</div>
+<div class="flex justify-between border-b border-outline-variant/10 pb-2">
+<span class="text-[10px] text-slate-400 uppercase">Sharp Ratio</span>
+<span class="text-sm font-mono font-bold">2.10</span>
+</div>
+<div class="flex justify-between border-b border-outline-variant/10 pb-2">
+<span class="text-[10px] text-slate-400 uppercase">Calmar Ratio</span>
+<span class="text-sm font-mono font-bold">4.2</span>
+</div>
+</div>
+<button class="w-full mt-6 border border-outline-variant text-slate-400 py-2 text-[10px] font-black uppercase hover:bg-surface-container-highest">기본값 유지</button>
+</div>
+</div>
+</section>
+<!-- Walk-Forward Comparison Mini-chart -->
+<section class="bg-surface-container p-6 shadow-sm pb-10">
+<div class="flex justify-between items-end mb-6">
+<div>
+<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider">Walk-Forward 검증 비교 (180d 창)</h3>
+<p class="text-[10px] text-slate-500 mt-1">13 consecutive test windows. Performance stability across regimes.</p>
+</div>
+<div class="flex gap-4 items-center">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 bg-primary"></div>
+<span class="text-[9px] font-bold text-slate-400 uppercase">Rank 1 (Win Rate: 92%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 bg-blue-500"></div>
+<span class="text-[9px] font-bold text-slate-400 uppercase">Rank 3 (Win Rate: 84%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 bg-purple-500"></div>
+<span class="text-[9px] font-bold text-slate-400 uppercase">Baseline (Win Rate: 69%)</span>
+</div>
+</div>
+</div>
+<div class="h-40 flex items-end justify-between gap-4 px-4 border-b border-outline-variant/20">
+<!-- Window Bars (13 sets) -->
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[70%]"></div>
+<div class="w-1.5 bg-blue-500 h-[60%]"></div>
+<div class="w-1.5 bg-purple-500 h-[40%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[85%]"></div>
+<div class="w-1.5 bg-blue-500 h-[75%]"></div>
+<div class="w-1.5 bg-purple-500 h-[50%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[65%]"></div>
+<div class="w-1.5 bg-blue-500 h-[55%]"></div>
+<div class="w-1.5 bg-purple-500 h-[30%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[90%]"></div>
+<div class="w-1.5 bg-blue-500 h-[80%]"></div>
+<div class="w-1.5 bg-purple-500 h-[60%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[95%]"></div>
+<div class="w-1.5 bg-blue-500 h-[85%]"></div>
+<div class="w-1.5 bg-purple-500 h-[70%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[50%]"></div>
+<div class="w-1.5 bg-blue-500 h-[40%]"></div>
+<div class="w-1.5 bg-purple-500 h-[20%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[80%]"></div>
+<div class="w-1.5 bg-blue-500 h-[70%]"></div>
+<div class="w-1.5 bg-purple-500 h-[45%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[75%]"></div>
+<div class="w-1.5 bg-blue-500 h-[65%]"></div>
+<div class="w-1.5 bg-purple-500 h-[55%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[100%]"></div>
+<div class="w-1.5 bg-blue-500 h-[90%]"></div>
+<div class="w-1.5 bg-purple-500 h-[80%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[85%]"></div>
+<div class="w-1.5 bg-blue-500 h-[80%]"></div>
+<div class="w-1.5 bg-purple-500 h-[65%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[70%]"></div>
+<div class="w-1.5 bg-blue-500 h-[60%]"></div>
+<div class="w-1.5 bg-purple-500 h-[50%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[90%]"></div>
+<div class="w-1.5 bg-blue-500 h-[85%]"></div>
+<div class="w-1.5 bg-purple-500 h-[75%]"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full">
+<div class="w-1.5 bg-primary h-[65%]"></div>
+<div class="w-1.5 bg-blue-500 h-[55%]"></div>
+<div class="w-1.5 bg-purple-500 h-[40%]"></div>
+</div>
+</div>
+<div class="flex justify-between mt-2 text-[8px] font-mono text-slate-500 px-4">
+<span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span><span>W6</span><span>W7</span><span>W8</span><span>W9</span><span>W10</span><span>W11</span><span>W12</span><span>W13</span>
+</div>
+</section>
+</div>
+<!-- Footer -->
+<footer class="p-8 mt-auto text-[10px] text-slate-600 font-mono flex justify-between">
+<div>SYSTEM: ONLINE | WORKER_NODES: 128/128 | LATENCY: 1.2ms</div>
+<div>© 2026 AUTOTRADER QUANTITATIVE ENGINE v4.2.0-STABLE</div>
+</footer>
+</main>
+</body></html>

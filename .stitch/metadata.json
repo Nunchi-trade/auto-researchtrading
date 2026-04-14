@@ -1,0 +1,40 @@
+{
+  "name": "projects/722551102155411170",
+  "projectId": "722551102155411170",
+  "title": "AutoTrader Dashboard - Upbit Research & Live Monitor",
+  "visibility": "PRIVATE",
+  "projectType": "PROJECT_DESIGN",
+  "origin": "STITCH",
+  "deviceType": "DESKTOP",
+  "designSystem": "Obsidian Quant",
+  "screens": {
+    "index": {
+      "id": "6ca3838a52d546aa9b8464c128e6e754",
+      "sourceScreen": "projects/722551102155411170/screens/6ca3838a52d546aa9b8464c128e6e754",
+      "width": 1440,
+      "height": 900,
+      "file": ".stitch/designs/index.html"
+    },
+    "strategy": {
+      "id": "790c0d6a1cd845c3831346123db2fcdb",
+      "sourceScreen": "projects/722551102155411170/screens/790c0d6a1cd845c3831346123db2fcdb",
+      "width": 1440,
+      "height": 900,
+      "file": ".stitch/designs/strategy.html"
+    },
+    "params": {
+      "id": "7952370ab9d14064ae79de380d554d45",
+      "sourceScreen": "projects/722551102155411170/screens/7952370ab9d14064ae79de380d554d45",
+      "width": 1440,
+      "height": 900,
+      "file": ".stitch/designs/params.html"
+    },
+    "live": {
+      "id": "eefa67ddcd694a4e866a63704670c55f",
+      "sourceScreen": "projects/722551102155411170/screens/eefa67ddcd694a4e866a63704670c55f",
+      "width": 1440,
+      "height": 900,
+      "file": ".stitch/designs/live.html"
+    }
+  }
+}

@@ -388,7 +388,7 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
                 portfolio.cash += abs(current_pos) + pnl
                 portfolio.positions.pop(sig.symbol, None)
                 portfolio.entry_prices.pop(sig.symbol, None)
-                trade_log.append(("close", sig.symbol, delta, exec_price, pnl))
+                trade_log.append(("close", sig.symbol, delta, exec_price, pnl, ts))
 
             elif current_pos == 0:
                 required_cash = abs(sig.target_position) + fee
@@ -399,7 +399,7 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
                 portfolio.cash -= abs(sig.target_position)
                 portfolio.positions[sig.symbol] = sig.target_position
                 portfolio.entry_prices[sig.symbol] = exec_price
-                trade_log.append(("open", sig.symbol, delta, exec_price, 0.0))
+                trade_log.append(("open", sig.symbol, delta, exec_price, 0.0, ts))
 
             else:
                 old_entry = portfolio.entry_prices.get(sig.symbol, exec_price)
@@ -423,7 +423,7 @@ def run_upbit_backtest(strategy, data: dict[str, pd.DataFrame]) -> "UpbitBacktes
                             old_entry * abs(current_pos) + exec_price * added
                         ) / total
                 portfolio.positions[sig.symbol] = sig.target_position
-                trade_log.append(("modify", sig.symbol, delta, exec_price, 0.0))
+                trade_log.append(("modify", sig.symbol, delta, exec_price, 0.0, ts))
 
         # 미실현 손익 계산 (거래 후, on_bar에 전달될 portfolio.equity 업데이트)
         unrealized = sum(

@@ -9,6 +9,8 @@ dependencies = [
     "scipy>=1.11.0",
     "requests>=2.31.0",
     "pyarrow>=14.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
 ]
 
 [dependency-groups]

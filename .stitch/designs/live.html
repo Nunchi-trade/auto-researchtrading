@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom scrollbar for terminal feel */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #0b0e13; }
+        ::-webkit-scrollbar-thumb { background: #272a30; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #46f1c5; }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(50, 53, 59, 0.6);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#0b0e13",
+                        "secondary": "#b8c8df",
+                        "background": "#111319",
+                        "error": "#ffb4ab",
+                        "tertiary-fixed": "#ffdad9",
+                        "surface-tint": "#28dfb5",
+                        "tertiary-container": "#ffa3a3",
+                        "primary-container": "#00d4aa",
+                        "on-secondary-fixed": "#0d1c2e",
+                        "on-primary": "#00382b",
+                        "primary-fixed-dim": "#28dfb5",
+                        "secondary-container": "#39485b",
+                        "on-tertiary-container": "#9b0022",
+                        "inverse-surface": "#e1e2ea",
+                        "on-surface": "#e1e2ea",
+                        "tertiary": "#ffcbca",
+                        "on-secondary-container": "#a7b6cd",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed": "#410008",
+                        "primary": "#46f1c5",
+                        "surface-container-highest": "#32353b",
+                        "surface-variant": "#32353b",
+                        "secondary-fixed": "#d4e4fc",
+                        "on-secondary-fixed-variant": "#39485b",
+                        "inverse-primary": "#006b55",
+                        "surface-dim": "#111319",
+                        "on-tertiary": "#680013",
+                        "on-surface-variant": "#bacac2",
+                        "primary-fixed": "#55fcd0",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-high": "#272a30",
+                        "on-primary-fixed-variant": "#00513f",
+                        "on-primary-container": "#005643",
+                        "surface-container": "#1d2025",
+                        "outline": "#85948d",
+                        "surface": "#111319",
+                        "on-background": "#e1e2ea",
+                        "outline-variant": "#3b4a44",
+                        "error-container": "#93000a",
+                        "tertiary-fixed-dim": "#ffb3b2",
+                        "on-primary-fixed": "#002118",
+                        "on-tertiary-fixed-variant": "#920020",
+                        "surface-bright": "#36393f",
+                        "inverse-on-surface": "#2e3036",
+                        "secondary-fixed-dim": "#b8c8df",
+                        "on-secondary": "#233144",
+                        "surface-container-low": "#191c21"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-surface-container-lowest text-on-surface min-h-screen selection:bg-primary/30">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 border-b border-outline-variant/10 bg-surface-container-lowest flex justify-between items-center px-6 h-16 w-full font-headline tracking-tight">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-primary">AutoTrader</span>
+<div class="hidden md:flex gap-6 items-center">
+<a class="text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">Dashboard</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">Strategies</a>
+<a class="text-primary border-b-2 border-primary pb-1" href="#">Live Monitor</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">Parameter Lab</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 px-4 py-2 border border-error text-error rounded hover:bg-error/10 transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">shield</span>
+<span class="font-bold text-xs uppercase tracking-widest">Emergency Stop</span>
+</button>
+<div class="flex gap-3 text-on-surface-variant">
+<span class="material-symbols-outlined cursor-pointer hover:text-primary">sensors</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary">settings</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary">account_circle</span>
+</div>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-surface-container-low hidden md:flex flex-col py-4 gap-2 font-headline font-medium">
+<div class="px-6 mb-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-container/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<div>
+<div class="text-sm font-black text-primary leading-none">AutoTrader</div>
+<div class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Pro Terminal</div>
+</div>
+</div>
+</div>
+<div class="flex-grow space-y-1">
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface-variant mx-2 hover:bg-surface-container-high hover:text-on-surface rounded-lg transition-all cursor-pointer">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface-variant mx-2 hover:bg-surface-container-high hover:text-on-surface rounded-lg transition-all cursor-pointer">
+<span class="material-symbols-outlined">query_stats</span>
+<span>Strategies</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 bg-surface-container-high text-primary rounded-lg mx-2 cursor-default">
+<span class="material-symbols-outlined">monitoring</span>
+<span>Live Monitor</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface-variant mx-2 hover:bg-surface-container-high hover:text-on-surface rounded-lg transition-all cursor-pointer">
+<span class="material-symbols-outlined">science</span>
+<span>Parameter Lab</span>
+</div>
+</div>
+<div class="mt-auto border-t border-outline-variant/10 pt-4 space-y-1">
+<div class="flex items-center gap-3 px-4 py-2 text-on-surface-variant mx-2 hover:text-white transition-all cursor-pointer">
+<span class="material-symbols-outlined text-sm">description</span>
+<span class="text-sm">Docs</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-2 text-on-surface-variant mx-2 hover:text-white transition-all cursor-pointer">
+<span class="material-symbols-outlined text-sm">help</span>
+<span class="text-sm">Support</span>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="md:ml-64 pt-16 min-h-screen">
+<div class="p-6 space-y-6">
+<!-- 1. Breadcrumb & Status -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<div class="flex items-center gap-2 text-sm">
+<span class="text-on-surface-variant">Live Monitor</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-semibold">Upbit KRW-BTC</span>
+<div class="ml-4 flex items-center gap-2 px-3 py-1 bg-surface-container rounded-full border border-outline-variant/10">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+<span class="text-[11px] font-medium">Upbit WebSocket 연결됨</span>
+<span class="text-[11px] text-on-surface-variant ml-2">latency 42ms</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-xs text-on-surface-variant">마지막 업데이트: 방금</span>
+<button class="p-2 bg-surface-container hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-all">
+<span class="material-symbols-outlined text-sm">refresh</span>
+</button>
+</div>
+</div>
+<!-- 2. Hero Section: Live Price Ticker -->
+<section class="bg-surface-container p-8 rounded-xl relative overflow-hidden">
+<!-- Abstract Glow -->
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 blur-[100px] rounded-full"></div>
+<div class="flex flex-col md:flex-row justify-between items-end gap-6">
+<div class="space-y-1">
+<div class="flex items-center gap-3">
+<span class="text-sm uppercase tracking-[0.2em] text-on-surface-variant font-bold">Bitcoin / KRW</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[10px] rounded font-bold border border-primary/20">LIVE MARKET</span>
+</div>
+<div class="flex items-baseline gap-4">
+<h1 class="text-5xl md:text-6xl font-mono font-bold tracking-tighter">₩142,350,000</h1>
+<span class="px-3 py-1 bg-primary/20 text-primary text-xl font-bold rounded-lg">+2.34%</span>
+</div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2 text-xs font-mono w-full md:w-auto">
+<div class="flex flex-col">
+<span class="text-on-surface-variant mb-1 uppercase tracking-tighter">시가</span>
+<span class="text-on-surface">₩139,120,000</span>
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface-variant mb-1 uppercase tracking-tighter">고가</span>
+<span class="text-on-surface text-primary">₩143,800,000</span>
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface-variant mb-1 uppercase tracking-tighter">저가</span>
+<span class="text-on-surface text-tertiary-container">₩138,900,000</span>
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface-variant mb-1 uppercase tracking-tighter">거래대금</span>
+<span class="text-on-surface font-bold">₩2,845억</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. Current Position Panel -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-1 bg-surface-container-low rounded-xl overflow-hidden">
+<!-- Left: Strategy -->
+<div class="md:col-span-3 bg-surface-container p-6 flex flex-col justify-center items-center md:items-start gap-2">
+<div class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Strategy State</div>
+<div class="px-4 py-2 bg-primary/10 border border-primary/30 text-primary font-black text-xl rounded tracking-tighter">FULL_LONG</div>
+<div class="text-xs text-on-surface-variant font-mono">Upbit MTF v2.4</div>
+</div>
+<!-- Middle: Position Value -->
+<div class="md:col-span-6 bg-surface-container p-6 flex flex-col justify-center gap-4">
+<div class="flex justify-between items-end">
+<div class="space-y-1">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Current Position</span>
+<div class="text-3xl font-mono font-bold">₩48,619,424</div>
+</div>
+<div class="text-right">
+<div class="text-lg font-mono text-on-surface">0.3421 BTC</div>
+<div class="text-[10px] text-on-surface-variant font-mono">Avg: ₩141,200,000</div>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex justify-between text-[10px] font-bold">
+<span class="text-primary uppercase">92% of equity</span>
+<span class="text-on-surface-variant">LIMIT: 100%</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
+<div class="bg-gradient-to-r from-primary to-primary-container h-full w-[92%] shadow-[0_0_8px_rgba(70,241,197,0.4)]"></div>
+</div>
+</div>
+</div>
+<!-- Right: P&L -->
+<div class="md:col-span-3 bg-surface-container p-6 flex flex-col justify-center items-center md:items-end gap-1">
+<div class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Unrealized P&amp;L</div>
+<div class="text-2xl font-mono font-bold text-primary">+₩395,240</div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold text-primary">+0.81%</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="text-[10px] text-on-surface-variant font-mono uppercase">4h 32m active</span>
+</div>
+</div>
+</section>
+<!-- 4. Two-Column Mid-section -->
+<div class="grid grid-cols-1 md:grid-cols-10 gap-6">
+<!-- Left (60%): Chart -->
+<div class="md:col-span-6 space-y-4">
+<div class="flex justify-between items-center">
+<h2 class="text-sm font-bold tracking-tight text-on-surface flex items-center gap-2">
+<span class="w-2 h-4 bg-primary rounded-full"></span>
+                            KRW-BTC 실시간 가격 차트 (5분봉)
+                        </h2>
+<div class="flex bg-surface-container rounded-lg p-1 text-[10px] font-bold">
+<button class="px-3 py-1 text-on-surface-variant hover:text-on-surface">1m</button>
+<button class="px-3 py-1 bg-surface-container-high text-primary rounded shadow-sm">5m</button>
+<button class="px-3 py-1 text-on-surface-variant hover:text-on-surface">15m</button>
+<button class="px-3 py-1 text-on-surface-variant hover:text-on-surface">1h</button>
+<button class="px-3 py-1 text-on-surface-variant hover:text-on-surface">4h</button>
+</div>
+</div>
+<div class="bg-surface-container aspect-video rounded-xl relative border border-outline-variant/5 group overflow-hidden">
+<!-- Chart Mockup Background -->
+<div class="absolute inset-0 p-4 flex gap-[1px] items-end opacity-20">
+<!-- Volume Bars -->
+<div class="flex-1 bg-tertiary-container h-12"></div>
+<div class="flex-1 bg-primary h-24"></div>
+<div class="flex-1 bg-primary h-32"></div>
+<div class="flex-1 bg-tertiary-container h-16"></div>
+<div class="flex-1 bg-primary h-40"></div>
+<div class="flex-1 bg-primary h-28"></div>
+<div class="flex-1 bg-tertiary-container h-20"></div>
+<div class="flex-1 bg-primary h-48"></div>
+<div class="flex-1 bg-primary h-56"></div>
+<div class="flex-1 bg-tertiary-container h-44"></div>
+<div class="flex-1 bg-primary h-36"></div>
+<div class="flex-1 bg-primary h-64"></div>
+</div>
+<!-- Visual representation of candlesticks and EMA -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<img class="w-full h-full object-cover opacity-60" data-alt="High-density candlestick trading chart with teal and coral candles, multiple EMA lines, and technical analysis overlays on dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCrmKrrR_Pz7V01_43Lon4D7JrfI4RII_EwmOWZEHtvW6Syl9retkiPAfx6wlMuhTsu020lp1z0nC76p7odsKmSlI5twDlhV9T0b_K442mXo-lXAaD8zZZc7-hrd8VjrShP_RGi_jxosKp6yv9lUqobHdTf4jY3Q70qwy6kRHhUgt6bUQFGX-egaRk0IEUXUA680e3XxZe4yyjVD228zfn9N0m6xMjZHxyPXCcxOZBFOrtPOsLTn38E4O_A2DDhASWC5AHMbGY-Kw"/>
+</div>
+<!-- Signals -->
+<div class="absolute top-1/4 left-1/4 flex flex-col items-center gap-1 group/sig">
+<span class="material-symbols-outlined text-primary text-2xl drop-shadow-[0_0_8px_#46f1c5]" style="font-variation-settings: 'FILL' 1;">arrow_upward</span>
+<span class="bg-primary/20 text-primary text-[10px] px-1 font-black rounded backdrop-blur-sm">BUY</span>
+</div>
+<div class="absolute bottom-1/3 left-1/2 flex flex-col items-center gap-1">
+<span class="w-3 h-3 bg-amber-400 rounded-full shadow-[0_0_8px_#fbbf24]"></span>
+<span class="bg-amber-400/20 text-amber-400 text-[10px] px-1 font-black rounded backdrop-blur-sm">REDUCE</span>
+</div>
+<!-- Side Gauges -->
+<div class="absolute right-4 top-4 bottom-4 flex flex-col gap-4">
+<div class="flex-1 w-12 glass-panel rounded-lg flex flex-col items-center justify-end p-2 gap-2">
+<div class="text-[8px] font-bold text-on-surface-variant vertical-text -rotate-90 origin-center whitespace-nowrap mb-4">MACRO STRENGTH</div>
+<div class="w-full bg-primary/20 h-2/3 rounded-full relative overflow-hidden">
+<div class="absolute bottom-0 w-full h-3/4 bg-primary"></div>
+</div>
+</div>
+<div class="flex-1 w-12 glass-panel rounded-lg flex flex-col items-center justify-end p-2 gap-2">
+<div class="text-[8px] font-bold text-on-surface-variant vertical-text -rotate-90 origin-center whitespace-nowrap mb-4">MICRO VOL</div>
+<div class="w-full bg-tertiary-container/20 h-1/2 rounded-full relative overflow-hidden">
+<div class="absolute bottom-0 w-full h-1/4 bg-tertiary-container"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right (40%): Execution Log -->
+<div class="md:col-span-4 space-y-4">
+<div class="flex justify-between items-center">
+<h2 class="text-sm font-bold tracking-tight text-on-surface">주문 실행 로그</h2>
+<span class="text-[10px] font-mono text-outline uppercase tracking-tighter">Live Feed</span>
+</div>
+<div class="bg-surface-container-low h-[400px] rounded-xl flex flex-col">
+<div class="flex-grow p-4 font-mono text-[11px] space-y-3 overflow-y-auto">
+<div class="flex items-start gap-3 text-on-surface-variant hover:bg-surface-container-high/50 p-1 -mx-1 rounded transition-colors">
+<span class="text-outline">09:24:12</span>
+<span class="w-2 h-2 mt-1 rounded-full bg-primary shadow-[0_0_4px_#46f1c5]"></span>
+<div class="flex-grow">
+<span class="text-primary font-bold">BUY</span>
+<span class="mx-1">0.0210 BTC @ 142,350,000</span>
+<div class="text-[9px] text-outline mt-0.5">FILLED • fee ₩11,420</div>
+</div>
+</div>
+<div class="flex items-start gap-3 text-on-surface-variant hover:bg-surface-container-high/50 p-1 -mx-1 rounded transition-colors">
+<span class="text-outline">09:15:23</span>
+<span class="w-2 h-2 mt-1 rounded-full bg-primary shadow-[0_0_4px_#46f1c5]"></span>
+<div class="flex-grow">
+<span class="text-primary font-bold">BUY</span>
+<span class="mx-1">0.0834 BTC @ 141,200,000</span>
+<div class="text-[9px] text-outline mt-0.5">FILLED • fee ₩42,840</div>
+</div>
+</div>
+<div class="flex items-start gap-3 text-on-surface-variant hover:bg-surface-container-high/50 p-1 -mx-1 rounded transition-colors">
+<span class="text-outline">08:55:01</span>
+<span class="w-2 h-2 mt-1 rounded-full bg-amber-400"></span>
+<div class="flex-grow">
+<span class="text-amber-400 font-bold">SELL</span>
+<span class="mx-1">0.1200 BTC @ 142,000,000</span>
+<div class="text-[9px] text-outline mt-0.5">PARTIAL (0.0400 remaining)</div>
+</div>
+</div>
+<div class="flex items-start gap-3 text-on-surface-variant hover:bg-surface-container-high/50 p-1 -mx-1 rounded transition-colors opacity-60">
+<span class="text-outline">08:32:44</span>
+<span class="w-2 h-2 mt-1 rounded-full bg-error"></span>
+<div class="flex-grow">
+<span class="text-error font-bold">CANCEL</span>
+<span class="mx-1">0.0500 BTC @ 139,500,000</span>
+<div class="text-[9px] text-outline mt-0.5">REJECTED: Price depth mismatch</div>
+</div>
+</div>
+<div class="flex items-start gap-3 text-on-surface-variant hover:bg-surface-container-high/50 p-1 -mx-1 rounded transition-colors">
+<span class="text-outline">08:10:12</span>
+<span class="w-2 h-2 mt-1 rounded-full bg-primary"></span>
+<div class="flex-grow">
+<span class="text-primary font-bold">BUY</span>
+<span class="mx-1">0.1000 BTC @ 138,400,000</span>
+<div class="text-[9px] text-outline mt-0.5">FILLED</div>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-outline-variant/5">
+<button class="w-full py-2 flex items-center justify-center gap-2 border border-outline-variant/30 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded transition-all text-xs font-bold uppercase tracking-widest">
+<span class="material-symbols-outlined text-sm">open_in_new</span>
+                                Upbit 주문창 열기
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- 5. Bottom Row (3 Cards) -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Card A: Risk Gauge -->
+<div class="bg-surface-container p-6 rounded-xl space-y-4">
+<div class="flex justify-between items-center">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">리스크 게이지</h3>
+<span class="text-[10px] text-primary font-bold bg-primary/10 px-2 rounded">정상 범위</span>
+</div>
+<div class="flex justify-between items-end">
+<div class="space-y-1">
+<span class="text-[10px] text-on-surface-variant block uppercase">Current MDD</span>
+<div class="text-3xl font-mono font-bold text-primary">-1.2%</div>
+</div>
+<div class="text-right text-[10px] text-on-surface-variant font-mono">
+                            LIMIT: -6.5%
+                        </div>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full relative">
+<div class="absolute left-0 top-0 h-full bg-primary w-[18%]" style="box-shadow: 0 0 10px #46f1c5"></div>
+<div class="absolute left-[65%] top-[-4px] bottom-[-4px] w-[2px] bg-error/40"></div>
+</div>
+<p class="text-[10px] text-on-surface-variant leading-relaxed">
+                        최대 허용 손실폭(MDD) 대비 여유로운 상태입니다. 시스템 가동을 유지합니다.
+                    </p>
+</div>
+<!-- Card B: Today Summary -->
+<div class="bg-surface-container p-6 rounded-xl space-y-4">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">오늘 거래 요약</h3>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-3">
+<div class="flex justify-between items-center text-[11px]">
+<span class="text-on-surface-variant">총 주문</span>
+<span class="font-mono font-bold">4</span>
+</div>
+<div class="flex justify-between items-center text-[11px]">
+<span class="text-on-surface-variant">체결</span>
+<span class="font-mono font-bold text-primary">3</span>
+</div>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-[11px]">
+<span class="text-on-surface-variant">수수료</span>
+<span class="font-mono font-bold text-error">₩94,680</span>
+</div>
+<div class="flex justify-between items-center text-[11px]">
+<span class="text-on-surface-variant">오늘 P&amp;L</span>
+<span class="font-mono font-bold text-primary">+₩247,800</span>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-outline-variant/10 flex justify-between items-center">
+<span class="text-[10px] text-on-surface-variant uppercase">거래 승률</span>
+<span class="text-sm font-mono font-bold">75%</span>
+</div>
+</div>
+<!-- Card C: System Health -->
+<div class="bg-surface-container p-6 rounded-xl space-y-4">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">시스템 상태</h3>
+<div class="space-y-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-[11px] text-on-surface">API Connection</span>
+</div>
+<span class="text-[9px] font-mono text-primary uppercase">Active</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-[11px] text-on-surface">WebSocket Feed</span>
+</div>
+<span class="text-[9px] font-mono text-primary uppercase">Stable</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-[11px] text-on-surface">Strategy Engine</span>
+</div>
+<span class="text-[9px] font-mono text-primary uppercase">Running</span>
+</div>
+</div>
+<div class="mt-4 pt-3 border-t border-outline-variant/10 bg-surface-container-low p-2 rounded">
+<div class="text-[9px] text-on-surface-variant uppercase font-bold mb-1">Last Error</div>
+<div class="text-[11px] font-mono text-outline">없음 (0h 45m since last restart)</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Background Decorative Elements -->
+<div class="fixed inset-0 pointer-events-none z-[-1] overflow-hidden opacity-20">
+<div class="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px]"></div>
+<div class="absolute bottom-0 left-0 w-[800px] h-[800px] bg-surface-container-high/20 rounded-full blur-[150px]"></div>
+</div>
+</body></html>
