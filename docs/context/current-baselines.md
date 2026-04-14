@@ -91,6 +91,31 @@ Balanced score across train/val/test (60m candles):
 Quick exploration finding: `COOLDOWN_BARS=48` improves val (+0.05) and test (+0.21) but
 hurts train severely (score 1.515→0.937, return 92.8→42.7%). No net balanced gain found.
 
+## API Cache Performance
+
+Measured on 2026-04-14 against `backend/` FastAPI scaffold with
+`~/.cache/autotrader_upbit/api/` JSON cache (see issue #10).
+
+Cold-start latency (backtest + cache write):
+
+- `GET /api/dashboard` (MTF full+test + Spot val): **99.2s**
+- `GET /api/strategies/mtf/walkforward` (13×180d + 6×1y windows): **338.7s**
+
+Warm-cache latency:
+
+- `GET /api/dashboard`: `5–14ms` (median ~6ms)
+- `GET /api/strategies/mtf/walkforward`: `1.9ms`
+
+Cache footprint after warming all endpoints: `292KB` across 4 files
+
+- `mtf_*.json`: 869B — compact metrics dict (full + test)
+- `spot_val_*.json`: 269KB — full `UpbitBacktestResult` including trade_log + equity_curve
+- `mtf_wf_180d_*.json`: 8.4KB — 13 window results
+- `mtf_wf_1y_*.json`: 4.2KB — 6 window results
+
+Implication: warm dashboard loads are effectively free; expensive computation
+only runs once per parameter-set change (cache key includes hashed params).
+
 ## Biggest Historical Lesson
 
 Removing complexity improved results more than adding it.
