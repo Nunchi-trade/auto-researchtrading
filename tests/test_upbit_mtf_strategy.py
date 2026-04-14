@@ -9,17 +9,17 @@ def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["FULL_LONG_PCT"] == 0.92
     assert DEFAULT_MTF_PARAMS["REDUCED_PCT"] == 0.576
     assert DEFAULT_MTF_PARAMS["REDUCED_HIGH_PCT"] == 0.576
-    assert DEFAULT_MTF_PARAMS["REDUCED_LOW_PCT"] == 0.00
     assert DEFAULT_MTF_PARAMS["MACRO_FULL_THRESHOLD"] == 0.58
-    assert DEFAULT_MTF_PARAMS["MACRO_REDUCED_THRESHOLD"] == 0.55
     assert DEFAULT_MTF_PARAMS["MICRO_FULL_THRESHOLD"] == 0.50
     assert DEFAULT_MTF_PARAMS["MICRO_ENTER_FULL_THRESHOLD"] == 0.52
     assert DEFAULT_MTF_PARAMS["MICRO_EXIT_FULL_THRESHOLD"] == 0.46
-    assert DEFAULT_MTF_PARAMS["MICRO_REDUCED_THRESHOLD"] == 0.40
     assert DEFAULT_MTF_PARAMS["MAX_MACRO_DRAWDOWN"] == 0.065
     assert DEFAULT_MTF_PARAMS["STATE_CONFIRM_BARS"] == 4
     assert DEFAULT_MTF_PARAMS["MIN_STATE_HOLD_BARS"] == 1
     assert DEFAULT_MTF_PARAMS["MIN_REBALANCE_FRACTION"] == 0.12
+    assert "REDUCED_LOW_PCT" not in DEFAULT_MTF_PARAMS
+    assert "MACRO_REDUCED_THRESHOLD" not in DEFAULT_MTF_PARAMS
+    assert "MICRO_REDUCED_THRESHOLD" not in DEFAULT_MTF_PARAMS
 
 
 def _make_interval_df(interval_minutes: int, closes: list[float]) -> pd.DataFrame:
@@ -101,20 +101,17 @@ def test_inspect_state_returns_reduced_high_when_macro_strong_but_micro_softens(
     assert snapshot["target_fraction"] == 0.60
 
 
-def test_inspect_state_returns_reduced_low_when_macro_secondary_and_micro_confirms():
+def test_inspect_state_returns_flat_when_macro_below_full_threshold():
     interval_data = _make_full_long_interval_data()
-    params = {
-        **DEFAULT_MTF_PARAMS,
-        "REDUCED_LOW_PCT": 0.35,
-    }
-    strategy = MultiTimeframeStrategy(interval_data, params=params)
+    strategy = MultiTimeframeStrategy(interval_data, params=DEFAULT_MTF_PARAMS)
+    # macro below MACRO_FULL_THRESHOLD=0.58 → flat regardless of micro
     strategy._macro_snapshot = lambda symbol, timestamp: (0.56, 0.04)
     strategy._micro_snapshot = lambda symbol, timestamp: 0.45
 
     snapshot = strategy.inspect_state("KRW-BTC", int(interval_data[60]["KRW-BTC"]["timestamp"].iloc[-1]))
 
-    assert snapshot["state"] == "reduced_low"
-    assert snapshot["target_fraction"] == 0.35
+    assert snapshot["state"] == "flat"
+    assert snapshot["target_fraction"] == 0.0
 
 
 def test_on_bar_exits_to_flat_when_macro_breaks_down():

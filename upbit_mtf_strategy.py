@@ -20,13 +20,10 @@ MICRO_MOMENTUM_LOOKBACK = 6
 FULL_LONG_PCT = 0.92
 REDUCED_PCT = 0.576
 REDUCED_HIGH_PCT = REDUCED_PCT
-REDUCED_LOW_PCT = 0.00
 MACRO_FULL_THRESHOLD = 0.58
-MACRO_REDUCED_THRESHOLD = 0.55
 MICRO_FULL_THRESHOLD = 0.50
 MICRO_ENTER_FULL_THRESHOLD = 0.52
 MICRO_EXIT_FULL_THRESHOLD = 0.46
-MICRO_REDUCED_THRESHOLD = 0.40
 MAX_MACRO_DRAWDOWN = 0.065
 MICRO_BREAKOUT_BUFFER = 0.998
 MICRO_MOMENTUM_THRESHOLD = 0.0
@@ -39,13 +36,10 @@ DEFAULT_MTF_PARAMS = {
     "FULL_LONG_PCT": FULL_LONG_PCT,
     "REDUCED_PCT": REDUCED_PCT,
     "REDUCED_HIGH_PCT": REDUCED_HIGH_PCT,
-    "REDUCED_LOW_PCT": REDUCED_LOW_PCT,
     "MACRO_FULL_THRESHOLD": MACRO_FULL_THRESHOLD,
-    "MACRO_REDUCED_THRESHOLD": MACRO_REDUCED_THRESHOLD,
     "MICRO_FULL_THRESHOLD": MICRO_FULL_THRESHOLD,
     "MICRO_ENTER_FULL_THRESHOLD": MICRO_ENTER_FULL_THRESHOLD,
     "MICRO_EXIT_FULL_THRESHOLD": MICRO_EXIT_FULL_THRESHOLD,
-    "MICRO_REDUCED_THRESHOLD": MICRO_REDUCED_THRESHOLD,
     "MAX_MACRO_DRAWDOWN": MAX_MACRO_DRAWDOWN,
     "MICRO_BREAKOUT_BUFFER": MICRO_BREAKOUT_BUFFER,
     "MICRO_MOMENTUM_THRESHOLD": MICRO_MOMENTUM_THRESHOLD,
@@ -204,12 +198,9 @@ class MultiTimeframeStrategy:
         micro_strength = self._micro_snapshot(symbol, timestamp)
 
         macro_full = float(self.params["MACRO_FULL_THRESHOLD"])
-        macro_reduced = float(self.params["MACRO_REDUCED_THRESHOLD"])
         micro_full = float(self.params["MICRO_FULL_THRESHOLD"])
-        micro_reduced = float(self.params["MICRO_REDUCED_THRESHOLD"])
         max_macro_drawdown = float(self.params["MAX_MACRO_DRAWDOWN"])
         reduced_high_pct = float(self.params.get("REDUCED_HIGH_PCT", self.params["REDUCED_PCT"]))
-        reduced_low_pct = float(self.params.get("REDUCED_LOW_PCT", self.params["REDUCED_PCT"]))
 
         state = "flat"
         target_fraction = 0.0
@@ -222,9 +213,6 @@ class MultiTimeframeStrategy:
         elif macro_strength >= macro_full:
             state = "reduced_high"
             target_fraction = reduced_high_pct
-        elif macro_strength >= macro_reduced and micro_strength >= micro_reduced:
-            state = "reduced_low"
-            target_fraction = reduced_low_pct
 
         snapshot = StrategySnapshot(
             state=state,
