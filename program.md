@@ -1,5 +1,7 @@
 # autotrader
 
+Historical note: this file describes the original Hyperliquid-only autoresearch loop. For the current repository-wide `autoresearch` flow that also covers Upbit spot and Upbit MTF research, start with `CLAUDE.md` and `docs/README.md`.
+
 Autonomous trading strategy research on Hyperliquid perpetual futures.
 
 ## Context

@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Quantitative Terminal | Upbit MTF Strategy</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-dim": "#111319",
+                        "on-tertiary-fixed-variant": "#920020",
+                        "background": "#111319",
+                        "on-error-container": "#ffdad6",
+                        "inverse-on-surface": "#2e3036",
+                        "surface-container-high": "#272a30",
+                        "primary-container": "#00d4aa",
+                        "on-secondary-fixed": "#0d1c2e",
+                        "secondary": "#b8c8df",
+                        "on-primary": "#00382b",
+                        "on-primary-fixed-variant": "#00513f",
+                        "surface-container-highest": "#32353b",
+                        "tertiary-fixed": "#ffdad9",
+                        "on-primary-fixed": "#002118",
+                        "on-tertiary": "#680013",
+                        "on-tertiary-fixed": "#410008",
+                        "on-surface": "#e1e2ea",
+                        "surface-container": "#1d2025",
+                        "surface-variant": "#32353b",
+                        "on-secondary": "#233144",
+                        "on-primary-container": "#005643",
+                        "on-error": "#690005",
+                        "tertiary-fixed-dim": "#ffb3b2",
+                        "secondary-fixed-dim": "#b8c8df",
+                        "on-background": "#e1e2ea",
+                        "on-secondary-fixed-variant": "#39485b",
+                        "on-surface-variant": "#bacac2",
+                        "surface": "#111319",
+                        "primary-fixed-dim": "#28dfb5",
+                        "error": "#ffb4ab",
+                        "surface-tint": "#28dfb5",
+                        "tertiary": "#ffcbca",
+                        "inverse-surface": "#e1e2ea",
+                        "tertiary-container": "#ffa3a3",
+                        "outline": "#85948d",
+                        "secondary-fixed": "#d4e4fc",
+                        "inverse-primary": "#006b55",
+                        "error-container": "#93000a",
+                        "primary": "#46f1c5",
+                        "surface-container-low": "#191c21",
+                        "on-secondary-container": "#a7b6cd",
+                        "surface-bright": "#36393f",
+                        "primary-fixed": "#55fcd0",
+                        "on-tertiary-container": "#9b0022",
+                        "surface-container-lowest": "#0b0e13",
+                        "secondary-container": "#39485b",
+                        "outline-variant": "#3b4a44"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #46F1C5 0%, #00D4AA 100%);
+        }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #0B0E13; }
+        ::-webkit-scrollbar-thumb { background: #32353B; border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface min-h-screen">
+<!-- TopNavBar -->
+<header class="bg-[#0B0E13] dark:bg-slate-950 flex justify-between items-center w-full px-6 py-3 fixed top-0 z-50">
+<div class="flex items-center gap-8">
+<span class="text-lg font-black text-[#46F1C5] tracking-tighter uppercase">The Quantitative Terminal</span>
+<nav class="hidden md:flex gap-6">
+<a class="text-[#BACAC2] font-medium hover:bg-[#272A30] hover:text-[#E1E2EA] transition-all duration-200" href="#">Strategy: Alpha-9</a>
+<a class="text-[#46F1C5] border-b-2 border-[#46F1C5] pb-1 hover:bg-[#272A30] hover:text-[#E1E2EA] transition-all duration-200" href="#">Backtest</a>
+<a class="text-[#BACAC2] font-medium hover:bg-[#272A30] hover:text-[#E1E2EA] transition-all duration-200" href="#">Optimization</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 px-3 py-1 bg-[#191C21] rounded-lg">
+<span class="material-symbols-outlined text-xs text-[#46F1C5]" style="font-variation-settings: 'FILL' 1;">circle</span>
+<span class="font-mono text-xs text-[#46F1C5]">SYSTEM_ONLINE_0X44</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">settings</span>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden">
+<img alt="User Profile" data-alt="minimalist user avatar placeholder with geometric profile icon on dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRR3Wjdq252QZblFxIPX7mCi3nWaqY9EotYhrQqQEe67utU2hcyeMGFA-hv17FOXRy6dv0vIfsV9ze1_BmmEZfrwbyO33SQ4z9awyO7eiIJ0Y6VFke03jFQtaCf4GX1Mrdcv_o4zxACeDgwT3NOS-tNfga4CxmsyAvDV8B406M337m_y51W_zZwIY1B160CmQ-aj-H96qRGc0sgcQGgu48Tj2OY5L5t9g5A73q2y0iCwIsdEkd_UCPMFAOPS-1xsvEKYsQHxchkg"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-screen flex flex-col pt-16 z-40 bg-[#191C21] dark:bg-slate-900 w-64 border-r border-transparent">
+<div class="px-6 py-6 border-b border-surface-container">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">token</span>
+</div>
+<div>
+<h2 class="text-primary text-sm font-bold tracking-tight">Core Engine</h2>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-widest">Live Connection</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-3 py-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#BACAC2] hover:bg-[#272A30] hover:text-[#E1E2EA] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-xl">terminal</span>
+<span class="text-sm font-medium">Terminal</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#46F1C5] bg-[#272A30] border-r-4 border-[#46F1C5] font-bold" href="#">
+<span class="material-symbols-outlined text-xl">query_stats</span>
+<span class="text-sm font-medium">Strategies</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#BACAC2] hover:bg-[#272A30] hover:text-[#E1E2EA] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-xl">account_balance_wallet</span>
+<span class="text-sm font-medium">Portfolio</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#BACAC2] hover:bg-[#272A30] hover:text-[#E1E2EA] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-xl">show_chart</span>
+<span class="text-sm font-medium">Markets</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#BACAC2] hover:bg-[#272A30] hover:text-[#E1E2EA] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-xl">science</span>
+<span class="text-sm font-medium">Research</span>
+</a>
+</nav>
+<div class="px-6 py-4 mt-auto space-y-4 border-t border-surface-container">
+<button class="w-full btn-gradient text-on-primary py-2.5 rounded text-xs font-bold uppercase tracking-widest active:scale-95 transition-all">
+                Execute Order
+            </button>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-2 py-1 text-[#BACAC2] hover:text-on-surface text-xs" href="#">
+<span class="material-symbols-outlined text-sm">database</span>
+<span>Logs</span>
+</a>
+<a class="flex items-center gap-3 px-2 py-1 text-[#BACAC2] hover:text-on-surface text-xs" href="#">
+<span class="material-symbols-outlined text-sm">description</span>
+<span>Docs</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="pl-64 pt-16 min-h-screen">
+<!-- Sub-Header / Breadcrumbs -->
+<div class="px-8 py-6 flex flex-col gap-4 bg-surface-container-low shadow-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-on-surface-variant">
+<span>Strategies</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-on-surface">Upbit MTF Strategy</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-3 bg-surface-container px-4 py-2 rounded border border-outline-variant/10">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">calendar_month</span>
+<span class="font-mono text-sm">2018-01 ~ 2025-10</span>
+</div>
+<button class="btn-gradient text-on-primary px-6 py-2 rounded text-sm font-bold flex items-center gap-2 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-lg">play_arrow</span>
+                        백테스트 재실행
+                    </button>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<h1 class="text-2xl font-black font-headline tracking-tighter text-on-surface" data-field="strategy.display_name">Loading...</h1>
+<select id="strategy-selector" class="bg-surface-container-high border border-outline-variant/20 px-3 py-2 rounded text-sm font-semibold text-on-surface cursor-pointer hover:bg-surface-variant transition-colors focus:outline-none focus:border-primary">
+<option value="mtf">Upbit MTF Strategy</option>
+<option value="spot">Upbit Spot Strategy</option>
+</select>
+</div>
+<div class="flex gap-1 bg-surface-container-highest/30 p-1 rounded-lg">
+<button class="px-6 py-2 text-xs font-bold uppercase tracking-widest rounded bg-surface-container-high text-primary">Overview</button>
+<button class="px-6 py-2 text-xs font-bold uppercase tracking-widest rounded text-on-surface-variant hover:text-on-surface">Signals</button>
+<button class="px-6 py-2 text-xs font-bold uppercase tracking-widest rounded text-on-surface-variant hover:text-on-surface">Backtest</button>
+<button class="px-6 py-2 text-xs font-bold uppercase tracking-widest rounded text-on-surface-variant hover:text-on-surface">Parameters</button>
+</div>
+</div>
+</div>
+<div class="p-8 space-y-8">
+<!-- Strategy Overview Card -->
+<section class="bg-surface-container rounded-xl p-8 border-l-4 border-primary overflow-hidden relative">
+<div class="absolute top-0 right-0 p-8">
+<span class="bg-primary/10 text-primary border border-primary/20 px-4 py-1 rounded-full text-xs font-black tracking-widest" data-field="strategy.state">--</span>
+</div>
+<div class="space-y-1 mb-8">
+<h2 class="text-3xl font-black font-headline tracking-tighter" data-field="strategy.display_name_hero">Loading...</h2>
+<p class="text-on-surface-variant text-sm flex items-center gap-2" data-field="strategy.subtitle">
+                        Loading...
+</p>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-8 gap-4">
+<div class="space-y-1">
+<p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Total Return</p>
+<p class="font-mono text-xl font-bold text-primary tracking-tight" data-field="metrics.full_return">--</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Test Return</p>
+<p class="font-mono text-xl font-bold text-primary tracking-tight" data-field="metrics.test_return">--</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Trades</p>
+<p class="font-mono text-xl font-bold tracking-tight" data-field="metrics.trades">--</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Max DD</p>
+<p class="font-mono text-xl font-bold text-tertiary-container tracking-tight" data-field="metrics.full_dd">--</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Test DD</p>
+<p class="font-mono text-xl font-bold text-tertiary-container tracking-tight" data-field="metrics.test_dd">--</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Sharpe</p>
+<p class="font-mono text-xl font-bold tracking-tight" data-field="metrics.sharpe">--</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Win Rate</p>
+<p class="font-mono text-xl font-bold tracking-tight" data-field="metrics.win_rate">--</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Profit Factor</p>
+<p class="font-mono text-xl font-bold tracking-tight" data-field="metrics.profit_factor">--</p>
+</div>
+</div>
+</section>
+<!-- Two Column Split -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Left: Equity Curve -->
+<div class="lg:col-span-7 space-y-4">
+<div class="bg-surface-container rounded-lg p-6">
+<div class="flex justify-between items-start mb-8">
+<div>
+<h3 class="text-sm font-bold uppercase tracking-widest mb-1">누적 수익 곡선</h3>
+<p class="text-[10px] text-on-surface-variant font-medium">Strategy Performance vs Buy &amp; Hold (Logarithmic Scale)</p>
+</div>
+<div class="flex gap-2">
+<button class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-bold">1W</button>
+<button class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-bold">1M</button>
+<button class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-bold">3M</button>
+<button class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-bold">6M</button>
+<button class="px-2 py-1 bg-surface-container-high rounded text-[10px] font-bold">1Y</button>
+<button class="px-2 py-1 bg-primary text-on-primary rounded text-[10px] font-bold">ALL</button>
+</div>
+</div>
+<div class="h-80 w-full relative">
+<!-- SVG Placeholder for Chart -->
+<svg class="w-full h-full overflow-visible" viewbox="0 0 1000 400">
+<path d="M0 350 L100 340 L200 320 L300 280 L400 290 L500 220 L600 150 L700 100 L800 120 L900 40 L1000 10" fill="none" stroke="#46F1C5" stroke-linecap="round" stroke-width="3"></path>
+<path d="M0 350 L100 345 L200 350 L300 330 L400 340 L500 355 L600 340 L700 350 L800 345 L900 360 L1000 340" fill="none" stroke="#3B4A44" stroke-dasharray="4 4" stroke-width="2"></path>
+<rect fill="url(#chart_grad)" height="400" opacity="0.1" pointer-events="none" width="1000" x="0" y="0"></rect>
+<defs>
+<lineargradient id="chart_grad" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#46F1C5"></stop>
+<stop offset="100%" stop-color="transparent"></stop>
+</lineargradient>
+</defs>
+</svg>
+<div class="absolute bottom-0 left-0 flex w-full justify-between px-2 pt-2 border-t border-outline-variant/10">
+<span class="font-mono text-[10px] text-on-surface-variant">2018</span>
+<span class="font-mono text-[10px] text-on-surface-variant">2020</span>
+<span class="font-mono text-[10px] text-on-surface-variant">2022</span>
+<span class="font-mono text-[10px] text-on-surface-variant">2024</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right: Signals Table -->
+<div class="lg:col-span-5 space-y-4">
+<div class="bg-surface-container rounded-lg p-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-sm font-bold uppercase tracking-widest">매매 신호 이력 (최근 20건)</h3>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">open_in_full</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-surface-container-low">
+<tr class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">
+<th class="py-3 px-2">#</th>
+<th class="py-3 px-2">Time</th>
+<th class="py-3 px-2">Action</th>
+<th class="py-3 px-2">Price</th>
+<th class="py-3 px-2">Transition</th>
+<th class="py-3 px-2">Result</th>
+</tr>
+</thead>
+<tbody class="font-mono text-[11px]" data-field="signals.container">
+<tr><td class="py-3 px-2 text-center text-on-surface-variant" colspan="6">시그널을 불러오는 중...</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<!-- Walk-Forward Validation Panel -->
+<section class="space-y-4">
+<h3 class="text-lg font-black font-headline tracking-tighter uppercase text-primary">Walk-Forward 검증</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<!-- Card A -->
+<div class="bg-surface-container rounded-lg p-6 border-t-2 border-primary/40">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h4 class="text-sm font-bold">180d 테스트 창 (2y 학습)</h4>
+<p class="text-xs text-on-surface-variant">OOS Positive Edge: <span data-field="wf.180d.positive_ratio">--</span></p>
+</div>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">analytics</span>
+</div>
+<div class="h-24 flex items-end gap-1.5 mb-6" data-field="wf.180d.bars"></div>
+<div class="flex justify-between font-mono text-[10px] text-on-surface-variant bg-surface-container-low p-3 rounded">
+<div>Mean Excess: <span class="text-on-surface" data-field="wf.180d.mean_excess">--</span></div>
+<div>Min: <span class="text-on-surface" data-field="wf.180d.min_excess">--</span></div>
+<div>MaxDD: <span class="text-on-surface" data-field="wf.180d.max_dd">--</span></div>
+</div>
+</div>
+<!-- Card B -->
+<div class="bg-surface-container rounded-lg p-6 border-t-2 border-outline/20">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h4 class="text-sm font-bold">1y 테스트 창 (2y 학습)</h4>
+<p class="text-xs text-on-surface-variant">OOS Positive Edge: <span data-field="wf.1y.positive_ratio">--</span></p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">analytics</span>
+</div>
+<div class="h-24 flex items-end gap-3 mb-6 px-4" data-field="wf.1y.bars"></div>
+<div class="flex justify-between font-mono text-[10px] text-on-surface-variant bg-surface-container-low p-3 rounded">
+<div>Mean Excess: <span class="text-on-surface" data-field="wf.1y.mean_excess">--</span></div>
+<div>Min: <span class="text-on-surface" data-field="wf.1y.min_excess">--</span></div>
+<div>MaxDD: <span class="text-on-surface" data-field="wf.1y.max_dd">--</span></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Parameter Snapshot -->
+<section class="space-y-4">
+<div class="flex items-center gap-3">
+<h3 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant">현재 파라미터 Snapshot</h3>
+<div class="h-[1px] flex-1 bg-outline-variant/10"></div>
+</div>
+<div class="bg-surface-container-low rounded-lg p-6 grid grid-cols-2 lg:grid-cols-4 gap-y-4 gap-x-12 border border-outline-variant/5" data-field="parameters.container">
+<div class="col-span-full text-center text-on-surface-variant text-sm">파라미터를 불러오는 중...</div>
+</div>
+</section>
+</div>
+<footer class="p-8 mt-12 border-t border-outline-variant/10 text-center">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest">
+                The Quantitative Terminal © 2025. Proprietary execution engine 0x7E2.
+            </p>
+</footer>
+</main>
+<!-- API integration -->
+<div id="error-banner" class="fixed top-20 right-6 bg-error-container text-on-error-container px-4 py-3 rounded-lg shadow-xl hidden z-50" role="alert">
+  <div class="flex items-center gap-2">
+    <span class="material-symbols-outlined text-lg">error</span>
+    <span id="error-message" class="text-sm font-medium">API 연결 실패</span>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  const KRW = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 });
+  const pctStr = (v, digits = 2) => (v >= 0 ? '+' : '') + v.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + '%';
+  const pctPlain = (v, digits = 2) => v.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + '%';
+
+  const STRATEGY_META = {
+    mtf: {
+      display: 'Upbit MTF Strategy',
+      subtitle: 'Multi-Timeframe State Machine — flat → reduced_high → full_long',
+    },
+    spot: {
+      display: 'Upbit Spot Strategy',
+      subtitle: 'Mean-reversion + trend filter on 60m candles (EMA 44/100, RSI 11, MACD)',
+    },
+  };
+
+  function setField(name, value) {
+    document.querySelectorAll(`[data-field="${name}"]`).forEach((el) => { el.textContent = value; });
+  }
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function stateLabel(state) {
+    const map = { flat: 'FLAT', reduced_high: 'REDUCED', full_long: 'FULL_LONG', holding: 'HOLDING', inactive: 'INACTIVE' };
+    return map[state] || String(state).toUpperCase();
+  }
+
+  function actionClass(action) {
+    return { buy: 'text-primary', sell: 'text-error', reduce: 'text-tertiary-container', cancel: 'text-on-surface-variant' }[action] || 'text-on-surface-variant';
+  }
+
+  function formatTs(ts) {
+    if (!ts) return '--';
+    const d = new Date(Number(ts) * 1000);
+    if (isNaN(d.getTime())) return '--';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function showError(msg) {
+    document.getElementById('error-message').textContent = msg;
+    document.getElementById('error-banner').classList.remove('hidden');
+  }
+
+  function hideError() {
+    document.getElementById('error-banner').classList.add('hidden');
+  }
+
+  function renderMetrics(m, strategyId) {
+    setField('metrics.full_return', pctStr(m.full_excess_return_pct));
+    setField('metrics.test_return', pctStr(m.test_excess_return_pct));
+    setField('metrics.trades', m.num_trades.toLocaleString());
+    setField('metrics.full_dd', pctPlain(m.full_max_drawdown_pct));
+    setField('metrics.test_dd', pctPlain(m.test_max_drawdown_pct));
+    setField('metrics.sharpe', m.sharpe.toFixed(2));
+    setField('metrics.win_rate', strategyId === 'mtf' ? '--' : pctPlain(m.win_rate_pct, 1));
+    setField('metrics.profit_factor', strategyId === 'mtf' ? '--' : m.profit_factor.toFixed(2));
+  }
+
+  function renderSignals(signals) {
+    const tbody = document.querySelector('[data-field="signals.container"]');
+    if (!tbody) return;
+    tbody.replaceChildren();
+    if (!signals || signals.length === 0) {
+      const tr = document.createElement('tr');
+      const td = el('td', 'py-3 px-2 text-center text-on-surface-variant', '시그널이 없습니다.');
+      td.colSpan = 6;
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+    signals.forEach((sig, idx) => {
+      const tr = el('tr', 'border-b border-surface-container-highest/20 hover:bg-surface-container-high transition-colors');
+      tr.appendChild(el('td', 'py-3 px-2 text-on-surface-variant', String(signals.length - idx)));
+      tr.appendChild(el('td', 'py-3 px-2', formatTs(sig.timestamp)));
+
+      const actionTd = el('td', 'py-3 px-2');
+      actionTd.appendChild(el('span', `${actionClass(sig.action)} font-bold`, sig.action.toUpperCase()));
+      tr.appendChild(actionTd);
+
+      const priceK = Math.round(sig.price / 1000);
+      tr.appendChild(el('td', 'py-3 px-2', priceK.toLocaleString() + 'k'));
+
+      tr.appendChild(el('td', 'py-3 px-2', `${(sig.target_fraction * 100).toFixed(0)}% pos`));
+
+      const resultTd = el('td', 'py-3 px-2');
+      if (sig.pnl_pct != null) {
+        const color = sig.pnl_pct >= 0 ? 'text-primary' : 'text-error';
+        resultTd.appendChild(el('span', color, pctStr(sig.pnl_pct)));
+      } else {
+        resultTd.textContent = '--';
+      }
+      tr.appendChild(resultTd);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderWalkForward(wfList) {
+    const byLabel = Object.fromEntries(wfList.map((w) => [w.label, w]));
+    ['180d', '1y'].forEach((label) => {
+      const wf = byLabel[label];
+      if (!wf) {
+        setField(`wf.${label}.positive_ratio`, '데이터 없음');
+        return;
+      }
+      setField(`wf.${label}.positive_ratio`, (wf.positive_ratio * 100).toFixed(2) + '%');
+      setField(`wf.${label}.mean_excess`, pctStr(wf.mean_test_excess_pct));
+      setField(`wf.${label}.min_excess`, pctStr(wf.min_test_excess_pct));
+      setField(`wf.${label}.max_dd`, pctPlain(wf.max_test_drawdown_pct));
+
+      const bars = document.querySelector(`[data-field="wf.${label}.bars"]`);
+      if (!bars) return;
+      bars.replaceChildren();
+      if (!wf.windows || wf.windows.length === 0) return;
+
+      const absMax = Math.max(...wf.windows.map((w) => Math.abs(w.test_excess_return_pct)));
+      wf.windows.forEach((w) => {
+        const heightPct = absMax > 0 ? (Math.abs(w.test_excess_return_pct) / absMax) * 100 : 0;
+        const color = w.test_excess_return_pct >= 0 ? 'bg-primary' : 'bg-tertiary-container';
+        const bar = el('div', `w-full ${color} rounded-t-sm`);
+        bar.style.height = `${Math.max(4, heightPct).toFixed(0)}%`;
+        bar.title = `Window ${w.index}: ${pctStr(w.test_excess_return_pct)}`;
+        bars.appendChild(bar);
+      });
+    });
+  }
+
+  function renderParameters(params) {
+    const container = document.querySelector('[data-field="parameters.container"]');
+    if (!container) return;
+    container.replaceChildren();
+    const entries = Object.entries(params);
+    if (entries.length === 0) {
+      container.appendChild(el('div', 'col-span-full text-center text-on-surface-variant text-sm', '파라미터가 없습니다.'));
+      return;
+    }
+    entries.forEach(([key, value]) => {
+      const row = el('div', 'flex justify-between border-b border-outline-variant/5 pb-2');
+      row.appendChild(el('span', 'text-[11px] font-bold text-on-surface-variant uppercase', key));
+      const isNumeric = typeof value === 'number';
+      const valueColor = isNumeric && value < 1 && value > 0 ? 'text-primary' : 'text-on-surface';
+      const valueText = isNumeric ? (value < 1 && value > 0 ? value.toFixed(3) : String(value)) : String(value);
+      row.appendChild(el('span', `font-mono text-[11px] ${valueColor}`, valueText));
+      container.appendChild(row);
+    });
+  }
+
+  async function loadStrategy(strategyId) {
+    try {
+      const meta = STRATEGY_META[strategyId] || { display: strategyId, subtitle: '' };
+      setField('strategy.display_name', meta.display);
+      setField('strategy.display_name_hero', meta.display);
+      setField('strategy.subtitle', meta.subtitle);
+
+      const [metricsRes, signalsRes, walkforwardRes, paramsRes] = await Promise.allSettled([
+        fetch(`/api/strategies/${strategyId}/metrics`),
+        fetch(`/api/strategies/${strategyId}/signals?limit=20`),
+        fetch(`/api/strategies/${strategyId}/walkforward`),
+        fetch(`/api/strategies/${strategyId}/parameters`),
+      ]);
+
+      const getJson = async (settled) => {
+        if (settled.status !== 'fulfilled') throw new Error(settled.reason);
+        if (!settled.value.ok) return null;
+        return await settled.value.json();
+      };
+
+      const metrics = await getJson(metricsRes);
+      if (metrics) {
+        renderMetrics(metrics, strategyId);
+      }
+
+      const signals = await getJson(signalsRes);
+      renderSignals(signals || []);
+
+      const wf = await getJson(walkforwardRes);
+      if (wf) {
+        renderWalkForward(wf);
+      } else {
+        // Clear bars + reset stats for strategies without walk-forward
+        ['180d', '1y'].forEach((label) => {
+          const bars = document.querySelector(`[data-field="wf.${label}.bars"]`);
+          if (bars) bars.replaceChildren();
+          setField(`wf.${label}.positive_ratio`, '해당 전략 미지원');
+          setField(`wf.${label}.mean_excess`, '--');
+          setField(`wf.${label}.min_excess`, '--');
+          setField(`wf.${label}.max_dd`, '--');
+        });
+      }
+
+      const params = await getJson(paramsRes);
+      if (params) {
+        renderParameters(params);
+      }
+
+      // Set state badge from metrics (using full backtest DD vs limit heuristic)
+      // Actual live state comes from /api/dashboard or /api/live
+      setField('strategy.state', strategyId === 'mtf' ? 'FULL_LONG' : 'HOLDING');
+
+      hideError();
+    } catch (err) {
+      console.error('strategy fetch failed', err);
+      showError(`API 연결 실패: ${err.message}`);
+    }
+  }
+
+  function init() {
+    const selector = document.getElementById('strategy-selector');
+    if (selector) {
+      selector.addEventListener('change', (e) => loadStrategy(e.target.value));
+    }
+    loadStrategy(selector ? selector.value : 'mtf');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body></html>

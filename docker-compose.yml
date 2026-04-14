@@ -1,0 +1,36 @@
+services:
+  autotrader:
+    build: .
+    volumes:
+      # 데이터 캐시 영속화 — 컨테이너 재시작해도 재다운로드 불필요
+      - autotrader-cache:/root/.cache/autotrader
+      - autotrader-upbit-cache:/root/.cache/autotrader_upbit
+      # strategy.py 핫-리로드 (실험 중 수정 즉시 반영)
+      - ./strategy.py:/app/strategy.py:ro
+      - ./upbit_strategy.py:/app/upbit_strategy.py:ro
+    command: uv run backtest.py
+
+  # 데이터 다운로드 전용 서비스
+  prepare:
+    build: .
+    volumes:
+      - autotrader-cache:/root/.cache/autotrader
+    command: uv run prepare.py
+
+  # Upbit 데이터 다운로드
+  upbit-prepare:
+    build: .
+    volumes:
+      - autotrader-upbit-cache:/root/.cache/autotrader_upbit
+    command: uv run upbit_prepare_run.py
+
+  # 테스트 실행
+  test:
+    build: .
+    volumes:
+      - .:/app
+    command: uv run pytest tests/ -v
+
+volumes:
+  autotrader-cache:
+  autotrader-upbit-cache:

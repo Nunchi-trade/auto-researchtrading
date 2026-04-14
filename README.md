@@ -25,7 +25,7 @@
 
 ---
 
-An AI agent autonomously modifies a single file (`strategy.py`), backtests each change against historical [Hyperliquid](https://hyperliquid.xyz) perp data, and keeps only improvements. Adapts [Karpathy's autoresearch](https://github.com/karpathy/autoresearch) pattern for trading strategy discovery. Starting from a simple momentum baseline (Sharpe 2.7), the system discovered a 6-signal ensemble strategy achieving **Sharpe 21.4 with 0.3% max drawdown** — a 7.9x improvement over 103 fully autonomous experiments.
+An AI agent autonomously modifies a trading strategy, backtests each change, and keeps only improvements. The original system was built around a single-file Hyperliquid loop (`strategy.py`), and this repository now also contains Upbit spot and Upbit multi-timeframe research flows. It adapts [Karpathy's autoresearch](https://github.com/karpathy/autoresearch) pattern for trading strategy discovery. Starting from a simple momentum baseline (Sharpe 2.7), the original Hyperliquid loop discovered a 6-signal ensemble strategy achieving **Sharpe 21.4 with 0.3% max drawdown** — a 7.9x improvement over 103 fully autonomous experiments.
 
 ---
 
@@ -65,6 +65,16 @@ max_drawdown_pct:   0.300000
 num_trades:         7605
 ```
 
+### Project Tracks
+
+This repository now has three distinct research surfaces:
+
+- Hyperliquid original loop: `prepare.py`, `backtest.py`, `strategy.py`
+- Upbit spot: `upbit_prepare.py`, `upbit_backtest.py`, `upbit_strategy.py`
+- Upbit MTF research: `upbit_mtf_strategy.py`, `upbit_mtf_research.py`, `scripts/upbit_mtf_search.py`
+
+Use the Hyperliquid path when you want the original single-file autoresearch loop. Use the Upbit paths when working on spot or multi-timeframe strategy research.
+
 ### Run All Benchmarks
 
 ```bash
@@ -102,23 +112,36 @@ git reset --hard HEAD~1
 
 Repeat. Each commit is one atomic experiment. The git history becomes your experiment log.
 
-### Autonomous Loop (with Claude Code)
+### Autonomous Loop (Claude Code or Codex)
 
-The intended workflow uses [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with the `/autoresearch` skill to run experiments without human intervention:
+The repository-level `autoresearch` skill can be used from either [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or Codex. The skill now routes to the active project track instead of assuming every task is the original `strategy.py` loop.
 
 ```bash
 claude                           # Start Claude Code from repo root
 /autoresearch                    # Launch the autonomous loop
 ```
 
-The agent will:
-1. Read the current strategy and scores
-2. Propose and implement a modification to `strategy.py`
-3. Run `uv run backtest.py` and parse the score
-4. Keep the change if score improved, revert if not
-5. Repeat indefinitely until interrupted
+Codex should use the same `autoresearch` skill from repo root after loading `AGENTS.md` and `CLAUDE.md`.
 
-See [`program.md`](program.md) for detailed instructions on guiding the autonomous loop.
+The agent will:
+1. Read the indexed project context from `AGENTS.md`, `CLAUDE.md`, and `docs/README.md`
+2. Choose the active research track: Hyperliquid, Upbit spot, or Upbit MTF
+3. Run the matching backtest or search harness
+4. Keep the change if the active track's objective improves, revert if not
+5. Repeat until interrupted
+
+Recommended command for the current Upbit MTF autoresearch track:
+
+```bash
+uv run python -u scripts/upbit_mtf_search.py \
+  --grid coarse \
+  --top 10 \
+  --progress-every 1 \
+  --max-evals 1 \
+  --results-path ~/.cache/autotrader_upbit/mtf-autoresearch.jsonl
+```
+
+For the original Hyperliquid-only loop, see [`program.md`](program.md). For the current indexed project context, start with [`CLAUDE.md`](CLAUDE.md).
 
 ---
 

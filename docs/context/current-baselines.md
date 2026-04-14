@@ -1,0 +1,128 @@
+# Current Baselines
+
+## Hyperliquid Reference Point
+
+- baseline to beat: `2.724` from `simple_momentum`
+- historical best: `20.634` from `exp102`
+
+## Best Known Hyperliquid Pattern
+
+The strongest historical result used a 6-signal ensemble:
+
+- momentum (12h)
+- very-short momentum (6h)
+- EMA crossover
+- RSI(8)
+- MACD
+- Bollinger Band width compression
+
+Entry required 4 of 6 votes.
+Exit priority was ATR trailing stop, then RSI overbought/oversold, then signal flip.
+
+Key parameters:
+
+- `BASE_POSITION_PCT=0.08`
+- `COOLDOWN_BARS=2`
+- `RSI_PERIOD=8`
+- `ATR_STOP_MULT=5.5`
+- `MIN_VOTES=4`
+
+## Upbit MTF Reference Candidate
+
+Current DD<15 autoresearch candidate under dynamic slippage and taker-fee costs:
+
+- `FULL_LONG_PCT=0.92`
+- `REDUCED_PCT=0.576`
+- `REDUCED_HIGH_PCT=0.576`
+- `REDUCED_LOW_PCT=0.00`
+- `MACRO_FULL_THRESHOLD=0.58`
+- `MACRO_REDUCED_THRESHOLD=0.55`
+- `MICRO_FULL_THRESHOLD=0.50`
+- `MICRO_ENTER_FULL_THRESHOLD=0.52`
+- `MICRO_EXIT_FULL_THRESHOLD=0.46`
+- `MICRO_REDUCED_THRESHOLD=0.40`
+- `MAX_MACRO_DRAWDOWN=0.065`
+- `STATE_CONFIRM_BARS=4`
+- `MIN_STATE_HOLD_BARS=1`
+- `MIN_REBALANCE_FRACTION=0.12`
+
+Observed targeted-search result:
+
+- objective: `54860.56`
+- full-period excess return: `54858.37%`
+- full-period max drawdown: `14.52%`
+- test-period excess return: `75.74%`
+
+Current default-parameter evaluation snapshot:
+
+- params: `FULL_LONG_PCT=0.92`, `REDUCED_PCT=0.576`, `REDUCED_HIGH_PCT=0.576`, `REDUCED_LOW_PCT=0.00`, `MACRO_FULL_THRESHOLD=0.58`, `MACRO_REDUCED_THRESHOLD=0.55`, `MICRO_FULL_THRESHOLD=0.50`, `MICRO_ENTER_FULL_THRESHOLD=0.52`, `MICRO_EXIT_FULL_THRESHOLD=0.46`, `MICRO_REDUCED_THRESHOLD=0.40`, `MAX_MACRO_DRAWDOWN=0.065`, `STATE_CONFIRM_BARS=4`, `MIN_STATE_HOLD_BARS=1`, `MIN_REBALANCE_FRACTION=0.12`
+- objective: `54860.56`
+- full-period excess return: `54858.37%`
+- full-period max drawdown: `14.52%`
+- full-period trades: `1216`
+- test-period excess return: `75.74%`
+- test-period max drawdown: `7.09%`
+
+Walk-forward validation snapshot for the current candidate:
+
+- 180d test windows, 2y train / 180d step: mean excess `-4.87%`, min excess `-176.22%`, max test DD `10.04%`, positive ratio `69.23%`
+- 1y test windows, 2y train / 1y step: mean excess `8.48%`, min excess `-27.33%`, max test DD `10.04%`, positive ratio `50.00%`
+
+## Upbit Spot Snapshot
+
+Current `uv run upbit_backtest.py` snapshot on `val` split with `60`-minute candles
+(after balanced-search parameter rebase in commit 7aee02b):
+
+- score: `2.187579`
+- sharpe: `2.187579`
+- total return: `25.19%`
+- max drawdown: `3.65%`
+- trades: `184`
+- win rate: `34.78%`
+- profit factor: `2.48`
+
+Balanced score across train/val/test (60m candles):
+
+- balanced_score: `1.991`
+- `[train]` score=1.515  return=92.8%  dd=8.16%  trades=612
+- `[val]`   score=2.188  return=25.2%  dd=3.65%  trades=184
+- `[test]`  score=1.490  return=15.3%  dd=4.36%  trades=178
+
+Quick exploration finding: `COOLDOWN_BARS=48` improves val (+0.05) and test (+0.21) but
+hurts train severely (score 1.515→0.937, return 92.8→42.7%). No net balanced gain found.
+
+## API Cache Performance
+
+Measured on 2026-04-14 against `backend/` FastAPI scaffold with
+`~/.cache/autotrader_upbit/api/` JSON cache (see issue #10).
+
+Cold-start latency (backtest + cache write):
+
+- `GET /api/dashboard` (MTF full+test + Spot val): **99.2s**
+- `GET /api/strategies/mtf/walkforward` (13×180d + 6×1y windows): **338.7s**
+
+Warm-cache latency:
+
+- `GET /api/dashboard`: `5–14ms` (median ~6ms)
+- `GET /api/strategies/mtf/walkforward`: `1.9ms`
+
+Cache footprint after warming all endpoints: `292KB` across 4 files
+
+- `mtf_*.json`: 869B — compact metrics dict (full + test)
+- `spot_val_*.json`: 269KB — full `UpbitBacktestResult` including trade_log + equity_curve
+- `mtf_wf_180d_*.json`: 8.4KB — 13 window results
+- `mtf_wf_1y_*.json`: 4.2KB — 6 window results
+
+Implication: warm dashboard loads are effectively free; expensive computation
+only runs once per parameter-set change (cache key includes hashed params).
+
+## Biggest Historical Lesson
+
+Removing complexity improved results more than adding it.
+The following ideas were tried and removed:
+
+- pyramiding
+- funding boost
+- BTC filter
+- correlation filter
+- strength scaling

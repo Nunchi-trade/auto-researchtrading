@@ -9,4 +9,18 @@ dependencies = [
     "scipy>=1.11.0",
     "requests>=2.31.0",
     "pyarrow>=14.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
 ]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    "black>=26.3.1",
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "ruff>=0.15.8",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

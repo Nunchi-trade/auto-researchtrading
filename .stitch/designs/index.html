@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AutoTrader | Quant Terminal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "tertiary": "#ffcbca",
+                "primary-container": "#00d4aa",
+                "primary-fixed-dim": "#28dfb5",
+                "outline-variant": "#3b4a44",
+                "surface-container-high": "#272a30",
+                "primary": "#46f1c5",
+                "error": "#ffb4ab",
+                "on-secondary-container": "#a7b6cd",
+                "surface-container-highest": "#32353b",
+                "surface-container-lowest": "#0b0e13",
+                "on-primary-fixed": "#002118",
+                "on-primary-fixed-variant": "#00513f",
+                "primary-fixed": "#55fcd0",
+                "error-container": "#93000a",
+                "inverse-surface": "#e1e2ea",
+                "tertiary-fixed": "#ffdad9",
+                "secondary-container": "#39485b",
+                "on-tertiary-fixed": "#410008",
+                "tertiary-container": "#ffa3a3",
+                "on-surface-variant": "#bacac2",
+                "on-error": "#690005",
+                "surface-tint": "#28dfb5",
+                "on-background": "#e1e2ea",
+                "on-error-container": "#ffdad6",
+                "secondary-fixed": "#d4e4fc",
+                "on-secondary": "#233144",
+                "secondary-fixed-dim": "#b8c8df",
+                "surface": "#111319",
+                "on-tertiary": "#680013",
+                "on-tertiary-container": "#9b0022",
+                "on-secondary-fixed": "#0d1c2e",
+                "tertiary-fixed-dim": "#ffb3b2",
+                "on-secondary-fixed-variant": "#39485b",
+                "surface-bright": "#36393f",
+                "inverse-on-surface": "#2e3036",
+                "background": "#111319",
+                "on-primary": "#00382b",
+                "surface-container": "#1d2025",
+                "inverse-primary": "#006b55",
+                "on-surface": "#e1e2ea",
+                "surface-container-low": "#191c21",
+                "on-primary-container": "#005643",
+                "outline": "#85948d",
+                "surface-dim": "#111319",
+                "surface-variant": "#32353b",
+                "secondary": "#b8c8df",
+                "on-tertiary-fixed-variant": "#920020"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+            },
+            "fontFamily": {
+                "headline": ["Space Grotesk"],
+                "body": ["Inter"],
+                "label": ["Inter"],
+                "mono": ["JetBrains Mono"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+        .glass-panel { background: rgba(50, 53, 59, 0.6); backdrop-filter: blur(20px); }
+        body { background-color: #0b0e13; color: #e1e2ea; font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="antialiased selection:bg-primary selection:text-on-primary">
+<!-- Top Navigation Shell -->
+<nav class="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-14 bg-[#0B0E13] font-['Space_Grotesk'] text-sm tracking-tight font-medium">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-2 text-xl font-bold tracking-tighter text-[#46F1C5]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">candlestick_chart</span>
+                AutoTrader
+            </div>
+<div class="hidden md:flex items-center gap-6">
+<a class="text-[#46F1C5] border-b-2 border-[#46F1C5] pb-1" href="#">Dashboard</a>
+<a class="text-[#BACAC2] hover:text-[#E1E2EA] transition-colors" href="#">Strategies</a>
+<a class="text-[#BACAC2] hover:text-[#E1E2EA] transition-colors" href="#">Live Monitor</a>
+<a class="text-[#BACAC2] hover:text-[#E1E2EA] transition-colors" href="#">Parameter Lab</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-3 bg-surface-container-low px-3 py-1.5 rounded-lg border border-outline-variant/15">
+<span class="font-mono text-xs font-medium tracking-tight">KRW-BTC</span>
+<span class="font-mono text-sm text-on-surface">₩142,350,000</span>
+<span class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">+2.34%</span>
+</div>
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-low border border-outline-variant/15">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+<span class="text-xs text-on-surface-variant">연결됨</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined text-[#BACAC2] hover:bg-[#272A30] p-1.5 rounded-lg transition-all">monitoring</button>
+<button class="material-symbols-outlined text-[#BACAC2] hover:bg-[#272A30] p-1.5 rounded-lg transition-all">notifications</button>
+<button class="material-symbols-outlined text-[#BACAC2] hover:bg-[#272A30] p-1.5 rounded-lg transition-all">account_circle</button>
+</div>
+</div>
+</nav>
+<!-- Sidebar Shell -->
+<aside class="fixed left-0 top-14 h-[calc(100vh-3.5rem)] w-16 md:w-64 bg-[#191C21] flex flex-col py-4 font-['Space_Grotesk'] font-medium text-sm transition-all border-r border-outline-variant/10">
+<div class="px-4 mb-6 hidden md:block">
+<div class="text-lg font-black text-[#E1E2EA]">Quant Terminal</div>
+<div class="text-xs text-on-surface-variant flex items-center gap-1">
+<span class="w-1 h-1 bg-primary rounded-full"></span> Live Ops
+            </div>
+</div>
+<div class="space-y-1">
+<a class="bg-[#272A30] text-[#46F1C5] rounded-lg mx-2 flex items-center gap-3 p-2.5" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="hidden md:inline">Dashboard</span>
+</a>
+<a class="text-[#BACAC2] hover:bg-[#1D2025] mx-2 rounded-lg flex items-center gap-3 p-2.5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="query_stats">query_stats</span>
+<span class="hidden md:inline">Strategies</span>
+</a>
+<a class="text-[#BACAC2] hover:bg-[#1D2025] mx-2 rounded-lg flex items-center gap-3 p-2.5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="sensors">sensors</span>
+<span class="hidden md:inline">Live Monitor</span>
+</a>
+<a class="text-[#BACAC2] hover:bg-[#1D2025] mx-2 rounded-lg flex items-center gap-3 p-2.5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings_input_component">settings_input_component</span>
+<span class="hidden md:inline">Parameter Lab</span>
+</a>
+</div>
+<div class="mt-auto pt-4 border-t border-outline-variant/10">
+<a class="text-[#BACAC2] hover:bg-[#1D2025] mx-2 rounded-lg flex items-center gap-3 p-2.5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="hidden md:inline">Docs</span>
+</a>
+<a class="text-[#BACAC2] hover:bg-[#1D2025] mx-2 rounded-lg flex items-center gap-3 p-2.5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="hidden md:inline">Support</span>
+</a>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-16 md:ml-64 pt-20 p-6 space-y-6">
+<!-- KPI Row -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="bg-surface-container rounded-lg p-5 border border-outline-variant/10">
+<div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">총 자산 (MTF)</div>
+<div class="text-2xl font-mono text-on-surface" data-field="kpi.total_equity.mtf">₩--</div>
+</div>
+<div class="bg-surface-container rounded-lg p-5 border border-outline-variant/10">
+<div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">오늘 수익 (MTF)</div>
+<div class="flex items-baseline gap-2">
+<div class="text-2xl font-mono text-primary" data-field="kpi.pnl_today.mtf">--</div>
+<div class="text-sm font-mono text-primary" data-field="kpi.pnl_today_pct.mtf">--</div>
+</div>
+</div>
+<div class="bg-surface-container rounded-lg p-5 border border-outline-variant/10">
+<div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">MTF 최대 낙폭</div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-xl font-mono text-tertiary-container" data-field="kpi.max_drawdown.mtf">--</span>
+<span class="text-[10px] font-mono text-on-surface-variant" data-field="kpi.max_drawdown_ratio">--</span>
+</div>
+<div class="w-full bg-surface-container-low h-1 rounded-full overflow-hidden">
+<div class="bg-tertiary-container h-full" data-field="kpi.max_drawdown_bar" style="width: 0%"></div>
+</div>
+</div>
+<div class="bg-surface-container rounded-lg p-5 border border-outline-variant/10">
+<div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">활성 전략</div>
+<div class="flex items-center gap-4 mt-2">
+<div class="text-2xl font-mono text-on-surface" data-field="kpi.active_count">-- / --</div>
+<div class="flex gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_8px_rgba(70,241,197,0.4)]"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_8px_rgba(70,241,197,0.4)]"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-surface-variant"></span>
+</div>
+</div>
+</div>
+</div>
+<!-- Strategy State Panels -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- MTF 전략 -->
+<div class="bg-surface-container rounded-lg p-5 border-l-4 border-primary">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline font-bold text-on-surface">MTF 전략</h3>
+<p class="text-xs text-on-surface-variant">Multi-Timeframe Trend Following</p>
+</div>
+<span class="text-[10px] px-2 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20 font-bold" data-field="strategy.mtf.state">--</span>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-[10px] mb-1 font-mono uppercase tracking-tight" data-field="strategy.mtf.position_label">Position --%</div>
+<div class="w-full bg-surface-container-low h-2 rounded-sm overflow-hidden">
+<div class="bg-gradient-to-r from-primary to-primary-container h-full" data-field="strategy.mtf.position_bar" style="width: 0%"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<div class="text-[9px] text-on-surface-variant mb-1 uppercase">Macro Strength</div>
+<div class="flex gap-0.5">
+<div class="h-1 flex-1 bg-primary"></div>
+<div class="h-1 flex-1 bg-primary"></div>
+<div class="h-1 flex-1 bg-primary"></div>
+<div class="h-1 flex-1 bg-surface-variant"></div>
+</div>
+</div>
+<div>
+<div class="text-[9px] text-on-surface-variant mb-1 uppercase">Micro Strength</div>
+<div class="flex gap-0.5">
+<div class="h-1 flex-1 bg-primary"></div>
+<div class="h-1 flex-1 bg-primary"></div>
+<div class="h-1 flex-1 bg-primary"></div>
+<div class="h-1 flex-1 bg-primary"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Spot 전략 -->
+<div class="bg-surface-container rounded-lg p-5 border border-outline-variant/10">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline font-bold text-on-surface">Spot 전략</h3>
+<p class="text-xs text-on-surface-variant">Mean Reversion Alpha</p>
+</div>
+<span class="text-[10px] px-2 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20 font-bold" data-field="strategy.spot.state">--</span>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-[10px] mb-1 font-mono uppercase tracking-tight" data-field="strategy.spot.position_label">Position --%</div>
+<div class="w-full bg-surface-container-low h-2 rounded-sm overflow-hidden">
+<div class="bg-primary h-full" data-field="strategy.spot.position_bar" style="width: 0%"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-2 text-center">
+<div class="bg-surface-container-low py-2 rounded-sm">
+<div class="text-[9px] text-on-surface-variant uppercase">Sharpe</div>
+<div class="text-sm font-mono" data-field="strategy.spot.sharpe">--</div>
+</div>
+<div class="bg-surface-container-low py-2 rounded-sm">
+<div class="text-[9px] text-on-surface-variant uppercase">Win Rate</div>
+<div class="text-sm font-mono text-primary" data-field="strategy.spot.win_rate">--</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Hyperliquid -->
+<div class="bg-surface-container rounded-lg p-5 border border-outline-variant/10 opacity-60">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline font-bold text-on-surface">Hyperliquid</h3>
+<p class="text-xs text-on-surface-variant">Perpetual Arbitrage</p>
+</div>
+<span class="text-[10px] px-2 py-0.5 rounded-sm bg-surface-variant text-on-surface-variant border border-outline-variant font-bold" data-field="strategy.hyperliquid.state">--</span>
+</div>
+<div class="mt-8 flex flex-col items-center">
+<div class="text-2xl font-mono mb-4 text-on-surface-variant" data-field="strategy.hyperliquid.position_label">--%</div>
+<button class="w-full py-2 border border-primary text-primary text-xs font-bold rounded hover:bg-primary/5 transition-all">활성화</button>
+</div>
+</div>
+</div>
+<!-- Two Column Section -->
+<div class="grid grid-cols-1 lg:grid-cols-10 gap-6">
+<!-- Signal Timeline -->
+<div class="lg:col-span-6 bg-surface-container rounded-lg overflow-hidden border border-outline-variant/10">
+<div class="px-5 py-4 border-b border-outline-variant/10 flex justify-between items-center">
+<h3 class="font-headline font-bold text-sm uppercase tracking-wider">Signal Timeline</h3>
+<button class="material-symbols-outlined text-on-surface-variant text-lg">filter_list</button>
+</div>
+<div class="p-5 space-y-4" data-field="signals.container">
+<div class="text-sm text-on-surface-variant text-center py-8">시그널을 불러오는 중...</div>
+</div>
+</div>
+<!-- Performance Summary Table -->
+<div class="lg:col-span-4 bg-surface-container rounded-lg overflow-hidden border border-outline-variant/10">
+<div class="px-5 py-4 border-b border-outline-variant/10">
+<h3 class="font-headline font-bold text-sm uppercase tracking-wider">Performance Summary</h3>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low text-[10px] font-bold text-on-surface-variant uppercase tracking-widest border-b border-outline-variant/5">
+<th class="px-4 py-3">전략</th>
+<th class="px-4 py-3 text-right">전체수익</th>
+<th class="px-4 py-3 text-right">최대DD</th>
+<th class="px-4 py-3 text-right">거래수</th>
+</tr>
+</thead>
+<tbody class="text-xs divide-y divide-outline-variant/5" data-field="performance.container">
+<tr><td class="px-4 py-4 text-center text-on-surface-variant" colspan="4">데이터를 불러오는 중...</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Full Width Equity Curve -->
+<div class="bg-surface-container rounded-lg p-6 border border-outline-variant/10">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h3 class="font-headline font-bold text-base">MTF 전략 누적 수익 (전체 기간) vs Buy &amp; Hold</h3>
+<div class="flex items-center gap-4 mt-1">
+<div class="flex items-center gap-2">
+<span class="w-3 h-0.5 bg-primary"></span>
+<span class="text-[10px] text-on-surface-variant uppercase font-medium">MTF Strategy</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-0.5 border-t border-dashed border-on-surface-variant"></span>
+<span class="text-[10px] text-on-surface-variant uppercase font-medium">Buy &amp; Hold</span>
+</div>
+</div>
+</div>
+<div class="text-right">
+<div class="text-2xl font-mono text-primary font-bold" data-field="equity.peak_return">--</div>
+<div class="text-[10px] text-on-surface-variant uppercase">Peak Return (Full-period)</div>
+</div>
+</div>
+<div class="relative h-[300px] w-full bg-surface-container-low rounded border border-outline-variant/5 overflow-hidden">
+<!-- Simple SVG Chart Mockup -->
+<svg class="absolute inset-0 w-full h-full preserve-3d" preserveaspectratio="none" viewbox="0 0 1000 300">
+<!-- Grid Lines -->
+<line stroke="#32353b" stroke-width="1" x1="0" x2="1000" y1="250" y2="250"></line>
+<line stroke="#32353b" stroke-width="1" x1="0" x2="1000" y1="200" y2="200"></line>
+<line stroke="#32353b" stroke-width="1" x1="0" x2="1000" y1="150" y2="150"></line>
+<line stroke="#32353b" stroke-width="1" x1="0" x2="1000" y1="100" y2="100"></line>
+<line stroke="#32353b" stroke-width="1" x1="0" x2="1000" y1="50" y2="50"></line>
+<!-- Buy & Hold (Dashed) -->
+<path d="M0,280 L100,270 L200,285 L300,250 L400,260 L500,220 L600,240 L700,180 L800,200 L900,150 L1000,180" fill="none" stroke="#bacac2" stroke-dasharray="8,4" stroke-width="2"></path>
+<!-- Strategy Line -->
+<path d="M0,280 L100,260 L200,240 L300,200 L400,180 L500,140 L600,100 L700,80 L800,60 L900,40 L1000,70" fill="none" stroke="#46f1c5" stroke-width="3"></path>
+<!-- Area Fill -->
+<path d="M0,280 L100,260 L200,240 L300,200 L400,180 L500,140 L600,100 L700,80 L800,60 L900,40 L1000,70 L1000,300 L0,300 Z" fill="url(#gradient)" opacity="0.1"></path>
+<defs>
+<lineargradient id="gradient" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:#46f1c5;stop-opacity:1"></stop>
+<stop offset="100%" style="stop-color:#46f1c5;stop-opacity:0"></stop>
+</lineargradient>
+</defs>
+<!-- Indicator -->
+<circle cx="1000" cy="70" fill="#46f1c5" r="4"></circle>
+<line stroke="#46f1c5" stroke-width="1" x1="1000" x2="980" y1="70" y2="70"></line>
+</svg>
+<!-- Annotations Layer -->
+<div class="absolute bottom-4 right-6 bg-surface-container-highest px-3 py-2 rounded border border-outline-variant/20 shadow-xl">
+<div class="text-[10px] text-on-surface-variant uppercase mb-1">Current Drawdown</div>
+<div class="text-sm font-mono text-tertiary-container font-bold">-7.09%</div>
+</div>
+</div>
+<div class="flex justify-between mt-4 text-[10px] font-mono text-on-surface-variant uppercase">
+<span>2018-01-01</span>
+<span>2019</span>
+<span>2020</span>
+<span>2021</span>
+<span>2022</span>
+<span>2023</span>
+<span>2024</span>
+<span>2025-05-24</span>
+</div>
+</div>
+</main>
+<!-- Contextual FAB (Only on Dashboard) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-xl shadow-[0_12px_24px_rgba(0,212,170,0.3)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add</span>
+</button>
+<!-- API integration -->
+<div id="error-banner" class="fixed top-20 right-6 bg-error-container text-on-error-container px-4 py-3 rounded-lg shadow-xl hidden z-50" role="alert">
+  <div class="flex items-center gap-2">
+    <span class="material-symbols-outlined text-lg">error</span>
+    <span id="error-message" class="text-sm font-medium">API 연결 실패</span>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  const KRW = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 });
+  const PCT = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+  const KRW_SIGNED = (v) => (v >= 0 ? '+' : '') + KRW.format(Math.round(v));
+  const MAX_DD_LIMIT = 15.0;
+
+  function setField(name, value) {
+    document.querySelectorAll(`[data-field="${name}"]`).forEach((el) => { el.textContent = value; });
+  }
+
+  function setFieldStyle(name, prop, value) {
+    document.querySelectorAll(`[data-field="${name}"]`).forEach((el) => { el.style[prop] = value; });
+  }
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function stateLabel(state) {
+    const map = { flat: 'FLAT', reduced_high: 'REDUCED', full_long: 'FULL_LONG', holding: 'HOLDING', inactive: 'INACTIVE' };
+    return map[state] || String(state).toUpperCase();
+  }
+
+  function actionBadge(action) {
+    return {
+      buy:    { emoji: '🟢', border: 'border-primary',             symbol: 'text-primary',             label: 'BUY' },
+      sell:   { emoji: '🔴', border: 'border-tertiary-container',  symbol: 'text-tertiary-container',  label: 'SELL' },
+      reduce: { emoji: '🟡', border: 'border-tertiary',            symbol: 'text-tertiary',            label: 'REDUCE' },
+      cancel: { emoji: '⚪', border: 'border-on-surface-variant',  symbol: 'text-on-surface-variant',  label: 'CANCEL' },
+    }[action] || { emoji: '⚪', border: 'border-on-surface-variant', symbol: 'text-on-surface-variant', label: String(action).toUpperCase() };
+  }
+
+  function formatTs(ts) {
+    if (!ts) return '--';
+    const d = new Date(Number(ts) * 1000);
+    if (isNaN(d.getTime())) return '--';
+    return d.toTimeString().slice(0, 8);
+  }
+
+  function showError(msg) {
+    document.getElementById('error-message').textContent = msg;
+    document.getElementById('error-banner').classList.remove('hidden');
+  }
+
+  function hideError() {
+    document.getElementById('error-banner').classList.add('hidden');
+  }
+
+  function renderKpi(kpi, performance) {
+    const mtfEquity = (kpi.total_equity_by_strategy && kpi.total_equity_by_strategy.mtf) || 0;
+    const mtfPnlPct = (kpi.pnl_today_by_strategy && kpi.pnl_today_by_strategy.mtf) || 0;
+    const mtfDd = (kpi.max_drawdown_by_strategy && kpi.max_drawdown_by_strategy.mtf) || 0;
+
+    setField('kpi.total_equity.mtf', KRW.format(Math.round(mtfEquity)));
+    setField('kpi.pnl_today.mtf', KRW_SIGNED(mtfEquity * mtfPnlPct / 100));
+    setField('kpi.pnl_today_pct.mtf', PCT(mtfPnlPct));
+    setField('kpi.max_drawdown.mtf', '-' + mtfDd.toFixed(2) + '%');
+    setField('kpi.max_drawdown_ratio', mtfDd.toFixed(2) + '/' + MAX_DD_LIMIT.toFixed(1));
+    setFieldStyle('kpi.max_drawdown_bar', 'width', Math.min(100, (mtfDd / MAX_DD_LIMIT) * 100).toFixed(1) + '%');
+    setField('kpi.active_count', `${kpi.active_count} / ${kpi.total_count}`);
+
+    const mtfMetrics = performance[0];
+    if (mtfMetrics) {
+      const peak = mtfMetrics.full_excess_return_pct;
+      const sign = peak >= 0 ? '+' : '';
+      setField('equity.peak_return', sign + peak.toLocaleString('en-US', { maximumFractionDigits: 0 }) + '%');
+    }
+  }
+
+  function renderStrategyCards(strategies) {
+    strategies.forEach((s) => {
+      setField(`strategy.${s.id}.state`, stateLabel(s.state));
+      const pct = (s.target_fraction * 100).toFixed(0);
+      setField(`strategy.${s.id}.position_label`, `Position ${pct}%`);
+      setFieldStyle(`strategy.${s.id}.position_bar`, 'width', pct + '%');
+    });
+  }
+
+  function renderSpotStats(performance) {
+    const spot = performance[1];
+    if (!spot) return;
+    setField('strategy.spot.sharpe', spot.sharpe.toFixed(2));
+    setField('strategy.spot.win_rate', spot.win_rate_pct.toFixed(1) + '%');
+  }
+
+  function buildSignalRow(sig) {
+    const badge = actionBadge(sig.action);
+    const row = el('div', `flex items-center gap-4 p-3 bg-surface-container-low rounded-lg border-l-4 ${badge.border}`);
+
+    row.appendChild(el('span', 'text-lg', badge.emoji));
+
+    const body = el('div', 'flex-1');
+    const topRow = el('div', 'flex justify-between items-center');
+    const actionSpan = el('span', 'font-bold text-sm', badge.label + ' ');
+    actionSpan.appendChild(el('span', badge.symbol, sig.symbol));
+    if (sig.pnl_pct != null) {
+      actionSpan.appendChild(document.createTextNode(' '));
+      actionSpan.appendChild(el('span', 'font-mono', PCT(sig.pnl_pct)));
+    }
+    topRow.appendChild(actionSpan);
+    topRow.appendChild(el('span', 'text-[10px] font-mono text-on-surface-variant', formatTs(sig.timestamp)));
+
+    const bottomRow = el('div', 'flex justify-between text-xs text-on-surface-variant');
+    bottomRow.appendChild(el('span', 'font-mono', KRW.format(Math.round(sig.price))));
+    bottomRow.appendChild(el('span', 'font-bold tracking-tight', String(sig.strategy).toUpperCase() + ' STRATEGY'));
+
+    body.appendChild(topRow);
+    body.appendChild(bottomRow);
+    row.appendChild(body);
+    return row;
+  }
+
+  function renderSignals(signals) {
+    const container = document.querySelector('[data-field="signals.container"]');
+    if (!container) return;
+    container.replaceChildren();
+    if (!signals || signals.length === 0) {
+      container.appendChild(el('div', 'text-sm text-on-surface-variant text-center py-8', '시그널이 없습니다.'));
+      return;
+    }
+    signals.forEach((sig) => container.appendChild(buildSignalRow(sig)));
+  }
+
+  function buildPerformanceRow(name, metrics) {
+    const tr = el('tr', 'hover:bg-surface-container-high transition-colors');
+    tr.appendChild(el('td', 'px-4 py-4 font-medium', name));
+    const ret = metrics.full_excess_return_pct;
+    const retStr = (ret >= 0 ? '+' : '') + ret.toLocaleString('en-US', { maximumFractionDigits: 2 }) + '%';
+    tr.appendChild(el('td', 'px-4 py-4 text-right font-mono text-primary', retStr));
+    tr.appendChild(el('td', 'px-4 py-4 text-right font-mono text-tertiary-container', '-' + metrics.full_max_drawdown_pct.toFixed(2) + '%'));
+    tr.appendChild(el('td', 'px-4 py-4 text-right font-mono', metrics.num_trades.toLocaleString()));
+    return tr;
+  }
+
+  function renderPerformance(performance) {
+    const names = ['MTF Trend', 'Spot Alpha'];
+    const tbody = document.querySelector('[data-field="performance.container"]');
+    if (!tbody) return;
+    tbody.replaceChildren();
+    performance.forEach((m, i) => tbody.appendChild(buildPerformanceRow(names[i] || 'Strategy ' + (i + 1), m)));
+  }
+
+  async function loadDashboard() {
+    try {
+      const res = await fetch('/api/dashboard');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      hideError();
+      renderKpi(data.kpi, data.performance_summary);
+      renderStrategyCards(data.strategies);
+      renderSpotStats(data.performance_summary);
+      renderSignals(data.recent_signals);
+      renderPerformance(data.performance_summary);
+    } catch (err) {
+      console.error('dashboard fetch failed', err);
+      showError(`API 연결 실패: ${err.message}`);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+  } else {
+    loadDashboard();
+  }
+})();
+</script>
+</body></html>
