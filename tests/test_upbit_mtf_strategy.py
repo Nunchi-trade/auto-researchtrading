@@ -11,7 +11,7 @@ def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["REDUCED_HIGH_PCT"] == 0.576
     assert DEFAULT_MTF_PARAMS["REDUCED_LOW_PCT"] == 0.00
     assert DEFAULT_MTF_PARAMS["MACRO_FULL_THRESHOLD"] == 0.58
-    assert DEFAULT_MTF_PARAMS["MACRO_REDUCED_THRESHOLD"] == 0.45
+    assert DEFAULT_MTF_PARAMS["MACRO_REDUCED_THRESHOLD"] == 0.55
     assert DEFAULT_MTF_PARAMS["MICRO_FULL_THRESHOLD"] == 0.50
     assert DEFAULT_MTF_PARAMS["MICRO_ENTER_FULL_THRESHOLD"] == 0.52
     assert DEFAULT_MTF_PARAMS["MICRO_EXIT_FULL_THRESHOLD"] == 0.46
@@ -108,7 +108,7 @@ def test_inspect_state_returns_reduced_low_when_macro_secondary_and_micro_confir
         "REDUCED_LOW_PCT": 0.35,
     }
     strategy = MultiTimeframeStrategy(interval_data, params=params)
-    strategy._macro_snapshot = lambda symbol, timestamp: (0.50, 0.04)
+    strategy._macro_snapshot = lambda symbol, timestamp: (0.56, 0.04)
     strategy._micro_snapshot = lambda symbol, timestamp: 0.45
 
     snapshot = strategy.inspect_state("KRW-BTC", int(interval_data[60]["KRW-BTC"]["timestamp"].iloc[-1]))
