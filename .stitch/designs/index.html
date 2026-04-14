@@ -162,30 +162,30 @@
 <!-- KPI Row -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 <div class="bg-surface-container rounded-lg p-5 border border-outline-variant/10">
-<div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">총 자산</div>
-<div class="text-2xl font-mono text-on-surface">₩52,847,200</div>
+<div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">총 자산 (MTF)</div>
+<div class="text-2xl font-mono text-on-surface" data-field="kpi.total_equity.mtf">₩--</div>
 </div>
 <div class="bg-surface-container rounded-lg p-5 border border-outline-variant/10">
-<div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">오늘 수익</div>
+<div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">오늘 수익 (MTF)</div>
 <div class="flex items-baseline gap-2">
-<div class="text-2xl font-mono text-primary">+₩1,247,800</div>
-<div class="text-sm font-mono text-primary">+2.41%</div>
+<div class="text-2xl font-mono text-primary" data-field="kpi.pnl_today.mtf">--</div>
+<div class="text-sm font-mono text-primary" data-field="kpi.pnl_today_pct.mtf">--</div>
 </div>
 </div>
 <div class="bg-surface-container rounded-lg p-5 border border-outline-variant/10">
-<div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">현재 낙폭 (MDD)</div>
+<div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">MTF 최대 낙폭</div>
 <div class="flex items-center justify-between mb-2">
-<span class="text-xl font-mono text-tertiary-container">-7.09%</span>
-<span class="text-[10px] font-mono text-on-surface-variant">7.09/15.0</span>
+<span class="text-xl font-mono text-tertiary-container" data-field="kpi.max_drawdown.mtf">--</span>
+<span class="text-[10px] font-mono text-on-surface-variant" data-field="kpi.max_drawdown_ratio">--</span>
 </div>
 <div class="w-full bg-surface-container-low h-1 rounded-full overflow-hidden">
-<div class="bg-tertiary-container h-full" style="width: 47.2%"></div>
+<div class="bg-tertiary-container h-full" data-field="kpi.max_drawdown_bar" style="width: 0%"></div>
 </div>
 </div>
 <div class="bg-surface-container rounded-lg p-5 border border-outline-variant/10">
 <div class="text-xs text-on-surface-variant font-medium mb-1 uppercase tracking-wider">활성 전략</div>
 <div class="flex items-center gap-4 mt-2">
-<div class="text-2xl font-mono text-on-surface">2 / 3</div>
+<div class="text-2xl font-mono text-on-surface" data-field="kpi.active_count">-- / --</div>
 <div class="flex gap-1.5">
 <span class="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_8px_rgba(70,241,197,0.4)]"></span>
 <span class="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_8px_rgba(70,241,197,0.4)]"></span>
@@ -203,13 +203,13 @@
 <h3 class="font-headline font-bold text-on-surface">MTF 전략</h3>
 <p class="text-xs text-on-surface-variant">Multi-Timeframe Trend Following</p>
 </div>
-<span class="text-[10px] px-2 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20 font-bold">FULL_LONG</span>
+<span class="text-[10px] px-2 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20 font-bold" data-field="strategy.mtf.state">--</span>
 </div>
 <div class="space-y-4">
 <div>
-<div class="flex justify-between text-[10px] mb-1 font-mono uppercase tracking-tight">Position 92%</div>
+<div class="flex justify-between text-[10px] mb-1 font-mono uppercase tracking-tight" data-field="strategy.mtf.position_label">Position --%</div>
 <div class="w-full bg-surface-container-low h-2 rounded-sm overflow-hidden">
-<div class="bg-gradient-to-r from-primary to-primary-container h-full" style="width: 92%"></div>
+<div class="bg-gradient-to-r from-primary to-primary-container h-full" data-field="strategy.mtf.position_bar" style="width: 0%"></div>
 </div>
 </div>
 <div class="grid grid-cols-2 gap-4">
@@ -241,23 +241,23 @@
 <h3 class="font-headline font-bold text-on-surface">Spot 전략</h3>
 <p class="text-xs text-on-surface-variant">Mean Reversion Alpha</p>
 </div>
-<span class="text-[10px] px-2 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20 font-bold">HOLDING</span>
+<span class="text-[10px] px-2 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20 font-bold" data-field="strategy.spot.state">--</span>
 </div>
 <div class="space-y-4">
 <div>
-<div class="flex justify-between text-[10px] mb-1 font-mono uppercase tracking-tight">Position 45%</div>
+<div class="flex justify-between text-[10px] mb-1 font-mono uppercase tracking-tight" data-field="strategy.spot.position_label">Position --%</div>
 <div class="w-full bg-surface-container-low h-2 rounded-sm overflow-hidden">
-<div class="bg-primary h-full" style="width: 45%"></div>
+<div class="bg-primary h-full" data-field="strategy.spot.position_bar" style="width: 0%"></div>
 </div>
 </div>
 <div class="grid grid-cols-2 gap-2 text-center">
 <div class="bg-surface-container-low py-2 rounded-sm">
 <div class="text-[9px] text-on-surface-variant uppercase">Sharpe</div>
-<div class="text-sm font-mono">2.19</div>
+<div class="text-sm font-mono" data-field="strategy.spot.sharpe">--</div>
 </div>
 <div class="bg-surface-container-low py-2 rounded-sm">
 <div class="text-[9px] text-on-surface-variant uppercase">Win Rate</div>
-<div class="text-sm font-mono text-primary">34.8%</div>
+<div class="text-sm font-mono text-primary" data-field="strategy.spot.win_rate">--</div>
 </div>
 </div>
 </div>
@@ -269,10 +269,10 @@
 <h3 class="font-headline font-bold text-on-surface">Hyperliquid</h3>
 <p class="text-xs text-on-surface-variant">Perpetual Arbitrage</p>
 </div>
-<span class="text-[10px] px-2 py-0.5 rounded-sm bg-surface-variant text-on-surface-variant border border-outline-variant font-bold">INACTIVE</span>
+<span class="text-[10px] px-2 py-0.5 rounded-sm bg-surface-variant text-on-surface-variant border border-outline-variant font-bold" data-field="strategy.hyperliquid.state">--</span>
 </div>
 <div class="mt-8 flex flex-col items-center">
-<div class="text-2xl font-mono mb-4 text-on-surface-variant">0.00%</div>
+<div class="text-2xl font-mono mb-4 text-on-surface-variant" data-field="strategy.hyperliquid.position_label">--%</div>
 <button class="w-full py-2 border border-primary text-primary text-xs font-bold rounded hover:bg-primary/5 transition-all">활성화</button>
 </div>
 </div>
@@ -285,46 +285,8 @@
 <h3 class="font-headline font-bold text-sm uppercase tracking-wider">Signal Timeline</h3>
 <button class="material-symbols-outlined text-on-surface-variant text-lg">filter_list</button>
 </div>
-<div class="p-5 space-y-4">
-<div class="flex items-center gap-4 p-3 bg-surface-container-low rounded-lg border-l-4 border-primary">
-<span class="text-lg">🟢</span>
-<div class="flex-1">
-<div class="flex justify-between items-center">
-<span class="font-bold text-sm">BUY <span class="text-primary">KRW-BTC</span></span>
-<span class="text-[10px] font-mono text-on-surface-variant">14:02:44</span>
-</div>
-<div class="flex justify-between text-xs text-on-surface-variant">
-<span class="font-mono">₩141,200,000</span>
-<span class="font-bold tracking-tight">MTF STRATEGY</span>
-</div>
-</div>
-</div>
-<div class="flex items-center gap-4 p-3 bg-surface-container-low rounded-lg border-l-4 border-tertiary-container">
-<span class="text-lg">🔴</span>
-<div class="flex-1">
-<div class="flex justify-between items-center">
-<span class="font-bold text-sm">SELL <span class="text-tertiary-container">KRW-ETH</span></span>
-<span class="text-[10px] font-mono text-on-surface-variant">12:31:12</span>
-</div>
-<div class="flex justify-between text-xs text-on-surface-variant">
-<span class="font-mono">₩5,420,000</span>
-<span class="font-bold tracking-tight">SPOT ALPHA</span>
-</div>
-</div>
-</div>
-<div class="flex items-center gap-4 p-3 bg-surface-container-low rounded-lg border-l-4 border-primary">
-<span class="text-lg">🟢</span>
-<div class="flex-1">
-<div class="flex justify-between items-center">
-<span class="font-bold text-sm">BUY <span class="text-primary">KRW-SOL</span></span>
-<span class="text-[10px] font-mono text-on-surface-variant">09:15:05</span>
-</div>
-<div class="flex justify-between text-xs text-on-surface-variant">
-<span class="font-mono">₩285,400</span>
-<span class="font-bold tracking-tight">MTF STRATEGY</span>
-</div>
-</div>
-</div>
+<div class="p-5 space-y-4" data-field="signals.container">
+<div class="text-sm text-on-surface-variant text-center py-8">시그널을 불러오는 중...</div>
 </div>
 </div>
 <!-- Performance Summary Table -->
@@ -342,25 +304,8 @@
 <th class="px-4 py-3 text-right">거래수</th>
 </tr>
 </thead>
-<tbody class="text-xs divide-y divide-outline-variant/5">
-<tr class="hover:bg-surface-container-high transition-colors">
-<td class="px-4 py-4 font-medium">MTF Trend</td>
-<td class="px-4 py-4 text-right font-mono text-primary">+412.8%</td>
-<td class="px-4 py-4 text-right font-mono text-tertiary-container">-12.4%</td>
-<td class="px-4 py-4 text-right font-mono">1,421</td>
-</tr>
-<tr class="hover:bg-surface-container-high transition-colors">
-<td class="px-4 py-4 font-medium">Spot Alpha</td>
-<td class="px-4 py-4 text-right font-mono text-primary">+84.2%</td>
-<td class="px-4 py-4 text-right font-mono text-tertiary-container">-4.1%</td>
-<td class="px-4 py-4 text-right font-mono">3,892</td>
-</tr>
-<tr class="hover:bg-surface-container-high transition-colors">
-<td class="px-4 py-4 font-medium">HFT Arb</td>
-<td class="px-4 py-4 text-right font-mono text-primary">+12.4%</td>
-<td class="px-4 py-4 text-right font-mono text-tertiary-container">-0.8%</td>
-<td class="px-4 py-4 text-right font-mono">124k</td>
-</tr>
+<tbody class="text-xs divide-y divide-outline-variant/5" data-field="performance.container">
+<tr><td class="px-4 py-4 text-center text-on-surface-variant" colspan="4">데이터를 불러오는 중...</td></tr>
 </tbody>
 </table>
 </div>
@@ -383,8 +328,8 @@
 </div>
 </div>
 <div class="text-right">
-<div class="text-2xl font-mono text-primary font-bold">+54,858%</div>
-<div class="text-[10px] text-on-surface-variant uppercase">Peak Return</div>
+<div class="text-2xl font-mono text-primary font-bold" data-field="equity.peak_return">--</div>
+<div class="text-[10px] text-on-surface-variant uppercase">Peak Return (Full-period)</div>
 </div>
 </div>
 <div class="relative h-[300px] w-full bg-surface-container-low rounded border border-outline-variant/5 overflow-hidden">
@@ -434,4 +379,183 @@
 <button class="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-xl shadow-[0_12px_24px_rgba(0,212,170,0.3)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
 <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add</span>
 </button>
+<!-- API integration -->
+<div id="error-banner" class="fixed top-20 right-6 bg-error-container text-on-error-container px-4 py-3 rounded-lg shadow-xl hidden z-50" role="alert">
+  <div class="flex items-center gap-2">
+    <span class="material-symbols-outlined text-lg">error</span>
+    <span id="error-message" class="text-sm font-medium">API 연결 실패</span>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  const KRW = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 });
+  const PCT = (v) => (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+  const KRW_SIGNED = (v) => (v >= 0 ? '+' : '') + KRW.format(Math.round(v));
+  const MAX_DD_LIMIT = 15.0;
+
+  function setField(name, value) {
+    document.querySelectorAll(`[data-field="${name}"]`).forEach((el) => { el.textContent = value; });
+  }
+
+  function setFieldStyle(name, prop, value) {
+    document.querySelectorAll(`[data-field="${name}"]`).forEach((el) => { el.style[prop] = value; });
+  }
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function stateLabel(state) {
+    const map = { flat: 'FLAT', reduced_high: 'REDUCED', full_long: 'FULL_LONG', holding: 'HOLDING', inactive: 'INACTIVE' };
+    return map[state] || String(state).toUpperCase();
+  }
+
+  function actionBadge(action) {
+    return {
+      buy:    { emoji: '🟢', border: 'border-primary',             symbol: 'text-primary',             label: 'BUY' },
+      sell:   { emoji: '🔴', border: 'border-tertiary-container',  symbol: 'text-tertiary-container',  label: 'SELL' },
+      reduce: { emoji: '🟡', border: 'border-tertiary',            symbol: 'text-tertiary',            label: 'REDUCE' },
+      cancel: { emoji: '⚪', border: 'border-on-surface-variant',  symbol: 'text-on-surface-variant',  label: 'CANCEL' },
+    }[action] || { emoji: '⚪', border: 'border-on-surface-variant', symbol: 'text-on-surface-variant', label: String(action).toUpperCase() };
+  }
+
+  function formatTs(ts) {
+    if (!ts) return '--';
+    const d = new Date(Number(ts) * 1000);
+    if (isNaN(d.getTime())) return '--';
+    return d.toTimeString().slice(0, 8);
+  }
+
+  function showError(msg) {
+    document.getElementById('error-message').textContent = msg;
+    document.getElementById('error-banner').classList.remove('hidden');
+  }
+
+  function hideError() {
+    document.getElementById('error-banner').classList.add('hidden');
+  }
+
+  function renderKpi(kpi, performance) {
+    const mtfEquity = (kpi.total_equity_by_strategy && kpi.total_equity_by_strategy.mtf) || 0;
+    const mtfPnlPct = (kpi.pnl_today_by_strategy && kpi.pnl_today_by_strategy.mtf) || 0;
+    const mtfDd = (kpi.max_drawdown_by_strategy && kpi.max_drawdown_by_strategy.mtf) || 0;
+
+    setField('kpi.total_equity.mtf', KRW.format(Math.round(mtfEquity)));
+    setField('kpi.pnl_today.mtf', KRW_SIGNED(mtfEquity * mtfPnlPct / 100));
+    setField('kpi.pnl_today_pct.mtf', PCT(mtfPnlPct));
+    setField('kpi.max_drawdown.mtf', '-' + mtfDd.toFixed(2) + '%');
+    setField('kpi.max_drawdown_ratio', mtfDd.toFixed(2) + '/' + MAX_DD_LIMIT.toFixed(1));
+    setFieldStyle('kpi.max_drawdown_bar', 'width', Math.min(100, (mtfDd / MAX_DD_LIMIT) * 100).toFixed(1) + '%');
+    setField('kpi.active_count', `${kpi.active_count} / ${kpi.total_count}`);
+
+    const mtfMetrics = performance[0];
+    if (mtfMetrics) {
+      const peak = mtfMetrics.full_excess_return_pct;
+      const sign = peak >= 0 ? '+' : '';
+      setField('equity.peak_return', sign + peak.toLocaleString('en-US', { maximumFractionDigits: 0 }) + '%');
+    }
+  }
+
+  function renderStrategyCards(strategies) {
+    strategies.forEach((s) => {
+      setField(`strategy.${s.id}.state`, stateLabel(s.state));
+      const pct = (s.target_fraction * 100).toFixed(0);
+      setField(`strategy.${s.id}.position_label`, `Position ${pct}%`);
+      setFieldStyle(`strategy.${s.id}.position_bar`, 'width', pct + '%');
+    });
+  }
+
+  function renderSpotStats(performance) {
+    const spot = performance[1];
+    if (!spot) return;
+    setField('strategy.spot.sharpe', spot.sharpe.toFixed(2));
+    setField('strategy.spot.win_rate', spot.win_rate_pct.toFixed(1) + '%');
+  }
+
+  function buildSignalRow(sig) {
+    const badge = actionBadge(sig.action);
+    const row = el('div', `flex items-center gap-4 p-3 bg-surface-container-low rounded-lg border-l-4 ${badge.border}`);
+
+    row.appendChild(el('span', 'text-lg', badge.emoji));
+
+    const body = el('div', 'flex-1');
+    const topRow = el('div', 'flex justify-between items-center');
+    const actionSpan = el('span', 'font-bold text-sm', badge.label + ' ');
+    actionSpan.appendChild(el('span', badge.symbol, sig.symbol));
+    if (sig.pnl_pct != null) {
+      actionSpan.appendChild(document.createTextNode(' '));
+      actionSpan.appendChild(el('span', 'font-mono', PCT(sig.pnl_pct)));
+    }
+    topRow.appendChild(actionSpan);
+    topRow.appendChild(el('span', 'text-[10px] font-mono text-on-surface-variant', formatTs(sig.timestamp)));
+
+    const bottomRow = el('div', 'flex justify-between text-xs text-on-surface-variant');
+    bottomRow.appendChild(el('span', 'font-mono', KRW.format(Math.round(sig.price))));
+    bottomRow.appendChild(el('span', 'font-bold tracking-tight', String(sig.strategy).toUpperCase() + ' STRATEGY'));
+
+    body.appendChild(topRow);
+    body.appendChild(bottomRow);
+    row.appendChild(body);
+    return row;
+  }
+
+  function renderSignals(signals) {
+    const container = document.querySelector('[data-field="signals.container"]');
+    if (!container) return;
+    container.replaceChildren();
+    if (!signals || signals.length === 0) {
+      container.appendChild(el('div', 'text-sm text-on-surface-variant text-center py-8', '시그널이 없습니다.'));
+      return;
+    }
+    signals.forEach((sig) => container.appendChild(buildSignalRow(sig)));
+  }
+
+  function buildPerformanceRow(name, metrics) {
+    const tr = el('tr', 'hover:bg-surface-container-high transition-colors');
+    tr.appendChild(el('td', 'px-4 py-4 font-medium', name));
+    const ret = metrics.full_excess_return_pct;
+    const retStr = (ret >= 0 ? '+' : '') + ret.toLocaleString('en-US', { maximumFractionDigits: 2 }) + '%';
+    tr.appendChild(el('td', 'px-4 py-4 text-right font-mono text-primary', retStr));
+    tr.appendChild(el('td', 'px-4 py-4 text-right font-mono text-tertiary-container', '-' + metrics.full_max_drawdown_pct.toFixed(2) + '%'));
+    tr.appendChild(el('td', 'px-4 py-4 text-right font-mono', metrics.num_trades.toLocaleString()));
+    return tr;
+  }
+
+  function renderPerformance(performance) {
+    const names = ['MTF Trend', 'Spot Alpha'];
+    const tbody = document.querySelector('[data-field="performance.container"]');
+    if (!tbody) return;
+    tbody.replaceChildren();
+    performance.forEach((m, i) => tbody.appendChild(buildPerformanceRow(names[i] || 'Strategy ' + (i + 1), m)));
+  }
+
+  async function loadDashboard() {
+    try {
+      const res = await fetch('/api/dashboard');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      hideError();
+      renderKpi(data.kpi, data.performance_summary);
+      renderStrategyCards(data.strategies);
+      renderSpotStats(data.performance_summary);
+      renderSignals(data.recent_signals);
+      renderPerformance(data.performance_summary);
+    } catch (err) {
+      console.error('dashboard fetch failed', err);
+      showError(`API 연결 실패: ${err.message}`);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+  } else {
+    loadDashboard();
+  }
+})();
+</script>
 </body></html>
