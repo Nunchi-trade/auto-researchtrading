@@ -70,15 +70,26 @@ Walk-forward validation snapshot for the current candidate:
 
 ## Upbit Spot Snapshot
 
-Current `uv run upbit_backtest.py` snapshot on `val` split with `60`-minute candles:
+Current `uv run upbit_backtest.py` snapshot on `val` split with `60`-minute candles
+(after balanced-search parameter rebase in commit 7aee02b):
 
-- score: `2.336701`
-- sharpe: `2.336701`
-- total return: `27.15%`
-- max drawdown: `3.44%`
+- score: `2.187579`
+- sharpe: `2.187579`
+- total return: `25.19%`
+- max drawdown: `3.65%`
 - trades: `184`
 - win rate: `34.78%`
-- profit factor: `2.66`
+- profit factor: `2.48`
+
+Balanced score across train/val/test (60m candles):
+
+- balanced_score: `1.991`
+- `[train]` score=1.515  return=92.8%  dd=8.16%  trades=612
+- `[val]`   score=2.188  return=25.2%  dd=3.65%  trades=184
+- `[test]`  score=1.490  return=15.3%  dd=4.36%  trades=178
+
+Quick exploration finding: `COOLDOWN_BARS=48` improves val (+0.05) and test (+0.21) but
+hurts train severely (score 1.515→0.937, return 92.8→42.7%). No net balanced gain found.
 
 ## Biggest Historical Lesson
 
