@@ -6,7 +6,7 @@ from upbit_mtf_strategy import DEFAULT_MTF_PARAMS, MultiTimeframeStrategy
 
 
 def test_default_mtf_params_match_current_dd15_candidate():
-    assert DEFAULT_MTF_PARAMS["FULL_LONG_PCT"] == 0.94
+    assert DEFAULT_MTF_PARAMS["FULL_LONG_PCT"] == 0.92
     assert DEFAULT_MTF_PARAMS["REDUCED_PCT"] == 0.576
     assert DEFAULT_MTF_PARAMS["REDUCED_HIGH_PCT"] == 0.576
     assert DEFAULT_MTF_PARAMS["REDUCED_LOW_PCT"] == 0.00
@@ -16,8 +16,8 @@ def test_default_mtf_params_match_current_dd15_candidate():
     assert DEFAULT_MTF_PARAMS["MICRO_ENTER_FULL_THRESHOLD"] == 0.52
     assert DEFAULT_MTF_PARAMS["MICRO_EXIT_FULL_THRESHOLD"] == 0.46
     assert DEFAULT_MTF_PARAMS["MICRO_REDUCED_THRESHOLD"] == 0.40
-    assert DEFAULT_MTF_PARAMS["MAX_MACRO_DRAWDOWN"] == 0.10
-    assert DEFAULT_MTF_PARAMS["STATE_CONFIRM_BARS"] == 2
+    assert DEFAULT_MTF_PARAMS["MAX_MACRO_DRAWDOWN"] == 0.07
+    assert DEFAULT_MTF_PARAMS["STATE_CONFIRM_BARS"] == 4
     assert DEFAULT_MTF_PARAMS["MIN_STATE_HOLD_BARS"] == 1
     assert DEFAULT_MTF_PARAMS["MIN_REBALANCE_FRACTION"] == 0.12
 

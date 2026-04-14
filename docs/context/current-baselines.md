@@ -31,7 +31,7 @@ Key parameters:
 
 Current DD<15 autoresearch candidate under dynamic slippage and taker-fee costs:
 
-- `FULL_LONG_PCT=0.94`
+- `FULL_LONG_PCT=0.92`
 - `REDUCED_PCT=0.576`
 - `REDUCED_HIGH_PCT=0.576`
 - `REDUCED_LOW_PCT=0.00`
@@ -41,27 +41,27 @@ Current DD<15 autoresearch candidate under dynamic slippage and taker-fee costs:
 - `MICRO_ENTER_FULL_THRESHOLD=0.52`
 - `MICRO_EXIT_FULL_THRESHOLD=0.46`
 - `MICRO_REDUCED_THRESHOLD=0.40`
-- `MAX_MACRO_DRAWDOWN=0.10`
-- `STATE_CONFIRM_BARS=2`
+- `MAX_MACRO_DRAWDOWN=0.07`
+- `STATE_CONFIRM_BARS=4`
 - `MIN_STATE_HOLD_BARS=1`
 - `MIN_REBALANCE_FRACTION=0.12`
 
 Observed targeted-search result:
 
-- objective: `54144.94`
-- full-period excess return: `54168.46%`
-- full-period max drawdown: `13.52%`
-- test-period excess return: `77.05%`
+- objective: `54602.62`
+- full-period excess return: `54601.17%`
+- full-period max drawdown: `14.72%`
+- test-period excess return: `74.90%`
 
 Current default-parameter evaluation snapshot:
 
-- params: `FULL_LONG_PCT=0.94`, `REDUCED_PCT=0.576`, `REDUCED_HIGH_PCT=0.576`, `REDUCED_LOW_PCT=0.00`, `MACRO_FULL_THRESHOLD=0.58`, `MACRO_REDUCED_THRESHOLD=0.55`, `MICRO_FULL_THRESHOLD=0.50`, `MICRO_ENTER_FULL_THRESHOLD=0.52`, `MICRO_EXIT_FULL_THRESHOLD=0.46`, `MICRO_REDUCED_THRESHOLD=0.40`, `MAX_MACRO_DRAWDOWN=0.10`, `STATE_CONFIRM_BARS=2`, `MIN_STATE_HOLD_BARS=1`, `MIN_REBALANCE_FRACTION=0.12`
-- objective: `54144.94`
-- full-period excess return: `54168.46%`
-- full-period max drawdown: `13.52%`
-- full-period trades: `2524`
-- test-period excess return: `77.05%`
-- test-period max drawdown: `6.75%`
+- params: `FULL_LONG_PCT=0.92`, `REDUCED_PCT=0.576`, `REDUCED_HIGH_PCT=0.576`, `REDUCED_LOW_PCT=0.00`, `MACRO_FULL_THRESHOLD=0.58`, `MACRO_REDUCED_THRESHOLD=0.55`, `MICRO_FULL_THRESHOLD=0.50`, `MICRO_ENTER_FULL_THRESHOLD=0.52`, `MICRO_EXIT_FULL_THRESHOLD=0.46`, `MICRO_REDUCED_THRESHOLD=0.40`, `MAX_MACRO_DRAWDOWN=0.07`, `STATE_CONFIRM_BARS=4`, `MIN_STATE_HOLD_BARS=1`, `MIN_REBALANCE_FRACTION=0.12`
+- objective: `54602.62`
+- full-period excess return: `54601.17%`
+- full-period max drawdown: `14.72%`
+- full-period trades: `1238`
+- test-period excess return: `74.90%`
+- test-period max drawdown: `7.09%`
 
 Walk-forward validation snapshot for the current candidate:
 
