@@ -10,8 +10,8 @@ Changes from exp28 (ATR 5.5, score 9.382):
 import numpy as np
 from prepare import Signal, PortfolioState, BarData
 
-ACTIVE_SYMBOLS = ["BTC", "ETH", "SOL"]
-SYMBOL_WEIGHTS = {"BTC": 0.33, "ETH": 0.33, "SOL": 0.33}
+ACTIVE_SYMBOLS = ["BTC", "ETH", "SOL", "GOLD", "OIL"]
+SYMBOL_WEIGHTS = {"BTC": 0.2, "ETH": 0.2, "SOL": 0.2, "GOLD": 0.2, "OIL": 0.2}
 
 SHORT_WINDOW = 6
 MED_WINDOW = 12

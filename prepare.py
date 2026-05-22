@@ -33,15 +33,22 @@ MAX_LEVERAGE = 20              # max leverage allowed
 LOOKBACK_BARS = 500            # history buffer provided to strategy
 BAR_INTERVAL = "1h"
 
-SYMBOLS = ["BTC", "ETH", "SOL"]
+SYMBOLS = ["BTC", "ETH", "SOL", "GOLD", "OIL"]
 
-# Date splits (UTC timestamps)
-TRAIN_START = "2023-06-01"
-TRAIN_END = "2024-06-30"
-VAL_START = "2024-07-01"
-VAL_END = "2025-03-31"
-TEST_START = "2025-04-01"
-TEST_END = "2025-12-31"
+# HIP-3 builder-dex markets: repo symbol -> Hyperliquid dex-prefixed coin.
+# These commodities are not on CryptoCompare; their candles + funding come
+# from the Hyperliquid `xyz` perp dex (xyz:CL is WTI crude).
+HL_DEX_COINS = {"GOLD": "xyz:GOLD", "OIL": "xyz:CL"}
+
+# Date splits (UTC timestamps). Shifted to a recent window: the GOLD/OIL perps
+# on the xyz dex only have history from late 2025 onward (xyz:CL starts
+# 2026-01-06), so all five markets are evaluated over a common 2026 window.
+TRAIN_START = "2026-01-06"
+TRAIN_END = "2026-03-10"
+VAL_START = "2026-03-10"
+VAL_END = "2026-04-25"
+TEST_START = "2026-04-25"
+TEST_END = "2026-05-18"
 
 HOURS_PER_YEAR = 8760
 
@@ -233,21 +240,27 @@ def download_data(symbols=None):
             print(f"  {symbol}: already have {len(existing)} bars")
             continue
 
-        print(f"  {symbol}: downloading candles from CryptoCompare...")
-
-        # Use CryptoCompare for reliable historical OHLCV (no geo-restrictions)
-        df = _download_cryptocompare_candles(symbol, start_ms, end_ms)
-        if len(df) < 100:
-            print(f"  {symbol}: CryptoCompare insufficient ({len(df)} bars), trying HL...")
-            df = _download_hl_candles(symbol, "1h", start_ms, end_ms)
+        # Commodities (GOLD/OIL) live on the Hyperliquid xyz HIP-3 dex and are
+        # not on CryptoCompare; route them straight to the HL candle endpoint.
+        if symbol in HL_DEX_COINS:
+            hl_coin = HL_DEX_COINS[symbol]
+            print(f"  {symbol}: downloading {hl_coin} candles from Hyperliquid xyz dex...")
+            df = _download_hl_candles(hl_coin, "1h", start_ms, end_ms)
+        else:
+            print(f"  {symbol}: downloading candles from CryptoCompare...")
+            # Use CryptoCompare for reliable historical OHLCV (no geo-restrictions)
+            df = _download_cryptocompare_candles(symbol, start_ms, end_ms)
+            if len(df) < 100:
+                print(f"  {symbol}: CryptoCompare insufficient ({len(df)} bars), trying HL...")
+                df = _download_hl_candles(symbol, "1h", start_ms, end_ms)
 
         if df.empty:
             print(f"  {symbol}: NO DATA AVAILABLE, skipping")
             continue
 
-        # Download funding rates
+        # Download funding rates (dex-prefixed coin for HIP-3 markets)
         print(f"  {symbol}: downloading funding rates...")
-        funding = _download_hl_funding(symbol, start_ms, end_ms)
+        funding = _download_hl_funding(HL_DEX_COINS.get(symbol, symbol), start_ms, end_ms)
 
         # Merge
         df = df.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
